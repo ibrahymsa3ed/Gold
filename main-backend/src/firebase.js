@@ -1,0 +1,35 @@
+const fs = require("fs");
+const admin = require("firebase-admin");
+const config = require("./config");
+
+let initialized = false;
+
+function initFirebaseAdmin() {
+  if (initialized) return;
+
+  if (config.bypassAuth) {
+    initialized = true;
+    return;
+  }
+
+  if (config.firebaseServiceAccountPath) {
+    const raw = fs.readFileSync(config.firebaseServiceAccountPath, "utf-8");
+    const serviceAccount = JSON.parse(raw);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: config.firebaseProjectId || serviceAccount.project_id
+    });
+    initialized = true;
+    return;
+  }
+
+  admin.initializeApp({
+    projectId: config.firebaseProjectId || undefined
+  });
+  initialized = true;
+}
+
+module.exports = {
+  admin,
+  initFirebaseAdmin
+};

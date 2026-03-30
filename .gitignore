@@ -1,0 +1,9 @@
+# Root secrets
+*firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+*.p12
+*.key
+
+# Generic
+.DS_Store

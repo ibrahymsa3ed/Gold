@@ -1,0 +1,14 @@
+---
+description: Keep architecture and README docs synced with code changes
+alwaysApply: true
+---
+
+# Documentation Sync Rule
+
+- For every substantive code change, update documentation in the same task:
+  - `ARCHITECTURE.md` for design/flow/security changes.
+  - Root `README.md` for setup/run/deploy changes.
+  - Service-level README files when endpoint/env/behavior changes.
+- Keep docs accurate to current paths, env vars, API headers, and schedules.
+- If Git workflow or repository layout changes, update docs in the same edit.
+- Mention in final response which docs were updated.

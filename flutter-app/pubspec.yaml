@@ -1,0 +1,26 @@
+name: gold_family_app
+description: Flutter client for family gold tracking in Egypt
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_auth: ^5.4.0
+  firebase_core: ^3.10.0
+  flutter_local_notifications: ^18.0.1
+  google_sign_in: ^6.2.2
+  http: ^1.2.2
+  intl: ^0.20.2
+  sign_in_with_apple: ^6.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
