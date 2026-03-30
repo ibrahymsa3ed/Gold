@@ -99,6 +99,7 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 - Firebase login + backend token verification are wired.
 - Flutter dashboard supports member selection, asset CRUD, savings entries, goals with progress, zakat view, and company management.
 - UI is polished into tabbed sections for better navigation and readability.
+- Flutter codebase is split into `app.dart`, `screens/`, and `services/` for easier maintenance.
 
 ## CI/CD Suggestion
 

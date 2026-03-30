@@ -30,6 +30,23 @@ Flutter front-end for:
   - More (companies + settings)
 - Active member selector at top controls all member-scoped sections.
 
+## Code Structure
+
+```text
+lib/
+  main.dart
+  app.dart
+  l10n.dart
+  config.dart
+  screens/
+    login_screen.dart
+    dashboard_screen.dart
+  services/
+    auth_service.dart
+    api_service.dart
+    notifications_service.dart
+```
+
 ## Setup
 
 1. Install Flutter dependencies:

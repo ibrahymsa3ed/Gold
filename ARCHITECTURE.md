@@ -102,6 +102,10 @@ If scraper unavailable:
 - Settings (alerts hourly/six-hour, Arabic/English, dark/light)
 - Optional logs viewer for admin/dev
 
+Implementation note:
+
+- Flutter presentation is modularized into separate screen files to keep feature evolution maintainable.
+
 ### Data Access Rules
 
 - Flutter talks only to main backend.
