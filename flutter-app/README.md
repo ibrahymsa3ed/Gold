@@ -70,6 +70,15 @@ flutter run
   - Google
   - Apple
 
+If `android/` and `ios/` folders are missing, generate them and copy config files:
+
+```bash
+flutter create .
+cd ..
+./scripts/setup-firebase-files.sh
+cd flutter-app
+```
+
 4. Connect to backend:
 
 - Add API base URL:

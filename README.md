@@ -75,6 +75,17 @@ flutter run
 ./scripts/dev-up.sh
 ```
 
+### Firebase files helper
+
+After creating Flutter platform folders, copy Firebase files from repo root to Flutter targets:
+
+```bash
+cd flutter-app
+flutter create .
+cd ..
+./scripts/setup-firebase-files.sh
+```
+
 ## GitHub Repository
 
 Target repository: [ibrahymsa3ed/Gold](https://github.com/ibrahymsa3ed/Gold)

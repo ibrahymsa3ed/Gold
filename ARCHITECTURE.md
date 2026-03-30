@@ -136,4 +136,5 @@ Implementation note:
 - Use a single monorepo (`Gold`) for `scraper-service`, `main-backend`, and `flutter-app`.
 - Deploy/push from root via monorepo mode in `scripts/deploy.sh`.
 - Run scraper and main backend together with `scripts/dev-up.sh` for local development.
+- Use `scripts/setup-firebase-files.sh` to copy Firebase config files into Flutter platform folders.
 - Keep architecture and README docs synchronized with each substantive code change.
