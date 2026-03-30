@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n.dart';
 import 'screens/dashboard_screen.dart';
@@ -21,6 +22,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
 
   ThemeMode _themeMode = ThemeMode.system;
   Locale _locale = const Locale('en');
+  bool _devBypass = false;
 
   @override
   void initState() {
@@ -35,18 +37,26 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
       debugShowCheckedModeBanner: false,
       locale: _locale,
       supportedLocales: AppStrings.supportedLocales,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       themeMode: _themeMode,
       theme: ThemeData(colorSchemeSeed: Colors.amber, brightness: Brightness.light),
       darkTheme: ThemeData(colorSchemeSeed: Colors.amber, brightness: Brightness.dark),
       home: StreamBuilder<User?>(
         stream: _authService.authState,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return LoginScreen(authService: _authService);
+          if (!snapshot.hasData && !_devBypass) {
+            return LoginScreen(
+              authService: _authService,
+              onDevBypass: () => setState(() => _devBypass = true),
+            );
           }
           return DashboardScreen(
             authService: _authService,
-            apiService: ApiService(_authService),
+            apiService: _devBypass ? ApiService.devBypass() : ApiService(_authService),
             locale: _locale,
             themeMode: _themeMode,
             notificationsService: _notificationsService,

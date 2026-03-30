@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const config = require("./config");
 const { initDb, all, get, run } = require("./db");
 const { logEntry } = require("./logger");
@@ -9,6 +10,7 @@ const { initFirebaseAdmin } = require("./firebase");
 const { requireAuth, upsertUserFromClaims } = require("./authMiddleware");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 async function getMemberForUser(memberId, userId) {
@@ -99,6 +101,31 @@ app.post("/api/members", requireAuth, async (req, res) => {
   await logEntry({ action: "MEMBER_CREATED", details: `user_id=${req.user.id} name=${name}` });
   const members = await all(`SELECT * FROM FamilyMembers WHERE user_id = ? ORDER BY id DESC`, [req.user.id]);
   return res.status(201).json(members[0]);
+});
+
+app.put("/api/members/:memberId", requireAuth, async (req, res) => {
+  const member = await getMemberForUser(req.params.memberId, req.user.id);
+  if (!member) return res.status(404).json({ message: "Member not found." });
+  const { name, relation } = req.body;
+  if (!name) return res.status(400).json({ message: "name is required." });
+  await run(
+    `UPDATE FamilyMembers SET name = ?, relation = ? WHERE id = ? AND user_id = ?`,
+    [name, relation ?? member.relation, member.id, req.user.id]
+  );
+  await logEntry({ action: "MEMBER_UPDATED", details: `member_id=${member.id}` });
+  const updated = await get(`SELECT * FROM FamilyMembers WHERE id = ?`, [member.id]);
+  return res.json(updated);
+});
+
+app.delete("/api/members/:memberId", requireAuth, async (req, res) => {
+  const member = await getMemberForUser(req.params.memberId, req.user.id);
+  if (!member) return res.status(404).json({ message: "Member not found." });
+  await run(`DELETE FROM Assets WHERE member_id = ?`, [member.id]);
+  await run(`DELETE FROM Savings WHERE member_id = ?`, [member.id]);
+  await run(`DELETE FROM PurchaseGoals WHERE member_id = ?`, [member.id]);
+  await run(`DELETE FROM FamilyMembers WHERE id = ?`, [member.id]);
+  await logEntry({ action: "MEMBER_DELETED", details: `member_id=${member.id}` });
+  return res.json({ success: true });
 });
 
 app.get("/api/members/:memberId/assets", requireAuth, async (req, res) => {
@@ -340,10 +367,12 @@ app.post("/api/members/:memberId/savings", requireAuth, async (req, res) => {
   if (!member) return res.status(404).json({ message: "Member not found." });
   const amount = Number(req.body.amount || 0);
   if (!amount) return res.status(400).json({ message: "amount is required." });
-  await run(`INSERT INTO Savings (member_id, amount, currency, created_at) VALUES (?, ?, ?, ?)`, [
+  await run(`INSERT INTO Savings (member_id, amount, currency, target_type, target_karat, created_at) VALUES (?, ?, ?, ?, ?, ?)`, [
     member.id,
     amount,
     req.body.currency || "EGP",
+    req.body.target_type || null,
+    req.body.target_karat || null,
     new Date().toISOString()
   ]);
   await logEntry({ action: "SAVING_ADDED", details: `member_id=${member.id} amount=${amount}` });

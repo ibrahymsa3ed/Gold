@@ -69,6 +69,14 @@ flutter run
   - Email/Password
   - Google
   - Apple
+- Web startup uses `lib/firebase_options.dart` for Firebase initialization.
+
+Auth troubleshooting checklist:
+
+- Firebase Authentication providers must be enabled (`Email/Password`, `Google`, optionally `Apple`).
+- Add `localhost` and `127.0.0.1` to Firebase Authentication authorized domains for web sign-in.
+- If Google popup is blocked, allow popups for localhost.
+- Web Google sign-in now falls back to redirect flow when popup closes/blocks.
 
 If `android/` and `ios/` folders are missing, generate them and copy config files:
 

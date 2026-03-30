@@ -92,6 +92,8 @@ async function initDb() {
       member_id INTEGER NOT NULL,
       amount REAL NOT NULL,
       currency TEXT DEFAULT 'EGP',
+      target_type TEXT DEFAULT NULL,
+      target_karat TEXT DEFAULT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -145,6 +147,8 @@ async function initDb() {
   await ensureColumn("Users", "firebase_uid", "TEXT");
   await ensureColumn("FamilyMembers", "user_id", "INTEGER");
   await ensureColumn("Assets", "member_id", "INTEGER");
+  await ensureColumn("Savings", "target_type", "TEXT");
+  await ensureColumn("Savings", "target_karat", "TEXT");
 
   await run(`CREATE INDEX IF NOT EXISTS idx_members_user ON FamilyMembers (user_id)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_assets_member ON Assets (member_id)`);

@@ -93,8 +93,10 @@ If scraper unavailable:
 
 - Login/Auth (email/password + Google + Apple)
 - Home dashboard with tabbed layout (overview/assets/savings-goals/more)
-- Family members list + per-member page
-- Assets list with create/edit/delete forms
+- Overview: karat prices in ingot-shaped cards (21k hero), gold pound in coin shape, global ounce in rose-gold coin shape
+- Family members list + per-member page (inline edit/delete)
+- Assets list with shaped cards per type: ring (oval), necklace (pendant), bracelet (rounded pill), coins (circle), ingot (trapezoid)
+- Asset types: Ring, Necklace, Bracelet, Coins, Ingot, Other (jewellery sub-types selectable at creation)
 - Savings entries and totals
 - Goals with progress bars and saved-amount update
 - Zakat calculator page
@@ -105,6 +107,9 @@ If scraper unavailable:
 Implementation note:
 
 - Flutter presentation is modularized into separate screen files to keep feature evolution maintainable.
+- Firebase bootstrapping uses explicit options in `flutter-app/lib/firebase_options.dart` for web/native startup consistency.
+- Web OAuth sign-in uses Firebase popup providers (`GoogleAuthProvider` / `OAuthProvider`) to align with browser flow.
+- Web Google auth falls back to redirect when popup flow is blocked/closed by browser policies.
 
 ### Data Access Rules
 

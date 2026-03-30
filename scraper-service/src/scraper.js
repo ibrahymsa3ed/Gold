@@ -10,29 +10,7 @@ function parseNumber(value) {
   if (!value) return null;
   const normalized = String(value).replace(/[^\d.,]/g, "").replace(/,/g, "");
   const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function findPriceNearText($, label) {
-  let found = null;
-  $("body *").each((_, el) => {
-    const text = $(el).text().trim();
-    if (!text || !text.includes(label)) return;
-    const nextText = $(el).parent().text();
-    const match = nextText.match(/(\d[\d,.]+)/);
-    if (match) {
-      found = parseNumber(match[1]);
-      return false;
-    }
-    return undefined;
-  });
-  return found;
-}
-
-function extractWithRegex(html, pattern) {
-  const match = html.match(pattern);
-  if (!match || !match[1]) return null;
-  return parseNumber(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parsePrices(html) {
@@ -45,19 +23,57 @@ function parsePrices(html) {
     currency: "EGP"
   };
 
-  CARATS.forEach((carat) => {
-    const buy = findPriceNearText($, `${carat} عيار`) || extractWithRegex(html, new RegExp(`${carat}\\D{0,30}(\\d[\\d,.]+)`, "i"));
-    const sell = findPriceNearText($, `${carat} بيع`) || buy;
-    output.carats[carat] = { buy, sell };
+  $(".price-item").each((_, el) => {
+    const label = $(el).find("span").first().text().trim();
+    const numberFonts = $(el).find(".number-font");
+
+    CARATS.forEach((carat) => {
+      if (label.includes(`عيار ${carat}`) || label.includes(`${carat}`)) {
+        if (output.carats[carat]) return;
+        const values = [];
+        numberFonts.each((__, numEl) => {
+          values.push(parseNumber($(numEl).text()));
+        });
+        const parentText = $(el).text();
+        let sell = values[0];
+        let buy = values[1] || values[0];
+        if (parentText.indexOf("شراء") < parentText.indexOf("بيع") && values.length >= 2) {
+          buy = values[0];
+          sell = values[1];
+        }
+        output.carats[carat] = { buy, sell };
+      }
+    });
+
+    if (label.includes("الجنيه الذهب")) {
+      const val = numberFonts.length > 0 ? parseNumber($(numberFonts[0]).text()) : null;
+      if (val) output.goldPoundPrice = val;
+    }
+
+    if (label.includes("الأوقية") || label.includes("الأونصة")) {
+      const val = numberFonts.length > 0 ? parseNumber($(numberFonts[0]).text()) : null;
+      if (val) output.ouncePrice = val;
+    }
   });
 
-  output.goldPoundPrice =
-    findPriceNearText($, "الجنيه الذهب") ||
-    extractWithRegex(html, /الجنيه الذهب\D{0,40}(\d[\d,.]+)/i);
-
-  output.ouncePrice =
-    findPriceNearText($, "الأونصة") ||
-    extractWithRegex(html, /(?:الأونصة|ounce)\D{0,40}(\d[\d,.]+)/i);
+  if (Object.keys(output.carats).length === 0) {
+    const ldJson = $('script[type="application/ld+json"]').html();
+    if (ldJson) {
+      try {
+        const data = JSON.parse(ldJson);
+        const props = data.additionalProperty || [];
+        props.forEach((prop) => {
+          CARATS.forEach((carat) => {
+            if (prop.name && prop.name.includes(`عيار ${carat}`) && prop.name.includes("بيع")) {
+              output.carats[carat] = output.carats[carat] || {};
+              output.carats[carat].sell = parseNumber(prop.value);
+              output.carats[carat].buy = output.carats[carat].buy || output.carats[carat].sell;
+            }
+          });
+        });
+      } catch (_) { /* ignore parse errors */ }
+    }
+  }
 
   return output;
 }

@@ -111,6 +111,9 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 - Flutter dashboard supports member selection, asset CRUD, savings entries, goals with progress, zakat view, and company management.
 - UI is polished into tabbed sections for better navigation and readability.
 - Flutter codebase is split into `app.dart`, `screens/`, and `services/` for easier maintenance.
+- Firebase initialization uses `flutter-app/lib/firebase_options.dart` so web/native startup works reliably.
+- Web Google sign-in uses Firebase popup flow with clearer error messages for Firebase config issues.
+- Web auth includes popup-to-redirect fallback to handle popup auto-close/browser policy issues.
 
 ## CI/CD Suggestion
 

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Firebase Auth Test</title>
+  <style>
+    body { font-family: system-ui; max-width: 600px; margin: 40px auto; padding: 0 20px; background: #1a1a1a; color: #e0e0e0; }
+    button { padding: 10px 20px; margin: 6px 4px; cursor: pointer; border: 1px solid #555; background: #333; color: #e0e0e0; border-radius: 6px; font-size: 14px; }
+    button:hover { background: #444; }
+    #log { white-space: pre-wrap; background: #111; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; min-height: 200px; max-height: 500px; overflow-y: auto; margin-top: 16px; border: 1px solid #333; }
+    .success { color: #4caf50; }
+    .error { color: #f44336; }
+    .info { color: #2196f3; }
+    h1 { color: #d4a844; }
+    input { padding: 8px; margin: 4px; background: #222; border: 1px solid #555; color: #e0e0e0; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Firebase Auth Diagnostic</h1>
+
+  <div>
+    <input id="email" placeholder="Email" value="test@gold.com">
+    <input id="password" placeholder="Password" type="password" value="Test123456">
+  </div>
+  <div>
+    <button onclick="testEmailSignUp()">Email Sign Up</button>
+    <button onclick="testEmailSignIn()">Email Sign In</button>
+    <button onclick="testGooglePopup()">Google (Popup)</button>
+    <button onclick="testGoogleRedirect()">Google (Redirect)</button>
+    <button onclick="checkRedirectResult()">Check Redirect Result</button>
+    <button onclick="signOut()">Sign Out</button>
+  </div>
+  <div id="log"></div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signInWithPopup,
+      signInWithRedirect,
+      getRedirectResult,
+      GoogleAuthProvider,
+      signOut as fbSignOut,
+      onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBioWOL4h6RgLUiXyC1Smgiwpqahm_g7tY",
+      authDomain: "goldcalculate.firebaseapp.com",
+      projectId: "goldcalculate",
+      storageBucket: "goldcalculate.firebasestorage.app",
+      messagingSenderId: "190629243449",
+      appId: "1:190629243449:web:73ad8df5886d2ea4e6bbe8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    const logEl = document.getElementById('log');
+    function log(msg, cls = 'info') {
+      const ts = new Date().toLocaleTimeString();
+      logEl.innerHTML += `<span class="${cls}">[${ts}] ${msg}</span>\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    log('Firebase initialized. Project: ' + firebaseConfig.projectId);
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        log(`AUTH STATE: Signed in as ${user.email} (uid: ${user.uid})`, 'success');
+      } else {
+        log('AUTH STATE: Not signed in');
+      }
+    });
+
+    getRedirectResult(auth).then((result) => {
+      if (result && result.user) {
+        log(`REDIRECT RESULT: Signed in as ${result.user.email}`, 'success');
+      }
+    }).catch((error) => {
+      log(`REDIRECT RESULT ERROR: code=${error.code} message=${error.message}`, 'error');
+    });
+
+    window.testEmailSignUp = async () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      log(`Attempting email sign-up: ${email}...`);
+      try {
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        log(`Sign-up SUCCESS: ${result.user.email} uid=${result.user.uid}`, 'success');
+      } catch (error) {
+        log(`Sign-up FAILED: code=${error.code} message=${error.message}`, 'error');
+      }
+    };
+
+    window.testEmailSignIn = async () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      log(`Attempting email sign-in: ${email}...`);
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        log(`Sign-in SUCCESS: ${result.user.email} uid=${result.user.uid}`, 'success');
+      } catch (error) {
+        log(`Sign-in FAILED: code=${error.code} message=${error.message}`, 'error');
+      }
+    };
+
+    window.testGooglePopup = async () => {
+      log('Attempting Google sign-in (popup)...');
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        log(`Google popup SUCCESS: ${result.user.email} uid=${result.user.uid}`, 'success');
+      } catch (error) {
+        log(`Google popup FAILED: code=${error.code} message=${error.message}`, 'error');
+        if (error.customData) {
+          log(`  customData: ${JSON.stringify(error.customData)}`, 'error');
+        }
+      }
+    };
+
+    window.testGoogleRedirect = async () => {
+      log('Starting Google sign-in (redirect)...');
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (error) {
+        log(`Google redirect FAILED: code=${error.code} message=${error.message}`, 'error');
+      }
+    };
+
+    window.checkRedirectResult = async () => {
+      log('Checking redirect result...');
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          log(`Redirect result: ${result.user.email} uid=${result.user.uid}`, 'success');
+        } else {
+          log('No redirect result found.');
+        }
+      } catch (error) {
+        log(`Redirect result error: code=${error.code} message=${error.message}`, 'error');
+      }
+    };
+
+    window.signOut = async () => {
+      log('Signing out...');
+      await fbSignOut(auth);
+      log('Signed out.', 'success');
+    };
+  </script>
+</body>
+</html>

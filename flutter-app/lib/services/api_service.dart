@@ -6,10 +6,19 @@ import '../config.dart';
 import 'auth_service.dart';
 
 class ApiService {
-  ApiService(this._authService);
+  ApiService(this._authService) : _isDevBypass = false;
+
+  ApiService.devBypass()
+      : _authService = AuthService(),
+        _isDevBypass = true;
+
   final AuthService _authService;
+  final bool _isDevBypass;
 
   Future<Map<String, String>> _headers() async {
+    if (_isDevBypass) {
+      return {'Content-Type': 'application/json'};
+    }
     final token = await _authService.getIdToken();
     return {
       'Content-Type': 'application/json',
@@ -64,10 +73,16 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  Future<Map<String, dynamic>> createSession() async => _post('/api/auth/session', {});
+  Future<Map<String, dynamic>> createSession() async =>
+      (await _post('/api/auth/session', {})) as Map<String, dynamic>;
   Future<List<dynamic>> getMembers() async => (await _get('/api/members')) as List<dynamic>;
   Future<Map<String, dynamic>> addMember(String name, String relation) async =>
       (await _post('/api/members', {'name': name, 'relation': relation})) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> updateMember(int memberId, String name, String relation) async =>
+      (await _put('/api/members/$memberId', {'name': name, 'relation': relation})) as Map<String, dynamic>;
+  Future<void> deleteMember(int memberId) async {
+    await _delete('/api/members/$memberId');
+  }
   Future<Map<String, dynamic>> getCurrentPrices() async =>
       (await _get('/api/prices/current')) as Map<String, dynamic>;
   Future<Map<String, dynamic>> syncPrices() async =>
@@ -118,9 +133,14 @@ class ApiService {
 
   Future<Map<String, dynamic>> getSavings(int memberId) async =>
       (await _get('/api/members/$memberId/savings')) as Map<String, dynamic>;
-  Future<Map<String, dynamic>> addSaving(int memberId, double amount) async => (await _post(
+  Future<Map<String, dynamic>> addSaving(int memberId, double amount, {String? targetType, String? targetKarat}) async => (await _post(
         '/api/members/$memberId/savings',
-        {'amount': amount, 'currency': 'EGP'},
+        {
+          'amount': amount,
+          'currency': 'EGP',
+          if (targetType != null) 'target_type': targetType,
+          if (targetKarat != null) 'target_karat': targetKarat,
+        },
       )) as Map<String, dynamic>;
   Future<List<dynamic>> getGoals(int memberId) async =>
       (await _get('/api/members/$memberId/goals')) as List<dynamic>;

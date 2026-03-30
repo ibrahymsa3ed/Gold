@@ -26,7 +26,7 @@ module.exports = {
     process.env.SCRAPER_API_URL || "http://localhost:4100/api/gold-prices",
   scraperApiKey:
     process.env.SCRAPER_API_KEY || "gold_app_secret_ibrahym_2026",
-  priceSyncCron: process.env.PRICE_SYNC_CRON || "0 * * * *",
+  priceSyncCron: process.env.PRICE_SYNC_CRON || "*/10 * * * *",
   bypassAuth: process.env.BYPASS_AUTH === "true",
   firebaseServiceAccountPath:
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH || detectedServiceAccount,
