@@ -1,4 +1,4 @@
-# Main Backend (Gold Family App)
+# Main Backend (InstaGold / Gold Platform)
 
 Main API layer for users, family members, assets, savings, purchase goals, and cached gold prices consumed by Flutter.
 

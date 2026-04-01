@@ -28,10 +28,13 @@ app.get("/health", (_, res) => {
 
 app.get("/api/gold-prices", requireApiKey, async (req, res) => {
   try {
+    if (req.query.force === "true") {
+      await scrapeGoldPrices();
+    }
     const latest = await getLatestPrices();
     await writeLog({
       action: "API_GET_PRICES",
-      details: `${req.ip}`
+      details: `${req.ip} force=${req.query.force || "false"}`
     });
 
     if (!latest) {

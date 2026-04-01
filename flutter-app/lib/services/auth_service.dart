@@ -1,7 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
+final sharedGoogleSignIn = GoogleSignIn(
+  serverClientId: '190629243449-p8f2shp44omgprs7dlngst9sdnbe48ce.apps.googleusercontent.com',
+);
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -50,7 +53,7 @@ class AuthService {
         return;
       }
 
-      final googleUser = await GoogleSignIn().signIn();
+      final googleUser = await sharedGoogleSignIn.signIn();
       if (googleUser == null) return;
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -67,24 +70,9 @@ class AuthService {
     }
   }
 
-  Future<void> signInWithApple() async {
+  Future<void> sendPasswordReset(String email) async {
     try {
-      if (kIsWeb) {
-        final provider = OAuthProvider('apple.com');
-        provider.addScope('email');
-        provider.addScope('name');
-        await _auth.signInWithPopup(provider);
-        return;
-      }
-
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
-      );
-      final oauthCredential = OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        accessToken: appleCredential.authorizationCode,
-      );
-      await _auth.signInWithCredential(oauthCredential);
+      await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (error) {
       throw Exception(_friendlyAuthMessage(error));
     } on FirebaseException catch (error) {
@@ -99,6 +87,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await sharedGoogleSignIn.signOut();
     await _auth.signOut();
   }
 

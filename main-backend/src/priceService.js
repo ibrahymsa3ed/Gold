@@ -5,7 +5,7 @@ const { fetchScraperPrices } = require("./scraperClient");
 const { logEntry } = require("./logger");
 
 async function cachePrices(sourcePayload) {
-  const fetchedAt = sourcePayload.updated_at || new Date().toISOString();
+  const fetchedAt = new Date().toISOString();
   const inserts = [];
   Object.entries(sourcePayload.prices).forEach(([carat, values]) => {
     inserts.push(
@@ -26,9 +26,9 @@ async function cachePrices(sourcePayload) {
   await Promise.all(inserts);
 }
 
-async function syncFromScraper() {
+async function syncFromScraper({ force = false } = {}) {
   try {
-    const payload = await fetchScraperPrices();
+    const payload = await fetchScraperPrices({ force });
     await cachePrices(payload);
     await logEntry({
       action: "PRICE_SYNC_SUCCESS",

@@ -1,4 +1,4 @@
-# Flutter App (Gold Family Client)
+# Flutter App (InstaGold)
 
 Flutter front-end for:
 
@@ -11,11 +11,13 @@ Flutter front-end for:
 
 ## Implemented Phase 2 Scaffold
 
-- **Auth:** Firebase (`firebase_auth`) with email/password + Google + Apple
+- **Auth:** Firebase (`firebase_auth`) with email/password + Google
 - **Home:** buy/sell prices + gold pound + last update timestamp from backend `GoldPriceCache`
 - **Family members:** per-member pages and aggregated totals
 - **Assets:** create/edit/delete asset flows wired to backend
-- **Savings & goals:** add savings, create goals, and progress bars (saved vs remaining)
+- **Savings & goals:** add savings (amount only), edit/delete savings, create goals, and progress bars (saved vs remaining)
+- **Invoices:** optional attachment per asset (mobile); stored under app documents; bundled in zip backup
+- **Backup:** export/import `.zip` file on device (cross-platform JSON; invoices included in zip)
 - **Zakat:** apply 2.5% if 24k equivalent >= 85g
 - **Companies:** list and add custom companies
 - **Settings:** local notifications (hourly/six-hour), language, dark/light mode
@@ -30,6 +32,10 @@ Flutter front-end for:
   - More (companies + settings)
 - Active member selector at top controls all member-scoped sections.
 
+## UI rollback
+
+See repo-root **`ROLLBACK_UI.md`**. Quick path: set `kUiDesignVariant` to `UiDesignVariant.classic` in `lib/theme/ui_design_variant.dart`.
+
 ## Code Structure
 
 ```text
@@ -37,6 +43,9 @@ lib/
   main.dart
   app.dart
   l10n.dart
+  theme/
+    ui_design_variant.dart
+    app_themes.dart
   config.dart
   screens/
     login_screen.dart

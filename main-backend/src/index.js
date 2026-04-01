@@ -23,7 +23,21 @@ app.get("/health", (_, res) => {
 
 app.get("/api/prices/current", requireAuth, async (_, res) => {
   try {
-    const latest = await getLatestCachedPrices();
+    let latest = await getLatestCachedPrices();
+    if (latest) {
+      const ageMs = Date.now() - new Date(latest.updated_at).getTime();
+      if (ageMs > 10 * 60 * 1000) {
+        try {
+          await syncFromScraper({ force: true });
+          latest = await getLatestCachedPrices();
+        } catch (_) { /* use stale cache if sync fails */ }
+      }
+    } else {
+      try {
+        await syncFromScraper({ force: true });
+        latest = await getLatestCachedPrices();
+      } catch (_) {}
+    }
     await logEntry({ action: "API_GET_CURRENT_PRICES" });
     if (!latest) return res.status(404).json({ message: "No cached prices yet." });
     return res.json(latest);
@@ -35,7 +49,7 @@ app.get("/api/prices/current", requireAuth, async (_, res) => {
 
 app.post("/api/prices/sync", async (_, res) => {
   try {
-    const payload = await syncFromScraper();
+    const payload = await syncFromScraper({ force: true });
     return res.json({ message: "Price cache updated.", payload });
   } catch (error) {
     return res.status(500).json({ message: "Sync failed", error: error.message });
@@ -146,16 +160,17 @@ app.post("/api/members/:memberId/assets", requireAuth, async (req, res) => {
     company_id = null,
     weight_g,
     purchase_price,
-    purchase_date
+    purchase_date,
+    invoice_local_path = null
   } = req.body;
   if (!asset_type || !karat || !weight_g || !purchase_price || !purchase_date) {
     return res.status(400).json({ message: "Missing required asset fields." });
   }
 
   await run(
-    `INSERT INTO Assets (member_id, asset_type, karat, company_id, weight_g, purchase_price, purchase_date, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [member.id, asset_type, karat, company_id, weight_g, purchase_price, purchase_date, new Date().toISOString()]
+    `INSERT INTO Assets (member_id, asset_type, karat, company_id, weight_g, purchase_price, purchase_date, invoice_local_path, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [member.id, asset_type, karat, company_id, weight_g, purchase_price, purchase_date, invoice_local_path, new Date().toISOString()]
   );
   await logEntry({ action: "ASSET_CREATED", details: `member_id=${member.id}` });
   const assets = await all(`SELECT * FROM Assets WHERE member_id = ? ORDER BY id DESC`, [member.id]);
@@ -171,9 +186,12 @@ app.put("/api/assets/:assetId", requireAuth, async (req, res) => {
   );
   if (!asset) return res.status(404).json({ message: "Asset not found." });
 
+  const invPath = Object.prototype.hasOwnProperty.call(req.body, "invoice_local_path")
+    ? req.body.invoice_local_path
+    : asset.invoice_local_path
   await run(
     `UPDATE Assets
-     SET asset_type = ?, karat = ?, company_id = ?, weight_g = ?, purchase_price = ?, purchase_date = ?
+     SET asset_type = ?, karat = ?, company_id = ?, weight_g = ?, purchase_price = ?, purchase_date = ?, invoice_local_path = ?
      WHERE id = ?`,
     [
       req.body.asset_type || asset.asset_type,
@@ -182,6 +200,7 @@ app.put("/api/assets/:assetId", requireAuth, async (req, res) => {
       req.body.weight_g || asset.weight_g,
       req.body.purchase_price || asset.purchase_price,
       req.body.purchase_date || asset.purchase_date,
+      invPath,
       asset.id
     ]
   );
@@ -378,6 +397,35 @@ app.post("/api/members/:memberId/savings", requireAuth, async (req, res) => {
   await logEntry({ action: "SAVING_ADDED", details: `member_id=${member.id} amount=${amount}` });
   const rows = await all(`SELECT * FROM Savings WHERE member_id = ? ORDER BY id DESC`, [member.id]);
   return res.status(201).json(rows[0]);
+});
+
+app.put("/api/savings/:savingId", requireAuth, async (req, res) => {
+  const row = await get(
+    `SELECT s.id FROM Savings s
+     INNER JOIN FamilyMembers m ON m.id = s.member_id
+     WHERE s.id = ? AND m.user_id = ?`,
+    [req.params.savingId, req.user.id]
+  );
+  if (!row) return res.status(404).json({ message: "Saving not found." });
+  const amount = Number(req.body.amount);
+  if (!amount || amount <= 0) return res.status(400).json({ message: "amount is required." });
+  await run(`UPDATE Savings SET amount = ? WHERE id = ?`, [amount, req.params.savingId]);
+  await logEntry({ action: "SAVING_UPDATED", details: `saving_id=${req.params.savingId}` });
+  const updated = await get(`SELECT * FROM Savings WHERE id = ?`, [req.params.savingId]);
+  return res.json(updated);
+});
+
+app.delete("/api/savings/:savingId", requireAuth, async (req, res) => {
+  const row = await get(
+    `SELECT s.id FROM Savings s
+     INNER JOIN FamilyMembers m ON m.id = s.member_id
+     WHERE s.id = ? AND m.user_id = ?`,
+    [req.params.savingId, req.user.id]
+  );
+  if (!row) return res.status(404).json({ message: "Saving not found." });
+  await run(`DELETE FROM Savings WHERE id = ?`, [req.params.savingId]);
+  await logEntry({ action: "SAVING_DELETED", details: `saving_id=${req.params.savingId}` });
+  return res.json({ success: true });
 });
 
 async function bootstrap() {

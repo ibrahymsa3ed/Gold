@@ -3,15 +3,19 @@ function normalizeKarat(karat) {
   return match ? Number(match[0]) : 24;
 }
 
-function getPriceForKarat(latestPriceMap, karat) {
+function getBuyPriceForKarat(latestPriceMap, karat) {
   const numeric = normalizeKarat(karat);
   const key = `${numeric}k`;
   const row = latestPriceMap[key];
-  return row?.sell_price ?? row?.buy_price ?? 0;
+  return row?.buy_price ?? row?.sell_price ?? 0;
 }
 
 function to24kEquivalent(weightG, karat) {
   return (Number(weightG || 0) * normalizeKarat(karat)) / 24;
+}
+
+function to21kEquivalent(weightG, karat) {
+  return (Number(weightG || 0) * normalizeKarat(karat)) / 21;
 }
 
 function buildAssetSummary(assets, latestPriceMap) {
@@ -20,11 +24,12 @@ function buildAssetSummary(assets, latestPriceMap) {
     purchase_cost: 0,
     profit_loss: 0,
     total_weight_by_karat: {},
-    total_weight_24k_equivalent: 0
+    total_weight_24k_equivalent: 0,
+    total_weight_21k_equivalent: 0
   };
 
   assets.forEach((asset) => {
-    const marketPrice = getPriceForKarat(latestPriceMap, asset.karat);
+    const marketPrice = getBuyPriceForKarat(latestPriceMap, asset.karat);
     const weight = Number(asset.weight_g || 0);
     const purchasePrice = Number(asset.purchase_price || 0);
     const currentValue = marketPrice * weight;
@@ -32,6 +37,7 @@ function buildAssetSummary(assets, latestPriceMap) {
     summary.current_value += currentValue;
     summary.purchase_cost += purchasePrice;
     summary.total_weight_24k_equivalent += to24kEquivalent(weight, asset.karat);
+    summary.total_weight_21k_equivalent += to21kEquivalent(weight, asset.karat);
 
     const karatKey = String(asset.karat);
     summary.total_weight_by_karat[karatKey] =
@@ -43,7 +49,7 @@ function buildAssetSummary(assets, latestPriceMap) {
 }
 
 function calculateGoal({ targetWeightG, karat, savedAmount, latestPriceMap }) {
-  const pricePerGram = getPriceForKarat(latestPriceMap, karat);
+  const pricePerGram = getBuyPriceForKarat(latestPriceMap, karat);
   const targetPrice = pricePerGram * Number(targetWeightG || 0);
   const saved = Number(savedAmount || 0);
   return {

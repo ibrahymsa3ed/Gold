@@ -149,6 +149,7 @@ async function initDb() {
   await ensureColumn("Assets", "member_id", "INTEGER");
   await ensureColumn("Savings", "target_type", "TEXT");
   await ensureColumn("Savings", "target_karat", "TEXT");
+  await ensureColumn("Assets", "invoice_local_path", "TEXT");
 
   await run(`CREATE INDEX IF NOT EXISTS idx_members_user ON FamilyMembers (user_id)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_assets_member ON Assets (member_id)`);

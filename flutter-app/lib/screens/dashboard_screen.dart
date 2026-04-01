@@ -1,9 +1,16 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path/path.dart' as p;
 
 import '../l10n.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/backup_service.dart';
+import '../services/gold_scraper.dart';
+import '../services/invoice_attachment_service.dart';
 import '../services/notifications_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -39,13 +46,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _totalSaved = 0;
   Map<String, dynamic>? _prices;
   int? _selectedMemberId;
+  int? _defaultMemberId;
   Map<String, dynamic>? _summary;
   Map<String, dynamic>? _zakat;
+  double? _usdEgpRate;
   int _notificationInterval = 1;
   int _selectedTab = 0;
   bool _busy = false;
   bool _loading = true;
   final NumberFormat _currency = NumberFormat('#,##0.##');
+
+  List<String> _priceCardOrder = ['21k', '24k_18k', '14k', 'pound_ounce'];
 
   @override
   void initState() {
@@ -78,10 +89,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       Map<String, dynamic>? prices;
       try {
+        await widget.apiService.syncPrices();
+      } catch (_) { /* sync is best-effort */ }
+      try {
         prices = await widget.apiService.getCurrentPrices();
       } catch (e) {
         errors.add('Prices: ${_cleanErrorMessage(e)}');
       }
+
+      // Fetch exchange rate for دولار الصاغه (works on both web and mobile)
+      try {
+        final pricesMap = prices?['prices'] as Map<String, dynamic>? ?? {};
+        final rateFromCache = pricesMap['usd_egp_rate'] as Map<String, dynamic>?;
+        if (rateFromCache != null) {
+          _usdEgpRate = (rateFromCache['sell_price'] as num?)?.toDouble();
+        } else {
+          _usdEgpRate = await GoldScraper.fetchUsdEgpRate();
+        }
+      } catch (_) {}
 
       List<dynamic> members = [];
       try {
@@ -105,6 +130,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       double totalSaved = 0;
       int? selectedId;
       if (members.isNotEmpty) {
+        try {
+          final defaultId = await widget.apiService.getDefaultMemberId();
+          _defaultMemberId = defaultId;
+          if (_selectedMemberId == null && defaultId != null &&
+              members.any((m) => m['id'] == defaultId)) {
+            _selectedMemberId = defaultId;
+          }
+        } catch (_) {}
         selectedId = _selectedMemberId ?? members.first['id'] as int;
         try {
           final results = await Future.wait([
@@ -146,6 +179,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
           SnackBar(content: Text(errors.join(' | ')), duration: const Duration(seconds: 5)),
         );
       }
+      if (mounted && _members.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _members.isEmpty) _forceCreateMember();
+        });
+      }
+    }
+  }
+
+  Future<void> _forceCreateMember() async {
+    final name = TextEditingController();
+    final relation = TextEditingController();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text(AppStrings.t(context, 'add_member')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              AppStrings.t(context, 'first_member_hint'),
+              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: name, decoration: InputDecoration(labelText: AppStrings.t(context, 'name')),
+              autofocus: true),
+            TextField(controller: relation, decoration: InputDecoration(labelText: AppStrings.t(context, 'relation'))),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(AppStrings.t(context, 'save')),
+          ),
+        ],
+      ),
+    );
+    if (saved == true && name.text.trim().isNotEmpty) {
+      await _safeAction(() async {
+        final member = await widget.apiService.addMember(name.text.trim(), relation.text.trim());
+        await widget.apiService.setDefaultMemberId(member['id'] as int);
+        await _load();
+      });
+    } else if (_members.isEmpty) {
+      _forceCreateMember();
     }
   }
 
@@ -165,7 +244,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(isEdit ? 'Edit Member' : AppStrings.t(context, 'add_member')),
+        title: Text(isEdit ? AppStrings.t(context, 'edit_member') : AppStrings.t(context, 'add_member')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -183,13 +262,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text('Delete Member?'),
-                    content: Text('This will also delete all assets, savings and goals for "${existing['name']}".'),
+                    title: Text(AppStrings.t(context, 'confirm_delete')),
+                    content: Text(AppStrings.t(context, 'confirm_delete_msg')),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
                       TextButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                        child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
@@ -203,10 +282,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   });
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
             ),
           const Spacer(),
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
           ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
@@ -224,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   static const _mainAssetTypes = ['jewellery', 'coins', 'ingot'];
-  static const _jewellerySubTypes = ['ring', 'necklace', 'bracelet'];
+  static const _jewellerySubTypes = ['ring', 'necklace', 'bracelet', 'other'];
   static const _karatOptions = ['24k', '21k', '18k', '14k'];
   static const _defaultKarats = {'coins': '21k', 'ingot': '24k'};
 
@@ -256,19 +335,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final rawType = existing?['asset_type']?.toString() ?? 'ring';
     String selectedMainType = _mainTypeOf(rawType);
-    String selectedSubType = _jewellerySubTypes.contains(rawType) ? rawType : 'ring';
+    final bool isOtherJewellery = !_jewellerySubTypes.contains(rawType) && selectedMainType == 'jewellery' && existing != null;
+    String selectedSubType = _jewellerySubTypes.contains(rawType) ? rawType : (isOtherJewellery ? 'other' : 'ring');
+    final customName = TextEditingController(text: isOtherJewellery ? rawType : '');
     String selectedCoinSize = 'pound';
     String selectedIngotSize = '10g';
     String selectedKarat = existing?['karat']?.toString() ?? '21k';
     final weight = TextEditingController(text: existing?['weight_g']?.toString() ?? '');
     final purchasePrice = TextEditingController(text: existing?['purchase_price']?.toString() ?? '');
-    final purchaseDate = TextEditingController(
-      text: existing?['purchase_date']?.toString() ?? DateTime.now().toIso8601String().split('T').first,
-    );
+    DateTime selectedDate = DateTime.tryParse(existing?['purchase_date']?.toString() ?? '') ?? DateTime.now();
     int? companyId = existing?['company_id'] as int?;
     bool weightLocked = false;
+    String? invoicePath = existing?['invoice_local_path']?.toString();
+    var removeInvoice = false;
+    final invService = InvoiceAttachmentService();
 
-    String effectiveType() => selectedMainType == 'jewellery' ? selectedSubType : selectedMainType;
+    String effectiveType() {
+      if (selectedMainType == 'jewellery') {
+        return selectedSubType == 'other' ? (customName.text.trim().isEmpty ? 'other' : customName.text.trim()) : selectedSubType;
+      }
+      return selectedMainType;
+    }
 
     if (_defaultKarats.containsKey(selectedMainType) && existing == null) {
       selectedKarat = _defaultKarats[selectedMainType]!;
@@ -294,17 +381,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: Text(existing == null ? 'Add Asset' : 'Edit Asset'),
+            title: Text(existing == null ? AppStrings.t(context, 'add_asset') : AppStrings.t(context, 'edit_asset')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
                     value: selectedMainType,
-                    decoration: const InputDecoration(labelText: 'Asset type'),
+                    decoration: InputDecoration(labelText: AppStrings.t(context, 'asset_type')),
                     items: _mainAssetTypes.map((t) {
-                      final label = t == 'jewellery' ? 'Jewellery' : t == 'coins' ? 'Coins' : 'Ingot';
-                      return DropdownMenuItem(value: t, child: Text(label));
+                      return DropdownMenuItem(value: t, child: Text(AppStrings.t(context, t)));
                     }).toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -322,7 +408,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('jewellery_sub'),
                       value: selectedSubType,
-                      decoration: const InputDecoration(labelText: 'Jewellery type'),
+                      decoration: InputDecoration(labelText: AppStrings.t(context, 'jewellery_type')),
                       items: _jewellerySubTypes.map((t) {
                         return DropdownMenuItem(value: t, child: Text(_assetTypeLabel(t)));
                       }).toList(),
@@ -330,13 +416,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         if (value != null) setDialogState(() => selectedSubType = value);
                       },
                     ),
+                    if (selectedSubType == 'other') ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: customName,
+                        decoration: InputDecoration(labelText: AppStrings.t(context, 'custom_name')),
+                      ),
+                    ],
                   ],
                   if (selectedMainType == 'coins') ...[
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       key: const ValueKey('coin_size'),
                       value: selectedCoinSize,
-                      decoration: const InputDecoration(labelText: 'Coin size'),
+                      decoration: InputDecoration(labelText: AppStrings.t(context, 'coin_size')),
                       items: _coinSizes.entries.map((e) {
                         final g = (e.value['grams']! as num);
                         final suffix = g > 0 ? ' (${g}g)' : '';
@@ -354,7 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('ingot_size'),
                       value: selectedIngotSize,
-                      decoration: const InputDecoration(labelText: 'Ingot size'),
+                      decoration: InputDecoration(labelText: AppStrings.t(context, 'ingot_size')),
                       items: _ingotSizes.entries.map((e) {
                         return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}'));
                       }).toList(),
@@ -387,7 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     keyboardType: TextInputType.number,
                     readOnly: weightLocked,
                     decoration: InputDecoration(
-                      labelText: 'Weight (g)',
+                      labelText: AppStrings.t(context, 'weight_g'),
                       suffixIcon: weightLocked
                           ? const Icon(Icons.lock_outline, size: 18)
                           : null,
@@ -397,19 +490,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TextField(
                     controller: purchasePrice,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Purchase price (EGP)'),
+                    decoration: InputDecoration(labelText: AppStrings.t(context, 'purchase_price')),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: purchaseDate,
-                    decoration: const InputDecoration(labelText: 'Purchase date (YYYY-MM-DD)'),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => selectedDate = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'purchase_date'),
+                        suffixIcon: const Icon(Icons.calendar_today, size: 20),
+                      ),
+                      child: Text(selectedDate.toIso8601String().split('T').first),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int?>(
                     value: companyId,
-                    decoration: const InputDecoration(labelText: 'Company (optional)'),
+                    decoration: InputDecoration(labelText: AppStrings.t(context, 'company_optional')),
                     items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('None')),
+                      DropdownMenuItem<int?>(value: null, child: Text(AppStrings.t(context, 'none'))),
                       ..._companies.map((company) {
                         return DropdownMenuItem<int?>(
                           value: company['id'] as int,
@@ -419,11 +528,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                     onChanged: (value) => companyId = value,
                   ),
+                  if (!kIsWeb) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        AppStrings.t(context, 'attach_invoice'),
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            final r = await FilePicker.platform.pickFiles();
+                            if (r != null && r.files.isNotEmpty) {
+                              final path = await invService.copyPickedToAppStorage(r.files.single);
+                              setDialogState(() {
+                                invoicePath = path;
+                                removeInvoice = false;
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: Text(
+                            invoicePath != null && !removeInvoice
+                                ? p.basename(invoicePath!)
+                                : '—',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if ((invoicePath != null && !removeInvoice) ||
+                            (existing?['invoice_local_path'] != null && !removeInvoice && invoicePath == null))
+                          TextButton(
+                            onPressed: () => setDialogState(() {
+                              removeInvoice = true;
+                              invoicePath = null;
+                            }),
+                            child: Text(AppStrings.t(context, 'remove_attachment')),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
               ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
             ],
           );
@@ -445,19 +598,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
           karat: selectedKarat,
           weightG: weightValue,
           purchasePrice: purchaseValue,
-          purchaseDate: purchaseDate.text.trim(),
+          purchaseDate: selectedDate.toIso8601String().split('T').first,
           companyId: companyId,
+          invoiceLocalPath: kIsWeb ? null : invoicePath,
         );
       } else {
-        await widget.apiService.updateAsset(
-          assetId: existing['id'] as int,
-          assetType: finalType,
-          karat: selectedKarat,
-          weightG: weightValue,
-          purchasePrice: purchaseValue,
-          purchaseDate: purchaseDate.text.trim(),
-          companyId: companyId,
-        );
+        final oldInv = existing['invoice_local_path'] as String?;
+        if (!kIsWeb) {
+          if (removeInvoice && oldInv != null) {
+            await invService.deleteFileIfExists(oldInv);
+            await widget.apiService.updateAsset(
+              assetId: existing['id'] as int,
+              assetType: finalType,
+              karat: selectedKarat,
+              weightG: weightValue,
+              purchasePrice: purchaseValue,
+              purchaseDate: selectedDate.toIso8601String().split('T').first,
+              companyId: companyId,
+              clearInvoice: true,
+            );
+          } else if (invoicePath != null && invoicePath != oldInv) {
+            await invService.deleteFileIfExists(oldInv);
+            await widget.apiService.updateAsset(
+              assetId: existing['id'] as int,
+              assetType: finalType,
+              karat: selectedKarat,
+              weightG: weightValue,
+              purchasePrice: purchaseValue,
+              purchaseDate: selectedDate.toIso8601String().split('T').first,
+              companyId: companyId,
+              invoiceLocalPath: invoicePath,
+            );
+          } else {
+            await widget.apiService.updateAsset(
+              assetId: existing['id'] as int,
+              assetType: finalType,
+              karat: selectedKarat,
+              weightG: weightValue,
+              purchasePrice: purchaseValue,
+              purchaseDate: selectedDate.toIso8601String().split('T').first,
+              companyId: companyId,
+            );
+          }
+        } else {
+          await widget.apiService.updateAsset(
+            assetId: existing['id'] as int,
+            assetType: finalType,
+            karat: selectedKarat,
+            weightG: weightValue,
+            purchasePrice: purchaseValue,
+            purchaseDate: selectedDate.toIso8601String().split('T').first,
+            companyId: companyId,
+          );
+        }
       }
       await _load();
     });
@@ -466,125 +659,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _addSavingDialog() async {
     if (_selectedMemberId == null) return;
     final amount = TextEditingController();
-    String? savingTargetType;
-    String savingTargetKarat = '21k';
-    String savingSubType = 'ring';
-    String savingCoinSize = 'pound';
-    String savingIngotSize = '10g';
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text(AppStrings.t(context, 'add_saving')),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: amount,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'amount')),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String?>(
-                    value: savingTargetType,
-                    decoration: const InputDecoration(labelText: 'Saving target (optional)'),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('No target')),
-                      ..._mainAssetTypes.map((t) {
-                        final label = t == 'jewellery' ? 'Jewellery' : t == 'coins' ? 'Coins' : 'Ingot';
-                        return DropdownMenuItem<String?>(value: t, child: Text(label));
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        savingTargetType = value;
-                        if (value != null && _defaultKarats.containsKey(value)) {
-                          savingTargetKarat = _defaultKarats[value]!;
-                        }
-                      });
-                    },
-                  ),
-                  if (savingTargetType == 'jewellery') ...[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      key: const ValueKey('saving_jewellery_sub'),
-                      value: savingSubType,
-                      decoration: const InputDecoration(labelText: 'Jewellery type'),
-                      items: _jewellerySubTypes.map((t) {
-                        return DropdownMenuItem(value: t, child: Text(_assetTypeLabel(t)));
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) setDialogState(() => savingSubType = value);
-                      },
-                    ),
-                  ],
-                  if (savingTargetType == 'coins') ...[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      key: const ValueKey('saving_coin_size'),
-                      value: savingCoinSize,
-                      decoration: const InputDecoration(labelText: 'Coin size'),
-                      items: _coinSizes.entries.where((e) => e.key != 'manual').map((e) {
-                        final g = (e.value['grams']! as num);
-                        return DropdownMenuItem(value: e.key, child: Text('${e.value['label']} (${g}g)'));
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) setDialogState(() => savingCoinSize = value);
-                      },
-                    ),
-                  ],
-                  if (savingTargetType == 'ingot') ...[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      key: const ValueKey('saving_ingot_size'),
-                      value: savingIngotSize,
-                      decoration: const InputDecoration(labelText: 'Ingot size'),
-                      items: _ingotSizes.entries.where((e) => e.key != 'manual').map((e) {
-                        return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}'));
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) setDialogState(() => savingIngotSize = value);
-                      },
-                    ),
-                  ],
-                  if (savingTargetType != null) ...[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey('saving_karat_$savingTargetType'),
-                      value: savingTargetKarat,
-                      decoration: const InputDecoration(labelText: 'Target karat'),
-                      items: _karatOptions.map((k) => DropdownMenuItem(value: k, child: Text(k))).toList(),
-                      onChanged: (value) {
-                        if (value != null) setDialogState(() => savingTargetKarat = value);
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
-            ],
-          );
-        },
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.t(context, 'add_saving')),
+        content: TextField(
+          controller: amount,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(labelText: AppStrings.t(context, 'amount')),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
+        ],
       ),
     );
     if (saved != true) return;
     final value = double.tryParse(amount.text) ?? 0;
     if (value <= 0) return;
 
-    final effectiveTarget = savingTargetType == 'jewellery' ? savingSubType : savingTargetType;
     await _safeAction(() async {
-      await widget.apiService.addSaving(
-        _selectedMemberId!,
-        value,
-        targetType: effectiveTarget,
-        targetKarat: savingTargetType != null ? savingTargetKarat : null,
-      );
+      await widget.apiService.addSaving(_selectedMemberId!, value);
+      await _load();
+    });
+  }
+
+  Future<void> _editSavingDialog(Map<String, dynamic> entry) async {
+    final amount = TextEditingController(text: (entry['amount'] as num?)?.toString() ?? '');
+    final id = entry['id'] as int;
+
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.t(context, 'edit_saving')),
+        content: TextField(
+          controller: amount,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(labelText: AppStrings.t(context, 'amount')),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'delete'),
+            child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppStrings.t(context, 'cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, 'save'), child: Text(AppStrings.t(context, 'save'))),
+        ],
+      ),
+    );
+    if (result == null) return;
+    if (result == 'delete') {
+      await _safeAction(() async {
+        await widget.apiService.deleteSaving(id);
+        await _load();
+      });
+      return;
+    }
+    final value = double.tryParse(amount.text) ?? 0;
+    if (value <= 0) return;
+    await _safeAction(() async {
+      await widget.apiService.updateSaving(id, value);
       await _load();
     });
   }
@@ -593,6 +730,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_selectedMemberId == null) return;
     String goalMainType = 'jewellery';
     String goalSubType = 'ring';
+    final goalCustomName = TextEditingController();
     String goalCoinSize = 'pound';
     String goalIngotSize = '10g';
     String goalKarat = '21k';
@@ -619,17 +757,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: const Text('Add Goal'),
+            title: Text(AppStrings.t(context, 'add_goal')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
                     value: goalMainType,
-                    decoration: const InputDecoration(labelText: 'Goal type'),
+                    decoration: InputDecoration(labelText: AppStrings.t(context, 'goal_type')),
                     items: _mainAssetTypes.map((t) {
-                      final label = t == 'jewellery' ? 'Jewellery' : t == 'coins' ? 'Coins' : 'Ingot';
-                      return DropdownMenuItem(value: t, child: Text(label));
+                      return DropdownMenuItem(value: t, child: Text(AppStrings.t(context, t)));
                     }).toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -647,7 +784,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('goal_jewellery_sub'),
                       value: goalSubType,
-                      decoration: const InputDecoration(labelText: 'Jewellery type'),
+                      decoration: InputDecoration(labelText: AppStrings.t(context, 'jewellery_type')),
                       items: _jewellerySubTypes.map((t) {
                         return DropdownMenuItem(value: t, child: Text(_assetTypeLabel(t)));
                       }).toList(),
@@ -655,13 +792,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         if (value != null) setDialogState(() => goalSubType = value);
                       },
                     ),
+                    if (goalSubType == 'other') ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: goalCustomName,
+                        decoration: InputDecoration(labelText: AppStrings.t(context, 'custom_name')),
+                      ),
+                    ],
                   ],
                   if (goalMainType == 'coins') ...[
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       key: const ValueKey('goal_coin_size'),
                       value: goalCoinSize,
-                      decoration: const InputDecoration(labelText: 'Coin size'),
+                      decoration: InputDecoration(labelText: AppStrings.t(context, 'coin_size')),
                       items: _coinSizes.entries.map((e) {
                         final g = (e.value['grams']! as num);
                         final suffix = g > 0 ? ' (${g}g)' : '';
@@ -679,7 +823,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('goal_ingot_size'),
                       value: goalIngotSize,
-                      decoration: const InputDecoration(labelText: 'Ingot size'),
+                      decoration: InputDecoration(labelText: AppStrings.t(context, 'ingot_size')),
                       items: _ingotSizes.entries.map((e) {
                         return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}'));
                       }).toList(),
@@ -710,7 +854,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     keyboardType: TextInputType.number,
                     readOnly: goalWeightLocked,
                     decoration: InputDecoration(
-                      labelText: 'Target weight (g)',
+                      labelText: AppStrings.t(context, 'target_weight'),
                       suffixIcon: goalWeightLocked
                           ? const Icon(Icons.lock_outline, size: 18)
                           : null,
@@ -720,14 +864,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TextField(
                     controller: savedAmount,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Saved amount (EGP)'),
+                    decoration: InputDecoration(labelText: AppStrings.t(context, 'saved_amount')),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int?>(
                     value: companyId,
-                    decoration: const InputDecoration(labelText: 'Company (optional)'),
+                    decoration: InputDecoration(labelText: AppStrings.t(context, 'company_optional')),
                     items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('None')),
+                      DropdownMenuItem<int?>(value: null, child: Text(AppStrings.t(context, 'none'))),
                       ..._companies.map((company) => DropdownMenuItem<int?>(
                             value: company['id'] as int,
                             child: Text(company['name'].toString()),
@@ -739,7 +883,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
               ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
             ],
           );
@@ -764,14 +908,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Update Goal Saving'),
+        title: Text(AppStrings.t(context, 'update_saving')),
         content: TextField(
           controller: savedAmount,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Saved amount (EGP)'),
+          decoration: InputDecoration(labelText: AppStrings.t(context, 'saved_amount')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
           ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
@@ -791,10 +935,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Add Company'),
-        content: TextField(controller: name, decoration: const InputDecoration(labelText: 'Company name')),
+        title: Text(AppStrings.t(context, 'add_company')),
+        content: TextField(controller: name, decoration: InputDecoration(labelText: AppStrings.t(context, 'company_name'))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
           ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
@@ -813,165 +957,341 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return prices[karat] as Map<String, dynamic>?;
   }
 
-  Widget _ingotCard({
+  Widget _priceCard({
     required String label,
     required String karat,
     bool isHero = false,
     double? width,
+    List<Color>? gradientColors,
+    String? currencyOverride,
   }) {
     final data = _priceFor(karat);
     final buy = data != null ? _currency.format(data['buy_price']) : '—';
     final sell = data != null ? _currency.format(data['sell_price']) : '—';
-    final currency = data?['currency']?.toString() ?? 'EGP';
+    final currency = currencyOverride ?? data?['currency']?.toString() ?? 'EGP';
 
-    final height = isHero ? 170.0 : 130.0;
-    final labelSize = isHero ? 28.0 : 18.0;
-    final priceSize = isHero ? 32.0 : 20.0;
-    final subSize = isHero ? 14.0 : 12.0;
+    final height = isHero ? 120.0 : 100.0;
+    final labelSize = isHero ? 18.0 : 14.0;
+    final priceSize = isHero ? 22.0 : 16.0;
+    final subSize = isHero ? 11.0 : 10.0;
 
-    final goldGradient = isHero
-        ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFD4A844), Color(0xFFB8860B), Color(0xFF8B6914)],
-          )
-        : const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFC9983A), Color(0xFFA67C2E), Color(0xFF7A5B1E)],
-          );
+    final colors = gradientColors ??
+        (isHero
+            ? const [Color(0xFFD4B254), Color(0xFFC19A3E), Color(0xFFA07E2C)]
+            : const [Color(0xFFC9A64A), Color(0xFFB08E36), Color(0xFF8E7228)]);
 
     return SizedBox(
       width: width,
       height: height,
-      child: ClipPath(
-        clipper: _IngotClipper(),
-        child: Container(
-          decoration: BoxDecoration(gradient: goldGradient),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: colors,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: labelSize,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              '$sell $currency',
+              style: TextStyle(
+                fontSize: priceSize,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${widget.locale.languageCode == 'ar' ? 'شراء' : 'Buy'}: $buy',
+                  style: TextStyle(fontSize: subSize, color: Colors.white70),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: Container(width: 0.5, height: 8, color: Colors.white30),
+                ),
+                Text(
+                  '${widget.locale.languageCode == 'ar' ? 'بيع' : 'Sell'}: $sell',
+                  style: TextStyle(fontSize: subSize, color: Colors.white70),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _gapInfoCard() {
+    final data24k = _priceFor('24k');
+    final dataOunce = _priceFor('ounce');
+    if (data24k == null || dataOunce == null) return const SizedBox.shrink();
+
+    final local24kSell = (data24k['sell_price'] as num?)?.toDouble() ?? 0;
+    final ounceUsd = (dataOunce['sell_price'] as num?)?.toDouble() ?? 0;
+    if (ounceUsd <= 0 || local24kSell <= 0) return const SizedBox.shrink();
+
+    final global24kGramUsd = ounceUsd / 31.1035;
+    final jewellerDollar = local24kSell / global24kGramUsd;
+
+    final officialRate = _usdEgpRate;
+    double? egpDiff;
+    double? premiumPct;
+    bool isExpensive = false;
+    if (officialRate != null && officialRate > 0) {
+      final global24kInEgp = global24kGramUsd * officialRate;
+      egpDiff = local24kSell - global24kInEgp;
+      premiumPct = ((jewellerDollar - officialRate) / officialRate) * 100;
+      isExpensive = premiumPct > 0;
+    }
+
+    final gapColor = premiumPct != null
+        ? (isExpensive ? const Color(0xFFD32F2F) : const Color(0xFF388E3C))
+        : Theme.of(context).colorScheme.onSurface;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark
+        ? gapColor.withValues(alpha: 0.15)
+        : gapColor.withValues(alpha: 0.08);
+    final cardBorder = gapColor.withValues(alpha: isDark ? 0.3 : 0.2);
+
+    return GestureDetector(
+      onTap: () => _showGapExplanation(jewellerDollar, officialRate, premiumPct, egpDiff),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cardBorder, width: 0.5),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        AppStrings.t(context, 'jeweller_dollar'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: gapColor.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.info_outline_rounded, size: 14, color: gapColor.withValues(alpha: 0.45)),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    jewellerDollar.toStringAsFixed(2),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: gapColor.withValues(alpha: 0.8)),
+                  ),
+                ],
+              ),
+            ),
+            if (egpDiff != null)
+              Text(
+                '${egpDiff >= 0 ? '+' : ''}${_currency.format(egpDiff)}',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: gapColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (premiumPct != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: gapColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${premiumPct >= 0 ? '+' : ''}${premiumPct.toStringAsFixed(1)}%',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: gapColor),
+                      ),
+                    ),
+                  if (officialRate != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${AppStrings.t(context, 'official_rate')}: ${officialRate.toStringAsFixed(1)}',
+                      style: TextStyle(fontSize: 10, color: gapColor.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGapExplanation(double jewellerDollar, double? officialRate, double? premiumPct, double? egpDiff) {
+    final isAr = widget.locale.languageCode == 'ar';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? 'ما هو دولار الصاغة؟' : "What is the Jeweler's Dollar?"),
+        content: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                label,
-                style: TextStyle(
-                  fontSize: labelSize,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  shadows: const [Shadow(blurRadius: 4, color: Colors.black38)],
-                ),
+                isAr
+                    ? 'دولار الصاغة هو سعر الدولار الضمني المشتق من أسعار الذهب المحلية مقارنة بالسعر العالمي.'
+                    : "The Jeweler's Dollar is the implied USD/EGP exchange rate derived from local gold prices versus the global gold price.",
+                style: const TextStyle(fontSize: 14, height: 1.5),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 16),
               Text(
-                '$sell $currency',
-                style: TextStyle(
-                  fontSize: priceSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [Shadow(blurRadius: 3, color: Colors.black26)],
-                ),
+                isAr ? 'طريقة الحساب:' : 'How it\'s calculated:',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Buy: $buy', style: TextStyle(fontSize: subSize, color: Colors.white70)),
-                  Text('  |  ', style: TextStyle(fontSize: subSize, color: Colors.white38)),
-                  Text('Sell: $sell', style: TextStyle(fontSize: subSize, color: Colors.white70)),
-                ],
+              const SizedBox(height: 8),
+              _explanationRow(
+                isAr ? 'سعر الأونصة العالمي' : 'Global ounce price',
+                '${_priceFor('ounce')?['sell_price'] ?? '—'} USD',
+              ),
+              _explanationRow(
+                isAr ? 'سعر الجرام العالمي (÷ 31.1)' : 'Global gram price (÷ 31.1)',
+                '${(_priceFor('ounce')?['sell_price'] as num? ?? 0).toDouble() > 0 ? ((_priceFor('ounce')!['sell_price'] as num).toDouble() / 31.1035).toStringAsFixed(2) : '—'} USD',
+              ),
+              _explanationRow(
+                isAr ? 'سعر 24 قيراط المحلي' : 'Local 24K sell price',
+                '${_priceFor('24k')?['sell_price'] ?? '—'} EGP',
+              ),
+              const Divider(height: 20),
+              _explanationRow(
+                isAr ? 'دولار الصاغة = محلي ÷ عالمي' : "Jeweler's \$ = local ÷ global",
+                jewellerDollar.toStringAsFixed(2),
+                isBold: true,
+              ),
+              if (officialRate != null) ...[
+                _explanationRow(
+                  isAr ? 'السعر الرسمي' : 'Official rate',
+                  officialRate.toStringAsFixed(2),
+                ),
+                if (premiumPct != null)
+                  _explanationRow(
+                    isAr ? 'الفرق (علاوة/خصم)' : 'Gap (premium/discount)',
+                    '${premiumPct >= 0 ? '+' : ''}${premiumPct.toStringAsFixed(1)}%',
+                    valueColor: premiumPct > 0 ? const Color(0xFFD32F2F) : const Color(0xFF388E3C),
+                    isBold: true,
+                  ),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                isAr
+                    ? 'إذا كان دولار الصاغة أعلى من السعر الرسمي، فالذهب المحلي به علاوة سعرية. إذا أقل، فالذهب المحلي أرخص نسبياً.'
+                    : 'If the jeweler\'s dollar is above the official rate, local gold carries a premium. If below, local gold is relatively cheaper.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
               ),
             ],
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isAr ? 'حسناً' : 'Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _explanationRow(String label, String value, {Color? valueColor, bool isBold = false}) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+              color: valueColor ?? cs.onSurface,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _poundCard() {
-    final data = _priceFor('gold_pound_8g');
-    final price = data != null ? _currency.format(data['sell_price']) : '—';
-    return SizedBox(
-      height: 130,
-      child: ClipPath(
-        clipper: _CoinClipper(),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFD4A844), Color(0xFFB8860B), Color(0xFF8B6914)],
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Gold\nPound', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, height: 1.1,
-                    shadows: [Shadow(blurRadius: 4, color: Colors.black38)])),
-                const SizedBox(height: 4),
-                Text('$price EGP', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white,
-                    shadows: [Shadow(blurRadius: 3, color: Colors.black26)])),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _priceCard(
+      label: widget.locale.languageCode == 'ar' ? 'جنيه ذهب' : 'Gold Pound',
+      karat: 'gold_pound_8g',
+      gradientColors: const [Color(0xFFD4B254), Color(0xFFBE9A40), Color(0xFF9E7E2C)],
     );
   }
 
   Widget _ounceCard() {
-    final data = _priceFor('ounce');
-    final price = data != null ? _currency.format(data['sell_price']) : '—';
-    return SizedBox(
-      height: 130,
-      child: ClipPath(
-        clipper: _CoinClipper(),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFE8C4B8), Color(0xFFBF8070), Color(0xFF9B6155)],
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Global\nOunce', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, height: 1.1,
-                    shadows: [Shadow(blurRadius: 4, color: Colors.black38)])),
-                const SizedBox(height: 4),
-                Text('$price USD', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white,
-                    shadows: [Shadow(blurRadius: 3, color: Colors.black26)])),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _priceCard(
+      label: widget.locale.languageCode == 'ar' ? 'أونصة عالمية' : 'Global Ounce',
+      karat: 'ounce',
+      currencyOverride: 'USD',
+      gradientColors: const [Color(0xFFE0C45C), Color(0xFFCCAE3A), Color(0xFFAA9028)],
     );
   }
 
-
-
-  Widget _overviewTab() {
-    final updatedAt = _prices?['updated_at']?.toString() ?? '';
-    final timeLabel = updatedAt.isNotEmpty
-        ? updatedAt.split('T').last.split('.').first.substring(0, 5)
-        : '—';
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${AppStrings.t(context, 'live_prices')}  ($timeLabel)',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            TextButton.icon(
+  Widget _livePricesHeader(String timeLabel) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            AppStrings.t(context, 'live_prices'),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+          ),
+          const Spacer(),
+          Text(
+            timeLabel,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: IconButton(
               onPressed: _busy
                   ? null
                   : () => _safeAction(() async {
@@ -979,68 +1299,142 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         await _load();
                       }),
               icon: const Icon(Icons.refresh, size: 16),
-              label: Text(AppStrings.t(context, 'sync_prices')),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _ingotCard(label: '21 Karat', karat: '21k', isHero: true),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _ingotCard(label: '24K', karat: '24k')),
-            const SizedBox(width: 10),
-            Expanded(child: _ingotCard(label: '18K', karat: '18k')),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(child: _ingotCard(label: '14K', karat: '14k')),
-            const SizedBox(width: 10),
-            Expanded(child: _poundCard()),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Center(child: SizedBox(width: 180, child: _ounceCard())),
-        const SizedBox(height: 16),
-        if (_summary != null) ...[
-          _sectionCard(
-            title: 'Asset Summary',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _totalRow('Current value', '${_currency.format(_summary!['summary']['current_value'])} EGP'),
-                _totalRow('Purchase cost', '${_currency.format(_summary!['summary']['purchase_cost'])} EGP'),
-                _totalRow(
-                  'Profit/Loss',
-                  '${_currency.format(_summary!['summary']['profit_loss'])} EGP',
-                  valueColor: (_summary!['summary']['profit_loss'] as num) >= 0 ? Colors.green : Colors.red,
+              tooltip: AppStrings.t(context, 'sync_prices'),
+              padding: EdgeInsets.zero,
+              style: IconButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  width: 0.5,
                 ),
-                _totalRow('24k equivalent', '${_currency.format(_summary!['summary']['total_weight_24k_equivalent'])} g'),
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
         ],
-        if (_zakat != null)
-          _sectionCard(
-            title: AppStrings.t(context, 'zakat'),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _totalRow('Eligible', '${_zakat!['zakat']['eligible']}'),
-                _totalRow('Zakat due', '${_currency.format(_zakat!['zakat']['zakat_due'])} EGP'),
-                _totalRow(
-                  'Threshold / Current',
-                  '${_zakat!['zakat']['threshold_weight_24k']}g / '
-                  '${_currency.format(_zakat!['total_weight_24k_equivalent'])}g',
-                ),
-              ],
+      ),
+    );
+  }
+
+  Widget _priceCardForKey(String key) {
+    switch (key) {
+      case '21k':
+        return _priceCard(label: '21 Karat', karat: '21k', isHero: true);
+      case '24k_18k':
+        return Row(
+          children: [
+            Expanded(child: _priceCard(label: '24K', karat: '24k')),
+            const SizedBox(width: 8),
+            Expanded(child: _priceCard(label: '18K', karat: '18k')),
+          ],
+        );
+      case '14k':
+        return _priceCard(label: '14K', karat: '14k');
+      case 'pound_ounce':
+        return Row(
+          children: [
+            Expanded(child: _poundCard()),
+            const SizedBox(width: 8),
+            Expanded(child: _ounceCard()),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _overviewTab() {
+    final updatedAt = _prices?['updated_at']?.toString() ?? '';
+    String timeLabel = '—';
+    if (updatedAt.isNotEmpty) {
+      final parsed = DateTime.tryParse(updatedAt);
+      if (parsed != null) {
+        final local = parsed.toLocal();
+        timeLabel =
+            '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+      }
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: _livePricesHeader(timeLabel)),
+
+        SliverReorderableList(
+          itemCount: _priceCardOrder.length,
+          onReorder: (oldIndex, newIndex) {
+            setState(() {
+              if (newIndex > oldIndex) newIndex--;
+              final item = _priceCardOrder.removeAt(oldIndex);
+              _priceCardOrder.insert(newIndex, item);
+            });
+          },
+          itemBuilder: (context, index) {
+            final key = _priceCardOrder[index];
+            return ReorderableDragStartListener(
+              key: ValueKey(key),
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _priceCardForKey(key),
+              ),
+            );
+          },
+        ),
+
+        SliverToBoxAdapter(child: _gapInfoCard()),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+        if (_summary != null)
+          SliverToBoxAdapter(
+            child: _sectionCard(
+              title: AppStrings.t(context, 'asset_summary'),
+              child: Column(
+                children: [
+                  _totalRow(AppStrings.t(context, 'current_value'),
+                      '${_currency.format(_summary!['summary']['current_value'])} EGP'),
+                  _totalRow(AppStrings.t(context, 'purchase_cost'),
+                      '${_currency.format(_summary!['summary']['purchase_cost'])} EGP'),
+                  _totalRow(
+                    AppStrings.t(context, 'profit_loss'),
+                    '${(_summary!['summary']['profit_loss'] as num) >= 0 ? '+' : ''}${_currency.format(_summary!['summary']['profit_loss'])} EGP',
+                    valueColor: (_summary!['summary']['profit_loss'] as num) >= 0
+                        ? const Color(0xFF388E3C)
+                        : const Color(0xFFD32F2F),
+                  ),
+                  _totalRow(AppStrings.t(context, 'equivalent_21k'),
+                      '${_currency.format(_summary!['summary']['total_weight_21k_equivalent'] ?? 0)} g'),
+                  _totalRow(AppStrings.t(context, 'equivalent_24k'),
+                      '${_currency.format(_summary!['summary']['total_weight_24k_equivalent'])} g'),
+                ],
+              ),
             ),
           ),
+        if (_zakat != null)
+          SliverToBoxAdapter(
+            child: _sectionCard(
+              title: AppStrings.t(context, 'zakat'),
+              child: Column(
+                children: [
+                  _totalRow(AppStrings.t(context, 'eligible'),
+                      _zakat!['zakat']['eligible'] == true ? AppStrings.t(context, 'yes') : AppStrings.t(context, 'no')),
+                  _totalRow(AppStrings.t(context, 'zakat_due'),
+                      '${_currency.format(_zakat!['zakat']['zakat_due'])} EGP'),
+                  _totalRow(
+                    AppStrings.t(context, 'threshold_current'),
+                    '${_zakat!['zakat']['threshold_weight_24k']}g / '
+                    '${_currency.format(_zakat!['total_weight_24k_equivalent'])}g',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 20)),
       ],
     );
+  }
+
+  static int _karatNumber(String karat) {
+    final match = RegExp(r'\d+').firstMatch(karat);
+    return match != null ? int.parse(match.group(0)!) : 24;
   }
 
   Map<String, double> _gramsByKarat() {
@@ -1051,6 +1445,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       map[karat] = (map[karat] ?? 0) + weight;
     }
     return map;
+  }
+
+  double _totalIn21k() {
+    double total = 0;
+    for (final asset in _assets) {
+      final karat = asset['karat']?.toString() ?? '21k';
+      final weight = (asset['weight_g'] as num?)?.toDouble() ?? 0;
+      total += weight * _karatNumber(karat) / 21;
+    }
+    return total;
   }
 
   double _currentValueForAsset(Map<String, dynamic> asset) {
@@ -1078,53 +1482,85 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isPricesAvailable = _prices != null;
 
     return _sectionCard(
-      title: 'Portfolio Totals',
+      title: AppStrings.t(context, 'portfolio_totals'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isPricesAvailable) ...[
-            _totalRow('Current Value', '${_currency.format(totalCurrentValue)} EGP'),
-            _totalRow('Purchase Cost', '${_currency.format(totalPurchaseCost)} EGP'),
+            _totalRow(AppStrings.t(context, 'current_value'), '${_currency.format(totalCurrentValue)} EGP'),
+            _totalRow(AppStrings.t(context, 'purchase_cost'), '${_currency.format(totalPurchaseCost)} EGP'),
             _totalRow(
-              'Profit / Loss',
+              AppStrings.t(context, 'profit_loss'),
               '${profitLoss >= 0 ? '+' : ''}${_currency.format(profitLoss)} EGP',
               valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
             ),
             if (totalPurchaseCost > 0)
               _totalRow(
-                'Return',
+                AppStrings.t(context, 'return_pct'),
                 '${(profitLoss / totalPurchaseCost * 100).toStringAsFixed(1)}%',
                 valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
               ),
           ] else
-            const Text('Prices unavailable - values approximate'),
-          const Divider(),
-          Text('Weight by Karat', style: Theme.of(context).textTheme.labelLarge),
+            Text(AppStrings.t(context, 'prices_unavailable')),
+          _thinDivider(),
+          Text(
+            AppStrings.t(context, 'weight_by_karat'),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
           const SizedBox(height: 4),
           ...gramsByKarat.entries.map(
             (e) => _totalRow(e.key, '${_currency.format(e.value)} g'),
           ),
+          _thinDivider(),
           _totalRow(
-            'Total',
-            '${_currency.format(gramsByKarat.values.fold(0.0, (a, b) => a + b))} g',
+            AppStrings.t(context, 'total_all_21k'),
+            '${_currency.format(_totalIn21k())} g',
           ),
         ],
       ),
     );
   }
 
-  Widget _totalRow(String label, String value, {Color? valueColor}) {
+  Widget _thinDivider() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Divider(
+        height: 0.5,
+        thickness: 0.5,
+        color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+      ),
+    );
+  }
+
+  Widget _totalRow(String label, String value, {Color? valueColor}) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
-          Text(label),
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.25,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Text(
             value,
+            textAlign: TextAlign.end,
             style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: valueColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: valueColor ?? cs.onSurface,
             ),
           ),
         ],
@@ -1133,130 +1569,260 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _assetTypeLabel(String type) {
-    switch (type) {
-      case 'ring': return 'Ring';
-      case 'necklace': return 'Necklace';
-      case 'bracelet': return 'Bracelet';
-      case 'coins': return 'Coins';
-      case 'ingot': return 'Ingot';
-      case 'jewellery': return 'Jewellery';
-      default: return type;
-    }
+    return AppStrings.t(context, type);
   }
 
-  CustomClipper<Path> _clipperForType(String type) {
-    switch (type) {
-      case 'coins': return _CoinClipper();
-      case 'ingot': return _IngotClipper();
-      case 'ring': return _RingClipper();
-      case 'necklace': return _NecklaceClipper();
-      case 'bracelet': return _BraceletClipper();
-      default: return _IngotClipper();
-    }
-  }
 
-  List<Color> _gradientForType(String type) {
-    switch (type) {
-      case 'coins':
-        return const [Color(0xFFD4A844), Color(0xFFBFA23A), Color(0xFF8B6914)];
-      case 'ingot':
-        return const [Color(0xFFC9983A), Color(0xFFA67C2E), Color(0xFF7A5B1E)];
-      case 'ring':
-        return const [Color(0xFFE8D5A3), Color(0xFFD4A844), Color(0xFFA67C2E)];
-      case 'necklace':
-        return const [Color(0xFFF0E0B0), Color(0xFFD4A844), Color(0xFF9B7A2F)];
-      case 'bracelet':
-        return const [Color(0xFFE8C880), Color(0xFFCCA840), Color(0xFF8B6914)];
-      default:
-        return const [Color(0xFFC9983A), Color(0xFFA67C2E), Color(0xFF7A5B1E)];
-    }
-  }
+  static const _assetImageMap = {
+    'ring': 'assets/icons/ring.png',
+    'necklace': 'assets/icons/necklace.png',
+    'bracelet': 'assets/icons/bracelet.png',
+    'coins': 'assets/icons/coin.png',
+    'ingot': 'assets/icons/ingot.png',
+  };
 
-  Widget _assetShapeIcon(String type, {double size = 36}) {
-    return SizedBox(
+  static const _assetIconData = <String, IconData>{
+    'ring': Icons.circle_outlined,
+    'necklace': Icons.auto_awesome,
+    'bracelet': Icons.panorama_fish_eye,
+    'coins': Icons.paid_outlined,
+    'ingot': Icons.account_balance_outlined,
+    'other': Icons.diamond_outlined,
+  };
+
+  Widget _assetCircleIcon(String type, {double size = 44}) {
+    final assetPath = _assetImageMap[type];
+    if (assetPath != null) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Image.asset(assetPath, fit: BoxFit.cover),
+        ),
+      );
+    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
       width: size,
       height: size,
-      child: ClipPath(
-        clipper: _clipperForType(type),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: _gradientForType(type),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? const Color(0xFF2C2820) : const Color(0xFFF0EAD6),
+      ),
+      child: Icon(
+        _assetIconData[type] ?? Icons.diamond_outlined,
+        size: size * 0.48,
+        color: isDark ? const Color(0xFFBFA764) : const Color(0xFF9E8A4F),
+      ),
+    );
+  }
+
+  Widget _assetCard(Map<String, dynamic> asset) {
+    final type = asset['asset_type']?.toString() ?? 'jewellery';
+    final currentVal = _currentValueForAsset(asset);
+    final purchaseVal = (asset['purchase_price'] as num?)?.toDouble() ?? 0;
+    final assetPL = currentVal - purchaseVal;
+    final plPct = purchaseVal > 0 ? (assetPL / purchaseVal * 100) : 0.0;
+    final invPath = asset['invoice_local_path']?.toString();
+    final purchaseDate = asset['purchase_date']?.toString() ?? '';
+    final cs = Theme.of(context).colorScheme;
+    final plColor = assetPL >= 0 ? const Color(0xFF388E3C) : const Color(0xFFD32F2F);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _assetCircleIcon(type),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _assetTypeLabel(type),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${asset['karat']} · ${asset['weight_g']}g${purchaseDate.isNotEmpty ? '  ·  $purchaseDate' : ''}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (invPath != null && invPath.isNotEmpty && !kIsWeb)
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      onPressed: () => OpenFilex.open(invPath),
+                      icon: Icon(Icons.receipt_long_outlined, size: 18, color: cs.onSurfaceVariant),
+                      tooltip: AppStrings.t(context, 'open_invoice'),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: IconButton(
+                    onPressed: () => _addAssetDialog(existing: asset),
+                    icon: Icon(Icons.edit_outlined, size: 18, color: cs.onSurfaceVariant),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: IconButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _safeAction(() async {
+                              await widget.apiService.deleteAsset(asset['id'] as int);
+                              await _load();
+                            }),
+                    icon: Icon(Icons.delete_outline, size: 18, color: const Color(0xFFD32F2F).withValues(alpha: 0.7)),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
-          ),
+
+            // Value rows
+            if (_prices != null) ...[
+              const SizedBox(height: 14),
+              _assetDetailRow(
+                AppStrings.t(context, 'purchased'),
+                '${_currency.format(purchaseVal)} EGP',
+              ),
+              const SizedBox(height: 6),
+              _assetDetailRow(
+                AppStrings.t(context, 'now'),
+                '${_currency.format(currentVal)} EGP',
+                valueColor: const Color(0xFF388E3C),
+              ),
+              const SizedBox(height: 8),
+              Divider(height: 0.5, thickness: 0.5, color: cs.outlineVariant.withValues(alpha: 0.15)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    assetPL >= 0 ? Icons.trending_up : Icons.trending_down,
+                    size: 16,
+                    color: plColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    AppStrings.t(context, 'profit_loss'),
+                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${assetPL >= 0 ? '+' : ''}${_currency.format(assetPL)} EGP',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: plColor,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${plPct >= 0 ? '+' : ''}${plPct.toStringAsFixed(1)}%)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: plColor.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 10),
+              _assetDetailRow(
+                AppStrings.t(context, 'purchased'),
+                '${_currency.format(purchaseVal)} EGP',
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
+  Widget _assetDetailRow(String label, String value, {Color? valueColor}) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: valueColor ?? cs.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _assetsTab() {
     return ListView(
+      padding: const EdgeInsets.only(bottom: 20),
       children: [
         _assetsTotalsCard(),
-        if (_assets.isNotEmpty) const SizedBox(height: 12),
-        _sectionCard(
-          title: 'Assets (${_assets.length})',
-          actions: [
-            IconButton(
-              onPressed: _selectedMemberId == null || _busy ? null : () => _addAssetDialog(),
-              icon: const Icon(Icons.add),
-            ),
-          ],
-          child: _assets.isEmpty
-              ? Text(AppStrings.t(context, 'no_data'))
-              : Column(
-                  children: _assets.map((asset) {
-                    final type = asset['asset_type']?.toString() ?? 'jewellery';
-                    final currentVal = _currentValueForAsset(asset as Map<String, dynamic>);
-                    final purchaseVal = (asset['purchase_price'] as num?)?.toDouble() ?? 0;
-                    final assetPL = currentVal - purchaseVal;
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: _assetShapeIcon(type),
-                      title: Text(
-                        '${_assetTypeLabel(type)} - ${asset['karat']} - ${asset['weight_g']}g',
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Purchased: ${_currency.format(purchaseVal)} EGP (${asset['purchase_date']})',
-                          ),
-                          if (_prices != null)
-                            Text(
-                              'Now: ${_currency.format(currentVal)} EGP  '
-                              '(${assetPL >= 0 ? '+' : ''}${_currency.format(assetPL)})',
-                              style: TextStyle(
-                                color: assetPL >= 0 ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                      trailing: Wrap(
-                        spacing: 0,
-                        children: [
-                          IconButton(
-                            onPressed: () => _addAssetDialog(existing: asset),
-                            icon: const Icon(Icons.edit, size: 20),
-                          ),
-                          IconButton(
-                            onPressed: _busy
-                                ? null
-                                : () => _safeAction(() async {
-                                      await widget.apiService.deleteAsset(asset['id'] as int);
-                                      await _load();
-                                    }),
-                            icon: const Icon(Icons.delete, size: 20),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+        if (_assets.isNotEmpty) const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Text(
+                '${AppStrings.t(context, 'assets_count')} (${_assets.length})',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: IconButton(
+                  onPressed: _selectedMemberId == null || _busy ? null : () => _addAssetDialog(),
+                  icon: const Icon(Icons.add, size: 18),
+                  padding: EdgeInsets.zero,
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                      width: 0.5,
+                    ),
+                  ),
                 ),
+              ),
+            ],
+          ),
         ),
+        if (_assets.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(child: Text(AppStrings.t(context, 'no_data'))),
+            ),
+          )
+        else
+          ..._assets.map((asset) => _assetCard(asset as Map<String, dynamic>)),
       ],
     );
   }
@@ -1265,7 +1831,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ListView(
       children: [
         _sectionCard(
-          title: 'Savings',
+          title: AppStrings.t(context, 'savings'),
           actions: [
             IconButton(
               onPressed: _selectedMemberId == null || _busy ? null : _addSavingDialog,
@@ -1275,10 +1841,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total saved: ${_currency.format(_totalSaved)} EGP'),
+              Text('${AppStrings.t(context, 'total_saved')}: ${_currency.format(_totalSaved)} EGP'),
               const SizedBox(height: 8),
               if (_savingEntries.isEmpty) Text(AppStrings.t(context, 'no_data')),
-              ..._savingEntries.take(7).map((entry) {
+              ..._savingEntries.map((entry) {
                 final targetType = entry['target_type']?.toString();
                 final targetKarat = entry['target_karat']?.toString();
                 final targetLabel = targetType != null
@@ -1287,11 +1853,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: targetType != null ? _assetShapeIcon(targetType, size: 28) : null,
+                  leading: targetType != null ? _assetCircleIcon(targetType, size: 28) : null,
                   title: Text('${_currency.format(entry['amount'])} ${entry['currency']}'),
                   subtitle: Text(
-                    '${entry['created_at']}${targetLabel.isNotEmpty ? '  •  Target: $targetLabel' : ''}',
+                    '${entry['created_at']}${targetLabel.isNotEmpty ? '  •  ${AppStrings.t(context, 'target')}: $targetLabel' : ''}',
                   ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: _busy ? null : () => _editSavingDialog(entry as Map<String, dynamic>),
+                    tooltip: AppStrings.t(context, 'edit'),
+                  ),
+                  onTap: _busy ? null : () => _editSavingDialog(entry as Map<String, dynamic>),
                 );
               }),
             ],
@@ -1299,7 +1871,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 12),
         _sectionCard(
-          title: 'Goals',
+          title: AppStrings.t(context, 'goals'),
           actions: [
             IconButton(
               onPressed: _selectedMemberId == null || _busy ? null : _addGoalDialog,
@@ -1320,8 +1892,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           contentPadding: EdgeInsets.zero,
                           title: Text('${goal['karat']} - ${goal['target_weight_g']}g'),
                           subtitle: Text(
-                            'Target: ${_currency.format(goal['target_price'])} | '
-                            'Remaining: ${_currency.format(goal['remaining_amount'])} EGP',
+                            '${AppStrings.t(context, 'target')}: ${_currency.format(goal['target_price'])} | '
+                            '${AppStrings.t(context, 'remaining')}: ${_currency.format(goal['remaining_amount'])} EGP',
                           ),
                           trailing: IconButton(
                             onPressed: () => _updateGoalSavedDialog(goal as Map<String, dynamic>),
@@ -1343,7 +1915,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ListView(
       children: [
         _sectionCard(
-          title: 'Companies',
+          title: AppStrings.t(context, 'companies'),
           actions: [
             IconButton(onPressed: _busy ? null : _addCompanyDialog, icon: const Icon(Icons.add_business)),
           ],
@@ -1367,17 +1939,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onChanged: widget.onThemeChanged,
                 title: Text(AppStrings.t(context, 'dark_mode')),
               ),
-              ListTile(
-                title: Text(AppStrings.t(context, 'language')),
-                subtitle: Text(widget.locale.languageCode == 'en' ? 'English' : 'العربية'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.language),
-                  onPressed: () {
-                    widget.onLocaleChanged(
-                      widget.locale.languageCode == 'en' ? const Locale('ar') : const Locale('en'),
-                    );
-                  },
-                ),
+              DropdownButtonFormField<String>(
+                value: widget.locale.languageCode,
+                decoration: InputDecoration(labelText: AppStrings.t(context, 'language')),
+                items: const [
+                  DropdownMenuItem(value: 'en', child: Text('English')),
+                  DropdownMenuItem(value: 'ar', child: Text('العربية')),
+                ],
+                onChanged: (value) {
+                  if (value != null) widget.onLocaleChanged(Locale(value));
+                },
               ),
               DropdownButtonFormField<int>(
                 initialValue: _notificationInterval,
@@ -1405,25 +1976,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _backupRestoreCard(),
       ],
+    );
+  }
+
+  Widget _backupRestoreCard() {
+    return _sectionCard(
+      title: AppStrings.t(context, 'backup_restore'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (kIsWeb)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                AppStrings.t(context, 'backup_web_hint'),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ),
+          ListTile(
+            leading: const Icon(Icons.save_alt_outlined),
+            title: Text(AppStrings.t(context, 'export_backup')),
+            trailing: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right),
+            onTap: _busy
+                ? null
+                : () => _safeAction(() async {
+                      final backupService = BackupService();
+                      final userId = widget.authService.currentUser?.uid ?? 'anonymous';
+                      await backupService.exportBackupZip(widget.apiService, userId);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(AppStrings.t(context, 'backup_success'))),
+                        );
+                      }
+                    }),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.folder_open_outlined),
+            title: Text(AppStrings.t(context, 'import_backup')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _busy
+                ? null
+                : () async {
+                    if (kIsWeb) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(AppStrings.t(context, 'backup_web_hint'))),
+                      );
+                      return;
+                    }
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(AppStrings.t(context, 'import_backup')),
+                        content: Text(AppStrings.t(context, 'restore_confirm')),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
+                          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'import_backup'))),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                    final pick = await FilePicker.platform.pickFiles(withData: true);
+                    if (pick == null || pick.files.isEmpty || pick.files.first.bytes == null) return;
+                    _safeAction(() async {
+                      final backupService = BackupService();
+                      final userId = widget.authService.currentUser?.uid ?? 'anonymous';
+                      await backupService.restoreFromPickedBytes(pick.files.first.bytes!, userId);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(AppStrings.t(context, 'restore_success')),
+                        ));
+                        await _load();
+                      }
+                    });
+                  },
+          ),
+        ],
+      ),
     );
   }
 
   void _onTabChanged(int index) {
     setState(() => _selectedTab = index);
     if (index == 0) {
-      _safeAction(() async {
-        await widget.apiService.syncPrices();
-        await _load();
-      });
+      _safeAction(_load);
     }
   }
 
   void _showMemberMenu() {
-    final selectedMember = _selectedMemberId != null
-        ? _members.cast<Map<String, dynamic>>().where((m) => m['id'] == _selectedMemberId).firstOrNull
-        : null;
-
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -1456,15 +2099,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
             else
               ..._members.map((member) {
                 final m = member as Map<String, dynamic>;
-                final isSelected = m['id'] == _selectedMemberId;
+                final memberId = m['id'] as int;
+                final isSelected = memberId == _selectedMemberId;
+                final isDefault = memberId == _defaultMemberId;
                 return ListTile(
-                  leading: Icon(Icons.person, color: isSelected ? Theme.of(context).colorScheme.primary : null),
+                  leading: Icon(
+                    isDefault ? Icons.star : Icons.person,
+                    color: isDefault
+                        ? Colors.amber
+                        : isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                  ),
                   title: Text(m['name']?.toString() ?? ''),
                   subtitle: Text(m['relation']?.toString() ?? ''),
                   selected: isSelected,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: Icon(
+                          isDefault ? Icons.star : Icons.star_border,
+                          size: 20,
+                          color: isDefault ? Colors.amber : null,
+                        ),
+                        tooltip: AppStrings.t(context, 'set_default'),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _safeAction(() async {
+                            final newDefault = isDefault ? null : memberId;
+                            await widget.apiService.setDefaultMemberId(newDefault);
+                            _defaultMemberId = newDefault;
+                            setState(() {});
+                          });
+                        },
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
                         onPressed: () {
@@ -1478,7 +2147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onTap: () {
                     Navigator.pop(ctx);
                     _safeAction(() async {
-                      _selectedMemberId = m['id'] as int;
+                      _selectedMemberId = memberId;
                       await _load();
                     });
                   },
@@ -1515,6 +2184,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.person_add),
               tooltip: AppStrings.t(context, 'add_member'),
             ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.language, size: 22),
+            tooltip: AppStrings.t(context, 'language'),
+            onSelected: (code) {
+              widget.onLocaleChanged(Locale(code));
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'en',
+                child: Row(
+                  children: [
+                    if (widget.locale.languageCode == 'en') const Icon(Icons.check, size: 18),
+                    if (widget.locale.languageCode == 'en') const SizedBox(width: 8),
+                    const Text('English'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'ar',
+                child: Row(
+                  children: [
+                    if (widget.locale.languageCode == 'ar') const Icon(Icons.check, size: 18),
+                    if (widget.locale.languageCode == 'ar') const SizedBox(width: 8),
+                    const Text('العربية'),
+                  ],
+                ),
+              ),
+            ],
+          ),
           IconButton(
             onPressed: _busy ? null : () => _safeAction(_load),
             icon: const Icon(Icons.refresh),
@@ -1529,7 +2227,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: IndexedStack(
                 index: _selectedTab,
                 children: [
@@ -1540,14 +2238,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedTab,
-        onDestinationSelected: _onTabChanged,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.workspace_premium), label: 'My Gold'),
-          NavigationDestination(icon: Icon(Icons.savings), label: 'Savings/Goals'),
-          NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+          ),
+          NavigationBar(
+            selectedIndex: _selectedTab,
+            onDestinationSelected: _onTabChanged,
+            destinations: [
+              NavigationDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home),
+                  label: AppStrings.t(context, 'home')),
+              NavigationDestination(
+                  icon: const Icon(Icons.workspace_premium_outlined),
+                  selectedIcon: const Icon(Icons.workspace_premium),
+                  label: AppStrings.t(context, 'my_gold')),
+              NavigationDestination(
+                  icon: const Icon(Icons.savings_outlined),
+                  selectedIcon: const Icon(Icons.savings),
+                  label: AppStrings.t(context, 'savings_goals')),
+              NavigationDestination(
+                  icon: const Icon(Icons.settings_outlined),
+                  selectedIcon: const Icon(Icons.settings),
+                  label: AppStrings.t(context, 'settings')),
+            ],
+          ),
         ],
       ),
     );
@@ -1560,17 +2280,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                  ),
+                ),
                 ...actions,
               ],
             ),
-            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 12),
+              child: Divider(
+                height: 0.5,
+                thickness: 0.5,
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+              ),
+            ),
             child,
           ],
         ),
@@ -1579,99 +2314,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _IngotClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final w = size.width;
-    final h = size.height;
-    final inset = w * 0.06;
-    final r = h * 0.12;
-    return Path()
-      ..moveTo(inset + r, 0)
-      ..lineTo(w - inset - r, 0)
-      ..quadraticBezierTo(w - inset, 0, w - inset, r)
-      ..lineTo(w, h - r)
-      ..quadraticBezierTo(w, h, w - r, h)
-      ..lineTo(r, h)
-      ..quadraticBezierTo(0, h, 0, h - r)
-      ..lineTo(inset, r)
-      ..quadraticBezierTo(inset, 0, inset + r, 0)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-class _CoinClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r = size.shortestSide / 2;
-    return Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-class _RingClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final w = size.width;
-    final h = size.height;
-    final rx = w / 2;
-    final ry = h * 0.42;
-    return Path()..addOval(Rect.fromCenter(center: Offset(rx, h / 2), width: rx * 2, height: ry * 2));
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-class _NecklaceClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final w = size.width;
-    final h = size.height;
-    final r = h * 0.15;
-    return Path()
-      ..moveTo(r, 0)
-      ..lineTo(w - r, 0)
-      ..quadraticBezierTo(w, 0, w, r)
-      ..lineTo(w, h * 0.5)
-      ..quadraticBezierTo(w, h * 0.7, w * 0.75, h * 0.85)
-      ..quadraticBezierTo(w * 0.5, h * 1.05, w * 0.25, h * 0.85)
-      ..quadraticBezierTo(0, h * 0.7, 0, h * 0.5)
-      ..lineTo(0, r)
-      ..quadraticBezierTo(0, 0, r, 0)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-class _BraceletClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final w = size.width;
-    final h = size.height;
-    final r = h * 0.3;
-    return Path()
-      ..moveTo(r, 0)
-      ..lineTo(w - r, 0)
-      ..arcToPoint(Offset(w, r), radius: Radius.circular(r))
-      ..lineTo(w, h - r)
-      ..arcToPoint(Offset(w - r, h), radius: Radius.circular(r))
-      ..lineTo(r, h)
-      ..arcToPoint(Offset(0, h - r), radius: Radius.circular(r))
-      ..lineTo(0, r)
-      ..arcToPoint(Offset(r, 0), radius: Radius.circular(r))
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}

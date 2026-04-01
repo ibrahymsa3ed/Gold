@@ -69,6 +69,8 @@
 - `DELETE /api/assets/:assetId`
 - `GET /api/members/:memberId/savings`
 - `POST /api/members/:memberId/savings`
+- `PUT /api/savings/:savingId` (update amount)
+- `DELETE /api/savings/:savingId`
 - `GET /api/members/:memberId/assets-summary`
 - `POST /api/goals/calculate`
 - `GET /api/members/:memberId/goals`
@@ -91,13 +93,14 @@ If scraper unavailable:
 
 ### Screen Map
 
-- Login/Auth (email/password + Google + Apple)
+- Login/Auth (email/password + Google; Apple removed)
 - Home dashboard with tabbed layout (overview/assets/savings-goals/more)
 - Overview: karat prices in ingot-shaped cards (21k hero), gold pound in coin shape, global ounce in rose-gold coin shape
 - Family members list + per-member page (inline edit/delete)
 - Assets list with shaped cards per type: ring (oval), necklace (pendant), bracelet (rounded pill), coins (circle), ingot (trapezoid)
 - Asset types: Ring, Necklace, Bracelet, Coins, Ingot, Other (jewellery sub-types selectable at creation)
-- Savings entries and totals
+- Savings entries and totals (add amount-only; edit/delete entries)
+- Optional **invoice** file per asset (stored locally on device under app documents; included in zip backup)
 - Goals with progress bars and saved-amount update
 - Zakat calculator page
 - Companies page (default + custom create)
@@ -111,11 +114,19 @@ Implementation note:
 - Web OAuth sign-in uses Firebase popup providers (`GoogleAuthProvider` / `OAuthProvider`) to align with browser flow.
 - Web Google auth falls back to redirect when popup flow is blocked/closed by browser policies.
 
+### UI design (InstaGold)
+
+- Themes in `flutter-app/lib/theme/app_themes.dart`; shared `_buildTheme()` for light/dark from muted warm-gold `ColorScheme.fromSeed` (light `#9E8A4F`, dark `#BFA764`). Light surface is cream `#FAF8F3`, cards are white.
+- `classic` rollback preserved via `kUiDesignVariant` in `flutter-app/lib/theme/ui_design_variant.dart` (see `ROLLBACK_UI.md`).
+- Home: price cards rendered via `SliverReorderableList` — users can long-press and drag to reorder (21K, 24K+18K, 14K, Pound+Ounce). Gap info appears as a full-width tinted card (light green/red matching alarm direction) below prices with the EGP gap value large and centred, jeweler's dollar on the left, premium % and official rate on the right; tapping it opens a dialog explaining the calculation and its data sources.
+- Asset cards: each asset in its own Card with an icon in a pale-gold circle, bold title, karat·weight subtitle, Purchase/Current/Profit-Loss rows with percentages and trend icon. No custom ClipPath shapes.
+
 ### Data Access Rules
 
-- Flutter talks only to main backend.
-- Main backend talks to scraper service.
-- No direct eDahab call from Flutter or main backend.
+- **Web mode:** Flutter `kIsWeb` talks to `main-backend` HTTP APIs; backup export builds JSON from those APIs.
+- **Mobile mode:** Flutter uses local SQLite (`sqlite`) plus direct eDahab scraping for prices (`GoldScraper`) — no Node servers required on device.
+- **Backup:** `BackupService` writes `instagold_backup.zip` containing `instagold_backup.json` and optional `invoices/*` binaries; restore replays the JSON into SQLite and copies invoice files back.
+- When both backends are used (dev), main backend talks to scraper service for price cache.
 
 ---
 

@@ -5,5 +5,12 @@ GoogleService-Info.plist
 *.p12
 *.key
 
+# IDE
+.idea/
+
 # Generic
 .DS_Store
+
+# Old APK builds (keep InstaGold.apk explicit add)
+FamilyGold.apk
+GoldFamily.apk

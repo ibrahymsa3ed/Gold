@@ -1,5 +1,5 @@
 name: gold_family_app
-description: Flutter client for family gold tracking in Egypt
+description: InstaGold - track gold prices and manage family gold assets in Egypt
 publish_to: "none"
 version: 1.0.0+1
 
@@ -15,9 +15,17 @@ dependencies:
   firebase_core: ^3.10.0
   flutter_local_notifications: ^18.0.1
   google_sign_in: ^6.2.2
+  html: ^0.15.5
   http: ^1.2.2
   intl: ^0.20.2
-  sign_in_with_apple: ^6.1.4
+  path: ^1.9.0
+  sqflite: ^2.4.1
+  file_picker: ^8.1.4
+  path_provider: ^2.1.4
+  share_plus: ^10.1.4
+  archive: ^3.6.1
+  open_filex: ^4.5.0
+
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +34,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/ring.png
+    - assets/icons/necklace.png
+    - assets/icons/bracelet.png
+    - assets/icons/coin.png
+    - assets/icons/ingot.png

@@ -22,7 +22,7 @@ class NotificationsService {
 
     await _plugin.show(
       1,
-      'Gold Family App',
+      'InstaGold',
       'Notification settings updated',
       details,
     );

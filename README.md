@@ -1,6 +1,6 @@
-# Gold Platform Architecture (Egypt Market + Family Assets)
+# Gold Platform / InstaGold (Egypt Market + Family Assets)
 
-This repository is structured as two backend-facing apps plus Flutter client:
+The Flutter client is branded **InstaGold** (launcher name and in-app title). This repository is structured as two backend-facing apps plus Flutter client:
 
 - `scraper-service/` - scrapes public local gold pages every 10 minutes and serves authenticated prices API
 - `main-backend/` - consumes scraper API, caches prices, computes assets/goals/zakat, serves app APIs
@@ -105,10 +105,36 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 
 - `ARCHITECTURE.md` and relevant README files are updated with every substantive code/config change.
 
+## UI (InstaGold)
+
+### Current design
+
+Modern flat layout with a muted warm-gold `ColorScheme` (`#9E8A4F` light / `#BFA764` dark`). Cards use **0.5px** outlines, **14px** radius, zero elevation, and cream-white backgrounds in light mode. Price cards are clean rounded rectangles with soft gold gradients and are **drag-and-drop reorderable** (long-press to move). The **Jeweler's Dollar gap** is shown as a full-width tinted card (light green or red) below prices with the EGP gap value large and centred, jeweler's dollar on the left, premium % and official rate on the right; tapping it opens a detailed explanation popup. Asset cards follow a structured layout (icon in gold circle, title, karat/weight, Purchase/Current/Profit rows with %). Bottom nav has outlined/filled icon states with a thin separator.
+
+### Rollback
+
+- **To roll back** without Git: set `kUiDesignVariant` to `UiDesignVariant.classic` in `flutter-app/lib/theme/ui_design_variant.dart` — this restores the old amber Material 2 look. See `ROLLBACK_UI.md` in the repo root.
+- Theme code: `flutter-app/lib/theme/app_themes.dart`
+- Dashboard: `flutter-app/lib/screens/dashboard_screen.dart`
+
+### Android-first preview
+
+```bash
+cd flutter-app && flutter run -d android
+```
+
+### Build APK
+
+```bash
+cd flutter-app && flutter build apk --release
+cp flutter-app/build/app/outputs/flutter-apk/app-release.apk InstaGold.apk
+```
+
 ## Current Phase-2 Status
 
 - Firebase login + backend token verification are wired.
-- Flutter dashboard supports member selection, asset CRUD, savings entries, goals with progress, zakat view, and company management.
+- Flutter dashboard (**InstaGold**) supports member selection, asset CRUD (optional invoice attachment on mobile), savings add/edit/delete, goals with progress, zakat view, and company management.
+- **Backup/restore:** Mobile exports a `.zip` (`instagold_backup.json` plus `invoices/` files). Import the same file on any device (Android ↔ iOS works; JSON schema is platform-neutral). Web can export JSON-only zip via the share sheet; full restore from file is mobile-only.
 - UI is polished into tabbed sections for better navigation and readability.
 - Flutter codebase is split into `app.dart`, `screens/`, and `services/` for easier maintenance.
 - Firebase initialization uses `flutter-app/lib/firebase_options.dart` so web/native startup works reliably.
