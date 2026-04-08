@@ -717,6 +717,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
     if (result == null) return;
     if (result == 'delete') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(AppStrings.t(context, 'confirm_delete')),
+          content: Text(AppStrings.t(context, 'confirm_delete_msg')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
       await _safeAction(() async {
         await widget.apiService.deleteSaving(id);
         await _load();
@@ -1860,10 +1875,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 IconButton(
                   onPressed: _busy
                       ? null
-                      : () => _safeAction(() async {
-                            await widget.apiService.deleteAsset(asset['id'] as int);
-                            await _load();
-                          }),
+                      : () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: Text(AppStrings.t(context, 'confirm_delete')),
+                              content: Text(AppStrings.t(context, 'confirm_delete_msg')),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await _safeAction(() async {
+                              await widget.apiService.deleteAsset(asset['id'] as int);
+                              await _load();
+                            });
+                          }
+                        },
                   icon: Icon(Icons.delete_outline, size: 18, color: const Color(0xFFD32F2F).withValues(alpha: 0.7)),
                   padding: const EdgeInsets.all(6),
                   constraints: const BoxConstraints(),
