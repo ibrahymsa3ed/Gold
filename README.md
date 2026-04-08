@@ -29,6 +29,14 @@ Gold/
 4. Main backend stores `GoldPriceCache` and uses it for all calculations.
 5. Flutter reads only from `main-backend`.
 
+### Price Source Cascade (Mobile)
+
+On mobile, `GoldScraper` tries sources in order:
+1. **eDahab website** (`edahabapp.com`) — full buy/sell per karat
+2. **Telegram channel** (`t.me/s/eDahabApp`) — public web preview, single price per karat
+
+The `source` field in the response indicates which was used.
+
 ## Security Model
 
 - Scraper API protected with `x-api-key`.
@@ -109,7 +117,15 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 
 ### Current design
 
-Modern flat layout with a muted warm-gold `ColorScheme` (`#9E8A4F` light / `#BFA764` dark`). Cards use **0.5px** outlines, **14px** radius, zero elevation, and cream-white backgrounds in light mode. Price cards are clean rounded rectangles with soft gold gradients and are **drag-and-drop reorderable** (long-press to move). The **Jeweler's Dollar gap** is shown as a full-width tinted card (light green or red) below prices with the EGP gap value large and centred, jeweler's dollar on the left, premium % and official rate on the right; tapping it opens a detailed explanation popup. Asset cards follow a structured layout (icon in gold circle, title, karat/weight, Purchase/Current/Profit rows with %). Bottom nav has outlined/filled icon states with a thin separator.
+Premium gold-themed design with rich palette (`#B5973F` primary / `#D4B254` accent). Default theme is **light** with warm cream surfaces (`#F7F2E8`).
+
+- **App Icon:** Dark luxurious gold coin (gold pound style) with "IG" monogram, dotted rim, radial gradient shine.
+- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow shadows, Buy/Sell chips; drag-reorderable.
+- **Navigation:** Floating glassmorphism pill-shaped bottom bar with backdrop blur.
+- **Cards:** `borderRadius: 20-22`, gold accent gradient bars, depth shadows, `w800` typography.
+- **Assets:** Karat badge chips, inner financial detail cards, gold gradient circle icons.
+- **Jeweler's Dollar Gap:** Full-width tinted card (green/red) with EGP gap value centred; tapping opens explanation dialog.
+- **Notifications:** Scheduled price alerts via `flutter_local_notifications` with Android 13+ permission handling.
 
 ### Rollback
 

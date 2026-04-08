@@ -30,6 +30,13 @@
 - Write error logs with stack/message.
 - Return 404 if no snapshot exists yet.
 
+### Telegram Fallback
+
+- If the primary eDahab website scrape returns empty or fails, the scraper automatically falls back to the public Telegram channel web preview at `https://t.me/s/eDahabApp`.
+- The Telegram source provides prices for 24k/21k/18k, gold pound, and ounce in a consistent emoji-delimited text format.
+- Limitation: Telegram posts contain a single price per karat (no separate buy/sell); both are set to the same value.
+- The `source` field in the response indicates which source was used: `edahab-web` or `telegram-edahab`.
+
 ---
 
 ## 2) Main App Backend
@@ -116,15 +123,21 @@ Implementation note:
 
 ### UI design (InstaGold)
 
-- Themes in `flutter-app/lib/theme/app_themes.dart`; shared `_buildTheme()` for light/dark from muted warm-gold `ColorScheme.fromSeed` (light `#9E8A4F`, dark `#BFA764`). Light surface is cream `#FAF8F3`, cards are white.
+- **Theme:** Rich gold palette (`#B5973F` primary, `#D4B254` accent) with warm cream surfaces (`#F7F2E8` light, deep amber `#1A1714` dark). Default mode is **light**.
+- **App Icon:** Dark luxurious gold coin (gold pound style) with "IG" monogram, rim detailing, radial gold gradient shine, and dark background.
+- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and Buy/Sell chips. Drag-reorderable via `SliverReorderableList`.
+- **Navigation:** Floating glassmorphism pill-shaped bottom nav bar with backdrop blur and gold accent indicators.
+- **Section Cards:** Gold accent gradient bar, `borderRadius: 22`, depth shadows, and `w800` typography.
+- **Asset Cards:** Karat badge chips, inner financial detail cards, gold circle icons with gradient/shadow, profit/loss with trend indicators.
+- **Login:** Gradient background, 88px brand icon with 4-stop gold glow, 32px title, refined input fields.
+- **Notifications:** Scheduled price notifications via `flutter_local_notifications` + `timezone`. Android 13+ permission requests for `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`.
 - `classic` rollback preserved via `kUiDesignVariant` in `flutter-app/lib/theme/ui_design_variant.dart` (see `ROLLBACK_UI.md`).
-- Home: price cards rendered via `SliverReorderableList` — users can long-press and drag to reorder (21K, 24K+18K, 14K, Pound+Ounce). Gap info appears as a full-width tinted card (light green/red matching alarm direction) below prices with the EGP gap value large and centred, jeweler's dollar on the left, premium % and official rate on the right; tapping it opens a dialog explaining the calculation and its data sources.
-- Asset cards: each asset in its own Card with an icon in a pale-gold circle, bold title, karat·weight subtitle, Purchase/Current/Profit-Loss rows with percentages and trend icon. No custom ClipPath shapes.
+- Gap info: full-width tinted card (green/red matching alarm direction) below prices with EGP gap value centred, jeweler's dollar on left, premium % and official rate on right; tapping opens explanation dialog.
 
 ### Data Access Rules
 
 - **Web mode:** Flutter `kIsWeb` talks to `main-backend` HTTP APIs; backup export builds JSON from those APIs.
-- **Mobile mode:** Flutter uses local SQLite (`sqlite`) plus direct eDahab scraping for prices (`GoldScraper`) — no Node servers required on device.
+- **Mobile mode:** Flutter uses local SQLite (`sqlite`) plus direct eDahab scraping for prices (`GoldScraper`) with automatic Telegram channel fallback — no Node servers required on device.
 - **Backup:** `BackupService` writes `instagold_backup.zip` containing `instagold_backup.json` and optional `invoices/*` binaries; restore replays the JSON into SQLite and copies invoice files back.
 - When both backends are used (dev), main backend talks to scraper service for price cache.
 
