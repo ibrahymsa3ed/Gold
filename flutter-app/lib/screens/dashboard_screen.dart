@@ -58,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   final NumberFormat _currency = NumberFormat('#,##0.##');
 
-  List<String> _priceCardOrder = ['21k', '24k_18k', '14k', 'pound_ounce'];
+  List<String> _priceCardOrder = ['21k', '24k', '14k_18k', 'pound_ounce'];
 
   @override
   void initState() {
@@ -1399,16 +1399,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (key) {
       case '21k':
         return _priceCard(label: '21 Karat', karat: '21k', isHero: true);
-      case '24k_18k':
+      case '24k':
+        return _priceCard(label: '24 Karat', karat: '24k', isHero: true);
+      case '14k_18k':
         return Row(
           children: [
-            Expanded(child: _priceCard(label: '24K', karat: '24k')),
+            Expanded(child: _priceCard(label: '14K', karat: '14k')),
             const SizedBox(width: 8),
             Expanded(child: _priceCard(label: '18K', karat: '18k')),
           ],
         );
-      case '14k':
-        return _priceCard(label: '14K', karat: '14k');
       case 'pound_ounce':
         return Row(
           children: [
