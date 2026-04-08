@@ -150,7 +150,7 @@ cp flutter-app/build/app/outputs/flutter-apk/app-release.apk InstaGold.apk
 
 - Firebase login + backend token verification are wired.
 - Flutter dashboard (**InstaGold**) supports member selection, asset CRUD (optional invoice attachment on mobile), savings add/edit/delete, goals with progress, zakat view, and company management.
-- **Backup/restore:** Mobile exports a `.zip` (`instagold_backup.json` plus `invoices/` files). Import the same file on any device (Android ↔ iOS works; JSON schema is platform-neutral). Web can export JSON-only zip via the share sheet; full restore from file is mobile-only.
+- **Backup/restore:** Mobile exports a `.zip` (`instagold_backup.json` plus `invoices/` files). Import the same file on any device (Android ↔ iOS works; JSON schema is platform-neutral). Web can export JSON-only zip via the share sheet; full restore from file is mobile-only. **Google Drive upload** available as a one-tap option in the backup section (stores in "InstaGold Backups" folder).
 - UI is polished into tabbed sections for better navigation and readability.
 - Flutter codebase is split into `app.dart`, `screens/`, and `services/` for easier maintenance.
 - Firebase initialization uses `flutter-app/lib/firebase_options.dart` so web/native startup works reliably.

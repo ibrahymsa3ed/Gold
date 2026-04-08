@@ -138,7 +138,7 @@ Implementation note:
 
 - **Web mode:** Flutter `kIsWeb` talks to `main-backend` HTTP APIs; backup export builds JSON from those APIs.
 - **Mobile mode:** Flutter uses local SQLite (`sqlite`) plus direct eDahab scraping for prices (`GoldScraper`) with automatic Telegram channel fallback — no Node servers required on device.
-- **Backup:** `BackupService` writes `instagold_backup.zip` containing `instagold_backup.json` and optional `invoices/*` binaries; restore replays the JSON into SQLite and copies invoice files back.
+- **Backup:** `BackupService` writes `instagold_backup.zip` containing `instagold_backup.json` and optional `invoices/*` binaries; restore replays the JSON into SQLite and copies invoice files back. Optional auto-upload to Google Drive via `GoogleDriveService` (stores in "InstaGold Backups" folder).
 - When both backends are used (dev), main backend talks to scraper service for price cache.
 
 ---
