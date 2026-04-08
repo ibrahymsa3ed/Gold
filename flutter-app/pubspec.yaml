@@ -38,6 +38,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/icons/app_icon.png
     - assets/icons/ring.png
     - assets/icons/necklace.png
     - assets/icons/bracelet.png
