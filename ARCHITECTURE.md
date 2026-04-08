@@ -125,7 +125,7 @@ Implementation note:
 
 - **Theme:** Rich gold palette (`#B5973F` primary, `#D4B254` accent) with warm cream surfaces (`#F7F2E8` light, deep amber `#1A1714` dark). Default mode is **light**.
 - **App Icon:** Dark luxurious gold coin (gold pound style) with "IG" monogram, rim detailing, radial gold gradient shine, and dark background.
-- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and Buy/Sell chips. Drag-reorderable via `SliverReorderableList`.
+- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and value chips (no Buy/Sell labels). Default order: 21K (hero), 24K (hero), 14K+18K (paired), Pound+Ounce (paired). Press-and-hold drag-reorderable via `SliverReorderableList`.
 - **Navigation:** Floating glassmorphism pill-shaped bottom nav bar with backdrop blur and gold accent indicators.
 - **Section Cards:** Gold accent gradient bar, `borderRadius: 22`, depth shadows, and `w800` typography.
 - **Asset Cards:** Karat badge chips, inner financial detail cards, gold circle icons with gradient/shadow, profit/loss with trend indicators.

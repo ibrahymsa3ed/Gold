@@ -146,6 +146,20 @@ cd flutter-app && flutter build apk --release
 cp flutter-app/build/app/outputs/flutter-apk/app-release.apk InstaGold.apk
 ```
 
+### Build + Upload to Google Drive
+
+```bash
+./scripts/build-and-upload.sh
+```
+
+Or upload an existing APK:
+
+```bash
+python3 scripts/upload_apk.py
+```
+
+Requires `rclone` with a `gdrive:` remote configured. APK is uploaded to `gdrive:InstaGold Releases/InstaGold.apk` with a shareable link.
+
 ## Current Phase-2 Status
 
 - Firebase login + backend token verification are wired.
