@@ -22,7 +22,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
   final AuthService _authService = AuthService();
   final NotificationsService _notificationsService = NotificationsService();
 
-  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode _themeMode = ThemeMode.light;
   Locale _locale = const Locale('en');
   bool _devBypass = false;
 

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -62,6 +64,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _load();
+    widget.notificationsService.schedulePriceNotifications(
+      intervalHours: _notificationInterval,
+    );
   }
 
   Future<void> _safeAction(Future<void> Function() action) async {
@@ -970,69 +975,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final sell = data != null ? _currency.format(data['sell_price']) : '—';
     final currency = currencyOverride ?? data?['currency']?.toString() ?? 'EGP';
 
-    final height = isHero ? 120.0 : 100.0;
-    final labelSize = isHero ? 18.0 : 14.0;
-    final priceSize = isHero ? 22.0 : 16.0;
-    final subSize = isHero ? 11.0 : 10.0;
+    final height = isHero ? 150.0 : 120.0;
+    final labelSize = isHero ? 13.0 : 11.5;
+    final priceSize = isHero ? 32.0 : 22.0;
+    final subSize = isHero ? 12.0 : 11.0;
 
     final colors = gradientColors ??
         (isHero
-            ? const [Color(0xFFD4B254), Color(0xFFC19A3E), Color(0xFFA07E2C)]
-            : const [Color(0xFFC9A64A), Color(0xFFB08E36), Color(0xFF8E7228)]);
+            ? const [Color(0xFFE8CD5A), Color(0xFFD4B254), Color(0xFFB5973F), Color(0xFF8B7332)]
+            : const [Color(0xFFD4B254), Color(0xFFC19A3E), Color(0xFF9E8030)]);
 
-    return SizedBox(
+    final glowColor = (gradientColors?.first ?? const Color(0xFFD4B254)).withValues(alpha: 0.35);
+
+    return Container(
       width: width,
       height: height,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: colors,
-          ),
-          borderRadius: BorderRadius.circular(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor,
+            blurRadius: isHero ? 24 : 16,
+            offset: const Offset(0, 8),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      padding: EdgeInsets.symmetric(horizontal: isHero ? 20 : 16, vertical: isHero ? 16 : 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
               label,
               style: TextStyle(
                 fontSize: labelSize,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
-                letterSpacing: -0.2,
+                letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              '$sell $currency',
-              style: TextStyle(
-                fontSize: priceSize,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$sell',
+                style: TextStyle(
+                  fontSize: priceSize,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                  height: 1.1,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${widget.locale.languageCode == 'ar' ? 'شراء' : 'Buy'}: $buy',
-                  style: TextStyle(fontSize: subSize, color: Colors.white70),
+              const SizedBox(height: 2),
+              Text(
+                currency,
+                style: TextStyle(
+                  fontSize: subSize,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  letterSpacing: 0.5,
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: Container(width: 0.5, height: 8, color: Colors.white30),
-                ),
-                Text(
-                  '${widget.locale.languageCode == 'ar' ? 'بيع' : 'Sell'}: $sell',
-                  style: TextStyle(fontSize: subSize, color: Colors.white70),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Flexible(child: _priceChip(widget.locale.languageCode == 'ar' ? 'شراء' : 'Buy', buy, subSize)),
+              const SizedBox(width: 6),
+              Flexible(child: _priceChip(widget.locale.languageCode == 'ar' ? 'بيع' : 'Sell', sell, subSize)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _priceChip(String label, String value, double fontSize) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        '$label: $value',
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w600,
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
     );
@@ -1076,10 +1122,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: cardBg,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: cardBorder, width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: gapColor.withValues(alpha: 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Row(
           children: [
             Expanded(
@@ -1268,29 +1321,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _livePricesHeader(String timeLabel) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 18, top: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [goldAccent.withValues(alpha: 0.18), goldAccent.withValues(alpha: 0.06)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.show_chart_rounded, size: 20, color: goldAccent),
+          ),
+          const SizedBox(width: 12),
           Text(
             AppStrings.t(context, 'live_prices'),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                ),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           const Spacer(),
-          Text(
-            timeLabel,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: goldAccent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.access_time_rounded, size: 12, color: goldAccent),
+                const SizedBox(width: 4),
+                Text(
+                  timeLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: goldAccent,
+                  ),
                 ),
+              ],
+            ),
           ),
-          const SizedBox(width: 6),
-          SizedBox(
-            width: 32,
-            height: 32,
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: goldAccent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: IconButton(
               onPressed: _busy
                   ? null
@@ -1298,16 +1384,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         await widget.apiService.syncPrices();
                         await _load();
                       }),
-              icon: const Icon(Icons.refresh, size: 16),
+              icon: Icon(Icons.refresh_rounded, size: 18, color: goldAccent),
               tooltip: AppStrings.t(context, 'sync_prices'),
-              padding: EdgeInsets.zero,
-              style: IconButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  width: 0.5,
-                ),
-              ),
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(),
             ),
           ),
         ],
@@ -1373,15 +1453,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               key: ValueKey(key),
               index: index,
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: _priceCardForKey(key),
               ),
             );
           },
         ),
 
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
         SliverToBoxAdapter(child: _gapInfoCard()),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
         if (_summary != null)
           SliverToBoxAdapter(
@@ -1391,8 +1472,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   _totalRow(AppStrings.t(context, 'current_value'),
                       '${_currency.format(_summary!['summary']['current_value'])} EGP'),
+                  const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'purchase_cost'),
                       '${_currency.format(_summary!['summary']['purchase_cost'])} EGP'),
+                  const SizedBox(height: 4),
                   _totalRow(
                     AppStrings.t(context, 'profit_loss'),
                     '${(_summary!['summary']['profit_loss'] as num) >= 0 ? '+' : ''}${_currency.format(_summary!['summary']['profit_loss'])} EGP',
@@ -1400,14 +1483,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ? const Color(0xFF388E3C)
                         : const Color(0xFFD32F2F),
                   ),
+                  const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'equivalent_21k'),
                       '${_currency.format(_summary!['summary']['total_weight_21k_equivalent'] ?? 0)} g'),
+                  const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'equivalent_24k'),
                       '${_currency.format(_summary!['summary']['total_weight_24k_equivalent'])} g'),
                 ],
               ),
             ),
           ),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
         if (_zakat != null)
           SliverToBoxAdapter(
             child: _sectionCard(
@@ -1416,8 +1502,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   _totalRow(AppStrings.t(context, 'eligible'),
                       _zakat!['zakat']['eligible'] == true ? AppStrings.t(context, 'yes') : AppStrings.t(context, 'no')),
+                  const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'zakat_due'),
                       '${_currency.format(_zakat!['zakat']['zakat_due'])} EGP'),
+                  const SizedBox(height: 4),
                   _totalRow(
                     AppStrings.t(context, 'threshold_current'),
                     '${_zakat!['zakat']['threshold_weight_24k']}g / '
@@ -1427,7 +1515,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
+        const SliverToBoxAdapter(child: SizedBox(height: 40)),
       ],
     );
   }
@@ -1526,20 +1614,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _thinDivider() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Divider(
         height: 0.5,
         thickness: 0.5,
-        color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+        color: goldAccent.withValues(alpha: 0.1),
       ),
     );
   }
 
   Widget _totalRow(String label, String value, {Color? valueColor}) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
@@ -1547,20 +1638,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    height: 1.25,
-                  ),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: cs.onSurfaceVariant,
+                height: 1.25,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Text(
             value,
             textAlign: TextAlign.end,
             style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
               color: valueColor ?? cs.onSurface,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -1590,29 +1684,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'other': Icons.diamond_outlined,
   };
 
-  Widget _assetCircleIcon(String type, {double size = 44}) {
+  Widget _assetCircleIcon(String type, {double size = 48}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     final assetPath = _assetImageMap[type];
     if (assetPath != null) {
-      return ClipOval(
-        child: SizedBox(
-          width: size,
-          height: size,
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: goldAccent.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipOval(
           child: Image.asset(assetPath, fit: BoxFit.cover),
         ),
       );
     }
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isDark ? const Color(0xFF2C2820) : const Color(0xFFF0EAD6),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            goldAccent.withValues(alpha: 0.2),
+            goldAccent.withValues(alpha: 0.06),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: goldAccent.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Icon(
         _assetIconData[type] ?? Icons.diamond_outlined,
-        size: size * 0.48,
-        color: isDark ? const Color(0xFFBFA764) : const Color(0xFF9E8A4F),
+        size: size * 0.45,
+        color: goldAccent,
       ),
     );
   }
@@ -1626,19 +1745,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final invPath = asset['invoice_local_path']?.toString();
     final purchaseDate = asset['purchase_date']?.toString() ?? '';
     final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     final plColor = assetPL >= 0 ? const Color(0xFF388E3C) : const Color(0xFFD32F2F);
 
-    return Card(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B16) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: goldAccent.withValues(alpha: isDark ? 0.1 : 0.06),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : goldAccent.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+        padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _assetCircleIcon(type),
-                const SizedBox(width: 12),
+                _assetCircleIcon(type, size: 48),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1646,108 +1786,133 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Text(
                         _assetTypeLabel(type),
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${asset['karat']} · ${asset['weight_g']}g${purchaseDate.isNotEmpty ? '  ·  $purchaseDate' : ''}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: cs.onSurfaceVariant,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: goldAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${asset['karat']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: goldAccent,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${asset['weight_g']}g${purchaseDate.isNotEmpty ? '  ·  $purchaseDate' : ''}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 if (invPath != null && invPath.isNotEmpty && !kIsWeb)
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      onPressed: () => OpenFilex.open(invPath),
-                      icon: Icon(Icons.receipt_long_outlined, size: 18, color: cs.onSurfaceVariant),
-                      tooltip: AppStrings.t(context, 'open_invoice'),
-                      padding: EdgeInsets.zero,
-                    ),
+                  IconButton(
+                    onPressed: () => OpenFilex.open(invPath),
+                    icon: Icon(Icons.receipt_long_outlined, size: 18, color: cs.onSurfaceVariant),
+                    tooltip: AppStrings.t(context, 'open_invoice'),
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(),
                   ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    onPressed: () => _addAssetDialog(existing: asset),
-                    icon: Icon(Icons.edit_outlined, size: 18, color: cs.onSurfaceVariant),
-                    padding: EdgeInsets.zero,
-                  ),
+                IconButton(
+                  onPressed: () => _addAssetDialog(existing: asset),
+                  icon: Icon(Icons.edit_outlined, size: 18, color: cs.onSurfaceVariant),
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
                 ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    onPressed: _busy
-                        ? null
-                        : () => _safeAction(() async {
-                              await widget.apiService.deleteAsset(asset['id'] as int);
-                              await _load();
-                            }),
-                    icon: Icon(Icons.delete_outline, size: 18, color: const Color(0xFFD32F2F).withValues(alpha: 0.7)),
-                    padding: EdgeInsets.zero,
-                  ),
+                IconButton(
+                  onPressed: _busy
+                      ? null
+                      : () => _safeAction(() async {
+                            await widget.apiService.deleteAsset(asset['id'] as int);
+                            await _load();
+                          }),
+                  icon: Icon(Icons.delete_outline, size: 18, color: const Color(0xFFD32F2F).withValues(alpha: 0.7)),
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
-
-            // Value rows
             if (_prices != null) ...[
-              const SizedBox(height: 14),
-              _assetDetailRow(
-                AppStrings.t(context, 'purchased'),
-                '${_currency.format(purchaseVal)} EGP',
-              ),
-              const SizedBox(height: 6),
-              _assetDetailRow(
-                AppStrings.t(context, 'now'),
-                '${_currency.format(currentVal)} EGP',
-                valueColor: const Color(0xFF388E3C),
-              ),
-              const SizedBox(height: 8),
-              Divider(height: 0.5, thickness: 0.5, color: cs.outlineVariant.withValues(alpha: 0.15)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    assetPL >= 0 ? Icons.trending_up : Icons.trending_down,
-                    size: 16,
-                    color: plColor,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    AppStrings.t(context, 'profit_loss'),
-                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${assetPL >= 0 ? '+' : ''}${_currency.format(assetPL)} EGP',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: plColor,
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF252118) : const Color(0xFFFAF7F0),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    _assetDetailRow(
+                      AppStrings.t(context, 'purchased'),
+                      '${_currency.format(purchaseVal)} EGP',
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '(${plPct >= 0 ? '+' : ''}${plPct.toStringAsFixed(1)}%)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: plColor.withValues(alpha: 0.7),
+                    const SizedBox(height: 8),
+                    _assetDetailRow(
+                      AppStrings.t(context, 'now'),
+                      '${_currency.format(currentVal)} EGP',
+                      valueColor: const Color(0xFF388E3C),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Divider(height: 0.5, thickness: 0.5, color: goldAccent.withValues(alpha: 0.1)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: plColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                assetPL >= 0 ? Icons.trending_up : Icons.trending_down,
+                                size: 16,
+                                color: plColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${assetPL >= 0 ? '+' : ''}${plPct.toStringAsFixed(1)}%',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: plColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${assetPL >= 0 ? '+' : ''}${_currency.format(assetPL)} EGP',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: plColor,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ] else ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _assetDetailRow(
                 AppStrings.t(context, 'purchased'),
                 '${_currency.format(purchaseVal)} EGP',
@@ -1763,12 +1928,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Text(label, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+        Text(label, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
         const Spacer(),
         Text(
           value,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: FontWeight.w700,
             color: valueColor ?? cs.onSurface,
           ),
@@ -1778,48 +1943,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _assetsTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return ListView(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 40),
       children: [
         _assetsTotalsCard(),
-        if (_assets.isNotEmpty) const SizedBox(height: 4),
+        if (_assets.isNotEmpty) const SizedBox(height: 8),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
               Text(
                 '${AppStrings.t(context, 'assets_count')} (${_assets.length})',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
               ),
               const Spacer(),
-              SizedBox(
-                width: 32,
-                height: 32,
+              Container(
+                decoration: BoxDecoration(
+                  color: goldAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: IconButton(
                   onPressed: _selectedMemberId == null || _busy ? null : () => _addAssetDialog(),
-                  icon: const Icon(Icons.add, size: 18),
-                  padding: EdgeInsets.zero,
-                  style: IconButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
-                      width: 0.5,
-                    ),
-                  ),
+                  icon: Icon(Icons.add_rounded, size: 20, color: goldAccent),
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
                 ),
               ),
             ],
           ),
         ),
         if (_assets.isEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(child: Text(AppStrings.t(context, 'no_data'))),
-            ),
+          _emptyStateWidget(
+            icon: Icons.workspace_premium_outlined,
+            title: AppStrings.t(context, 'no_data'),
+            subtitle: widget.locale.languageCode == 'ar'
+                ? 'أضف أول قطعة ذهب لتتبع محفظتك'
+                : 'Add your first gold piece to track your portfolio',
+            onAction: _selectedMemberId == null || _busy ? null : () => _addAssetDialog(),
+            actionLabel: AppStrings.t(context, 'add_asset'),
           )
         else
           ..._assets.map((asset) => _assetCard(asset as Map<String, dynamic>)),
@@ -1841,9 +2008,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${AppStrings.t(context, 'total_saved')}: ${_currency.format(_totalSaved)} EGP'),
-              const SizedBox(height: 8),
-              if (_savingEntries.isEmpty) Text(AppStrings.t(context, 'no_data')),
+              Builder(builder: (context) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        goldAccent.withValues(alpha: 0.12),
+                        goldAccent.withValues(alpha: 0.04),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: goldAccent.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: goldAccent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.savings_rounded, size: 20, color: goldAccent),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppStrings.t(context, 'total_saved'),
+                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_currency.format(_totalSaved)} EGP',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 12),
+              if (_savingEntries.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    AppStrings.t(context, 'no_data'),
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ),
               ..._savingEntries.map((entry) {
                 final targetType = entry['target_type']?.toString();
                 final targetKarat = entry['target_karat']?.toString();
@@ -1879,30 +2096,106 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
           child: _goals.isEmpty
-              ? Text(AppStrings.t(context, 'no_data'))
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    AppStrings.t(context, 'no_data'),
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                )
               : Column(
                   children: _goals.map((goal) {
                     final target = (goal['target_price'] as num?)?.toDouble() ?? 0;
                     final saved = (goal['saved_amount'] as num?)?.toDouble() ?? 0;
                     final progress = target > 0 ? (saved / target).clamp(0, 1) : 0.0;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text('${goal['karat']} - ${goal['target_weight_g']}g'),
-                          subtitle: Text(
-                            '${AppStrings.t(context, 'target')}: ${_currency.format(goal['target_price'])} | '
-                            '${AppStrings.t(context, 'remaining')}: ${_currency.format(goal['remaining_amount'])} EGP',
-                          ),
-                          trailing: IconButton(
-                            onPressed: () => _updateGoalSavedDialog(goal as Map<String, dynamic>),
-                            icon: const Icon(Icons.savings),
-                          ),
+                    final pct = (progress * 100).toStringAsFixed(0);
+                    final cs = Theme.of(context).colorScheme;
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+                    final progressColor = progress >= 1.0
+                        ? const Color(0xFF388E3C)
+                        : goldAccent;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF252118)
+                            : const Color(0xFFFAF7F0),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: goldAccent.withValues(alpha: 0.1),
+                          width: 0.5,
                         ),
-                        LinearProgressIndicator(value: progress.toDouble()),
-                        const SizedBox(height: 10),
-                      ],
+                        boxShadow: [
+                          BoxShadow(
+                            color: goldAccent.withValues(alpha: 0.06),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${goal['karat']} · ${goal['target_weight_g']}g',
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => _updateGoalSavedDialog(goal as Map<String, dynamic>),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: progressColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add, size: 14, color: progressColor),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        AppStrings.t(context, 'save'),
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: progressColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${AppStrings.t(context, 'remaining')}: ${_currency.format(goal['remaining_amount'])} EGP',
+                                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                                ),
+                              ),
+                              Text(
+                                '$pct%',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: progressColor),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: progress.toDouble(),
+                              minHeight: 8,
+                              backgroundColor: progressColor.withValues(alpha: 0.12),
+                              valueColor: AlwaysStoppedAnimation(progressColor),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   }).toList(),
                 ),
@@ -1913,6 +2206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _companiesSettingsTab() {
     return ListView(
+      padding: const EdgeInsets.only(bottom: 40),
       children: [
         _sectionCard(
           title: AppStrings.t(context, 'companies'),
@@ -1920,58 +2214,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
             IconButton(onPressed: _busy ? null : _addCompanyDialog, icon: const Icon(Icons.add_business)),
           ],
           child: _companies.isEmpty
-              ? Text(AppStrings.t(context, 'no_data'))
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    AppStrings.t(context, 'no_data'),
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                )
               : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: _companies
                       .map((company) => Chip(label: Text(company['name'].toString())))
                       .toList(),
                 ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _sectionCard(
           title: AppStrings.t(context, 'settings'),
           child: Column(
             children: [
-              SwitchListTile(
-                value: widget.themeMode == ThemeMode.dark,
-                onChanged: widget.onThemeChanged,
-                title: Text(AppStrings.t(context, 'dark_mode')),
+              _settingsRow(
+                icon: Icons.dark_mode_outlined,
+                title: AppStrings.t(context, 'dark_mode'),
+                trailing: Switch.adaptive(
+                  value: widget.themeMode == ThemeMode.dark,
+                  onChanged: widget.onThemeChanged,
+                ),
               ),
-              DropdownButtonFormField<String>(
-                value: widget.locale.languageCode,
-                decoration: InputDecoration(labelText: AppStrings.t(context, 'language')),
-                items: const [
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                  DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                ],
-                onChanged: (value) {
-                  if (value != null) widget.onLocaleChanged(Locale(value));
-                },
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15)),
+              _settingsRow(
+                icon: Icons.language_outlined,
+                title: AppStrings.t(context, 'language'),
+                trailing: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'en', label: Text('EN')),
+                    ButtonSegment(value: 'ar', label: Text('ع')),
+                  ],
+                  selected: {widget.locale.languageCode},
+                  onSelectionChanged: (value) => widget.onLocaleChanged(Locale(value.first)),
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
               ),
-              DropdownButtonFormField<int>(
-                initialValue: _notificationInterval,
-                decoration: InputDecoration(labelText: AppStrings.t(context, 'notification_interval')),
-                items: [
-                  DropdownMenuItem(value: 1, child: Text(AppStrings.t(context, 'hourly'))),
-                  DropdownMenuItem(value: 6, child: Text(AppStrings.t(context, 'six_hours'))),
-                ],
-                onChanged: (value) => setState(() => _notificationInterval = value ?? 1),
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15)),
+              _settingsRow(
+                icon: Icons.notifications_outlined,
+                title: AppStrings.t(context, 'notification_interval'),
+                trailing: SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment(value: 1, label: Text(AppStrings.t(context, 'hourly'))),
+                    ButtonSegment(value: 6, label: Text(AppStrings.t(context, 'six_hours'))),
+                  ],
+                  selected: {_notificationInterval},
+                  onSelectionChanged: (value) => setState(() => _notificationInterval = value.first),
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _busy
-                    ? null
-                    : () => _safeAction(() async {
-                          await widget.apiService.updateSettings(
-                            locale: widget.locale.languageCode,
-                            theme: widget.themeMode == ThemeMode.dark ? 'dark' : 'light',
-                            notificationIntervalHours: _notificationInterval,
-                          );
-                          await widget.notificationsService.showSettingsSavedNotification();
-                        }),
-                child: Text(AppStrings.t(context, 'save')),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _busy
+                      ? null
+                      : () => _safeAction(() async {
+                            await widget.apiService.updateSettings(
+                              locale: widget.locale.languageCode,
+                              theme: widget.themeMode == ThemeMode.dark ? 'dark' : 'light',
+                              notificationIntervalHours: _notificationInterval,
+                            );
+                            await widget.notificationsService.showSettingsSavedNotification();
+                            await widget.notificationsService.schedulePriceNotifications(
+                              intervalHours: _notificationInterval,
+                            );
+                          }),
+                  child: Text(AppStrings.t(context, 'save')),
+                ),
               ),
             ],
           ),
@@ -1979,6 +2302,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 12),
         _backupRestoreCard(),
       ],
+    );
+  }
+
+  Widget _settingsRow({required IconData icon, required String title, required Widget trailing}) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: goldAccent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: goldAccent),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          trailing,
+        ],
+      ),
     );
   }
 
@@ -2166,68 +2521,187 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return m?['name']?.toString() ?? '';
   }
 
+  Widget _buildLoadingSkeleton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shimmerBase = isDark ? const Color(0xFF2A2520) : const Color(0xFFEDE5D3);
+    final shimmerHighlight = isDark ? const Color(0xFF1E1B16) : const Color(0xFFF7F2E8);
+
+    Widget shimmerBox({double? width, required double height, double radius = 20}) {
+      return TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.3, end: 1.0),
+        duration: const Duration(milliseconds: 1200),
+        curve: Curves.easeInOut,
+        builder: (context, value, child) {
+          return Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              color: Color.lerp(shimmerBase, shimmerHighlight, value),
+              borderRadius: BorderRadius.circular(radius),
+            ),
+          );
+        },
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              shimmerBox(width: 40, height: 40, radius: 12),
+              const SizedBox(width: 12),
+              shimmerBox(width: 120, height: 22),
+              const Spacer(),
+              shimmerBox(width: 70, height: 28, radius: 8),
+            ],
+          ),
+          const SizedBox(height: 20),
+          shimmerBox(height: 150, radius: 20),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: shimmerBox(height: 120, radius: 20)),
+              const SizedBox(width: 12),
+              Expanded(child: shimmerBox(height: 120, radius: 20)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          shimmerBox(height: 120, radius: 20),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: shimmerBox(height: 120, radius: 20)),
+              const SizedBox(width: 12),
+              Expanded(child: shimmerBox(height: 120, radius: 20)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          shimmerBox(height: 76, radius: 20),
+          const SizedBox(height: 16),
+          shimmerBox(height: 160, radius: 22),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyStateWidget({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onAction,
+    String? actionLabel,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark ? const Color(0xFF2C2820) : const Color(0xFFF0EAD6),
+              ),
+              child: Icon(icon, size: 30, color: isDark ? const Color(0xFFBFA764) : const Color(0xFF9E8A4F)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+                letterSpacing: -0.2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant, height: 1.4),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (onAction != null && actionLabel != null) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(actionLabel),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppStrings.t(context, 'app_title')),
+        title: _members.isNotEmpty
+            ? GestureDetector(
+                onTap: _showMemberMenu,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(AppStrings.t(context, 'app_title')),
+                    if (_currentMemberName.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person, size: 14, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              _currentMemberName,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              )
+            : Text(AppStrings.t(context, 'app_title')),
         actions: [
-          if (_members.isNotEmpty)
-            TextButton.icon(
-              onPressed: _showMemberMenu,
-              icon: const Icon(Icons.people, size: 20),
-              label: Text(_currentMemberName, overflow: TextOverflow.ellipsis),
-            ),
           if (_members.isEmpty)
             IconButton(
               onPressed: _busy ? null : () => _memberDialog(),
-              icon: const Icon(Icons.person_add),
+              icon: const Icon(Icons.person_add_outlined),
               tooltip: AppStrings.t(context, 'add_member'),
             ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.language, size: 22),
-            tooltip: AppStrings.t(context, 'language'),
-            onSelected: (code) {
-              widget.onLocaleChanged(Locale(code));
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'en',
-                child: Row(
-                  children: [
-                    if (widget.locale.languageCode == 'en') const Icon(Icons.check, size: 18),
-                    if (widget.locale.languageCode == 'en') const SizedBox(width: 8),
-                    const Text('English'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'ar',
-                child: Row(
-                  children: [
-                    if (widget.locale.languageCode == 'ar') const Icon(Icons.check, size: 18),
-                    if (widget.locale.languageCode == 'ar') const SizedBox(width: 8),
-                    const Text('العربية'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            onPressed: _busy ? null : () => _safeAction(_load),
-            icon: const Icon(Icons.refresh),
-          ),
           IconButton(
             onPressed: widget.authService.logout,
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, size: 20),
             tooltip: AppStrings.t(context, 'logout'),
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildLoadingSkeleton()
           : Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
               child: IndexedStack(
                 index: _selectedTab,
                 children: [
@@ -2238,37 +2712,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Divider(
-            height: 0.5,
-            thickness: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+      extendBody: true,
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        decoration: BoxDecoration(
+          color: (Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF1E1B16)
+                  : Colors.white)
+              .withValues(alpha: 0.88),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB5973F).withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 4),
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: NavigationBar(
+              selectedIndex: _selectedTab,
+              onDestinationSelected: _onTabChanged,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              destinations: [
+                NavigationDestination(
+                    icon: const Icon(Icons.home_outlined),
+                    selectedIcon: const Icon(Icons.home),
+                    label: AppStrings.t(context, 'home')),
+                NavigationDestination(
+                    icon: const Icon(Icons.workspace_premium_outlined),
+                    selectedIcon: const Icon(Icons.workspace_premium),
+                    label: AppStrings.t(context, 'my_gold')),
+                NavigationDestination(
+                    icon: const Icon(Icons.savings_outlined),
+                    selectedIcon: const Icon(Icons.savings),
+                    label: AppStrings.t(context, 'savings_goals')),
+                NavigationDestination(
+                    icon: const Icon(Icons.settings_outlined),
+                    selectedIcon: const Icon(Icons.settings),
+                    label: AppStrings.t(context, 'settings')),
+              ],
+            ),
           ),
-          NavigationBar(
-            selectedIndex: _selectedTab,
-            onDestinationSelected: _onTabChanged,
-            destinations: [
-              NavigationDestination(
-                  icon: const Icon(Icons.home_outlined),
-                  selectedIcon: const Icon(Icons.home),
-                  label: AppStrings.t(context, 'home')),
-              NavigationDestination(
-                  icon: const Icon(Icons.workspace_premium_outlined),
-                  selectedIcon: const Icon(Icons.workspace_premium),
-                  label: AppStrings.t(context, 'my_gold')),
-              NavigationDestination(
-                  icon: const Icon(Icons.savings_outlined),
-                  selectedIcon: const Icon(Icons.savings),
-                  label: AppStrings.t(context, 'savings_goals')),
-              NavigationDestination(
-                  icon: const Icon(Icons.settings_outlined),
-                  selectedIcon: const Icon(Icons.settings),
-                  label: AppStrings.t(context, 'settings')),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2278,20 +2770,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Widget child,
     List<Widget> actions = const [],
   }) {
-    return Card(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B16) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: accentColor.withValues(alpha: isDark ? 0.12 : 0.08),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : accentColor.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                Container(
+                  width: 4,
+                  height: 22,
+                  margin: const EdgeInsetsDirectional.only(end: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [accentColor, accentColor.withValues(alpha: 0.4)],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 Expanded(
                   child: Text(
                     title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          letterSpacing: -0.3,
                         ),
                   ),
                 ),
@@ -2299,11 +2827,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 12),
+              padding: const EdgeInsets.only(top: 14, bottom: 14),
               child: Divider(
                 height: 0.5,
                 thickness: 0.5,
-                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+                color: accentColor.withValues(alpha: 0.1),
               ),
             ),
             child,
