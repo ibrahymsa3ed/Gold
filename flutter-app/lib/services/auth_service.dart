@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 final sharedGoogleSignIn = GoogleSignIn(
   serverClientId: '190629243449-p8f2shp44omgprs7dlngst9sdnbe48ce.apps.googleusercontent.com',
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
 );
 
 class AuthService {

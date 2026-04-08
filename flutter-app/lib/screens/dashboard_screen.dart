@@ -1054,9 +1054,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           Row(
             children: [
-              Flexible(child: _priceChip(widget.locale.languageCode == 'ar' ? 'شراء' : 'Buy', buy, subSize)),
+              Flexible(child: _priceChip(buy, subSize)),
               const SizedBox(width: 6),
-              Flexible(child: _priceChip(widget.locale.languageCode == 'ar' ? 'بيع' : 'Sell', sell, subSize)),
+              Flexible(child: _priceChip(sell, subSize)),
             ],
           ),
         ],
@@ -1064,21 +1064,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _priceChip(String label, String value, double fontSize) {
+  Widget _priceChip(String value, double fontSize) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '$label: $value',
+        value,
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
         style: TextStyle(
           fontSize: fontSize,
-          fontWeight: FontWeight.w600,
-          color: Colors.white.withValues(alpha: 0.9),
+          fontWeight: FontWeight.w700,
+          color: Colors.white.withValues(alpha: 0.95),
         ),
       ),
     );
@@ -1447,9 +1447,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _priceCardOrder.insert(newIndex, item);
             });
           },
+          proxyDecorator: (child, index, animation) {
+            return AnimatedBuilder(
+              animation: animation,
+              builder: (context, child) {
+                final t = Curves.easeInOut.transform(animation.value);
+                final elevation = lerpDouble(0, 12, t)!;
+                final scale = lerpDouble(1, 1.04, t)!;
+                return Transform.scale(
+                  scale: scale,
+                  child: Material(
+                    elevation: elevation,
+                    color: Colors.transparent,
+                    shadowColor: const Color(0xFFD4B254).withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(20),
+                    child: child,
+                  ),
+                );
+              },
+              child: child,
+            );
+          },
           itemBuilder: (context, index) {
             final key = _priceCardOrder[index];
-            return ReorderableDragStartListener(
+            return ReorderableDelayedDragStartListener(
               key: ValueKey(key),
               index: index,
               child: Padding(
@@ -2364,6 +2385,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(AppStrings.t(context, 'backup_success'))),
+                        );
+                      }
+                    }),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.cloud_upload_outlined),
+            title: Text(widget.locale.languageCode == 'ar' ? 'رفع إلى Google Drive' : 'Upload to Google Drive'),
+            trailing: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right),
+            onTap: _busy
+                ? null
+                : () => _safeAction(() async {
+                      final backupService = BackupService();
+                      final userId = widget.authService.currentUser?.uid ?? 'anonymous';
+                      final fileId = await backupService.uploadToDrive(null, apiService: widget.apiService, userId: userId);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(
+                            fileId != null
+                              ? (widget.locale.languageCode == 'ar' ? 'تم الرفع إلى Google Drive بنجاح' : 'Uploaded to Google Drive successfully')
+                              : (widget.locale.languageCode == 'ar' ? 'فشل الرفع. تأكد من تسجيل الدخول بحساب Google' : 'Upload failed. Make sure you\'re signed in with Google'),
+                          )),
                         );
                       }
                     }),

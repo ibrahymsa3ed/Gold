@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../utils/download_backup.dart';
 import 'api_service.dart';
 import 'database_helper.dart';
+import 'google_drive_service.dart';
 
 const _jsonName = 'instagold_backup.json';
 const _zipName = 'instagold_backup.zip';
@@ -65,7 +66,12 @@ class BackupService {
   }
 
   /// Builds a zip (JSON + invoice files) and shares / downloads it.
-  Future<void> exportBackupZip(ApiService apiService, String userId) async {
+  /// When [autoUploadToDrive] is true, also uploads the zip to Google Drive.
+  Future<void> exportBackupZip(
+    ApiService apiService,
+    String userId, {
+    bool autoUploadToDrive = false,
+  }) async {
     Map<String, dynamic> data;
     if (kIsWeb) {
       data = await apiService.buildBackupJsonSnapshot();
@@ -74,6 +80,31 @@ class BackupService {
     }
     final zipBytes = await _buildZipBytes(data);
     await downloadBackupFile(zipBytes, _zipName);
+
+    if (autoUploadToDrive && !kIsWeb) {
+      await uploadToDrive(zipBytes);
+    }
+  }
+
+  /// Uploads backup zip to Google Drive without local save dialog.
+  Future<String?> uploadToDrive(Uint8List? zipBytes, {ApiService? apiService, String? userId}) async {
+    Uint8List bytes;
+    if (zipBytes != null) {
+      bytes = zipBytes;
+    } else if (apiService != null && userId != null) {
+      Map<String, dynamic> data;
+      if (kIsWeb) {
+        data = await apiService.buildBackupJsonSnapshot();
+      } else {
+        data = await exportData(userId!);
+      }
+      bytes = await _buildZipBytes(data);
+    } else {
+      return null;
+    }
+
+    final driveService = GoogleDriveService();
+    return driveService.uploadBackup(bytes, _zipName);
   }
 
   Future<Uint8List> _buildZipBytes(Map<String, dynamic> data) async {
