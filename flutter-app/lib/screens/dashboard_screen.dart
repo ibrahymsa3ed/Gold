@@ -1720,12 +1720,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'other': Icons.diamond_outlined,
   };
 
-  Widget _assetCircleIcon(String type, {double size = 48}) {
+  Widget _assetCircleIcon(String type, {double size = 48, double? weightG}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     final assetPath = _assetImageMap[type];
+    final showWeight = weightG != null && (type == 'ingot' || type == 'coins');
+
+    Widget icon;
     if (assetPath != null) {
-      return Container(
+      icon = Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
@@ -1742,32 +1745,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Image.asset(assetPath, fit: BoxFit.cover),
         ),
       );
-    }
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            goldAccent.withValues(alpha: 0.2),
-            goldAccent.withValues(alpha: 0.06),
+    } else {
+      icon = Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              goldAccent.withValues(alpha: 0.2),
+              goldAccent.withValues(alpha: 0.06),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: goldAccent.withValues(alpha: 0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: goldAccent.withValues(alpha: 0.12),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        child: Icon(
+          _assetIconData[type] ?? Icons.diamond_outlined,
+          size: size * 0.45,
+          color: goldAccent,
+        ),
+      );
+    }
+
+    if (!showWeight) return icon;
+
+    final weightLabel = weightG! % 1 == 0
+        ? '${weightG.toInt()}g'
+        : '${weightG.toStringAsFixed(1)}g';
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          icon,
+          Positioned(
+            bottom: -2,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2A2210) : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: goldAccent.withValues(alpha: 0.5), width: 0.8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  weightLabel,
+                  style: TextStyle(
+                    fontSize: size * 0.2,
+                    fontWeight: FontWeight.w800,
+                    color: goldAccent,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
-      ),
-      child: Icon(
-        _assetIconData[type] ?? Icons.diamond_outlined,
-        size: size * 0.45,
-        color: goldAccent,
       ),
     );
   }
@@ -1813,7 +1865,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _assetCircleIcon(type, size: 48),
+                _assetCircleIcon(type, size: 48, weightG: (asset['weight_g'] as num?)?.toDouble()),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
