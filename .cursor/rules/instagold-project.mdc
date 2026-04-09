@@ -1,0 +1,40 @@
+---
+description: InstaGold (Gold) project conventions, preferences, and workflow rules
+alwaysApply: true
+---
+
+# InstaGold Project Rules
+
+## Platform & Build
+- **Android only** — ignore iOS for all UI work, testing, and screenshots.
+- Always run/test on the Android emulator (`emulator-5554`).
+- After UI changes: hot-reload on emulator, take screenshot, build release APK.
+- APK output: `flutter build apk --release`, copy to project root as `InstaGold.apk`.
+- No CI/CD — do not create GitHub Actions workflows.
+
+## UI Design
+- Single modern design (no theme chooser). Rollback via `kUiDesignVariant = classic` in `flutter-app/lib/theme/ui_design_variant.dart`.
+- Muted warm-gold ColorScheme: light seed `#9E8A4F`, dark seed `#BFA764`. Light surface cream `#FAF8F3`, cards white.
+- Cards: 0.5px outlines, 14px radius, zero elevation.
+- Price cards: soft gold gradients, drag-and-drop reorderable (`SliverReorderableList`).
+- Gap card: full-width tinted box (light green/red), EGP gap value large and centred, tappable for explanation popup.
+- Asset cards: icon in gold circle (ClipOval for PNGs), bold title, karat/weight/date subtitle, Purchase/Current/Profit rows.
+- Thin lines (0.5px dividers), consistent alignment, eye-friendly colours.
+
+## Code Conventions
+- Use dialog builder context (`ctx`) for `AppStrings.t()`, `Theme.of()`, `Navigator.pop()` inside dialog/sheet builders — never the State's `context`.
+- Member dialogs: name only, no relation field. `addMember`/`updateMember` have optional `relation` param.
+- Localization via `AppStrings.t(context, 'key')` — support Arabic and English.
+- Use `Color.withValues(alpha: ...)` not deprecated `withOpacity`.
+
+## Git & Docs
+- Commit and push when asked. Use descriptive commit messages.
+- Update `ARCHITECTURE.md` and `README.md` with every substantive change.
+- Do not add CI/CD workflows or pipelines.
+- Exclude `.idea/`, `FamilyGold.apk`, `GoldFamily.apk` via `.gitignore`.
+
+## File Locations
+- Theme: `flutter-app/lib/theme/app_themes.dart`
+- Dashboard: `flutter-app/lib/screens/dashboard_screen.dart`
+- API service: `flutter-app/lib/services/api_service.dart`
+- Localization: `flutter-app/lib/l10n.dart`
