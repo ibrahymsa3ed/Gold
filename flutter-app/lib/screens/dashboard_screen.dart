@@ -194,37 +194,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _forceCreateMember() async {
     final name = TextEditingController();
-    final relation = TextEditingController();
 
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(AppStrings.t(context, 'add_member')),
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.t(ctx, 'add_member')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              AppStrings.t(context, 'first_member_hint'),
-              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              AppStrings.t(ctx, 'first_member_hint'),
+              style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
-            TextField(controller: name, decoration: InputDecoration(labelText: AppStrings.t(context, 'name')),
-              autofocus: true),
-            TextField(controller: relation, decoration: InputDecoration(labelText: AppStrings.t(context, 'relation'))),
+            TextField(
+              controller: name,
+              decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
+              autofocus: true,
+            ),
           ],
         ),
         actions: [
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(AppStrings.t(context, 'save')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(AppStrings.t(ctx, 'save')),
           ),
         ],
       ),
     );
     if (saved == true && name.text.trim().isNotEmpty) {
       await _safeAction(() async {
-        final member = await widget.apiService.addMember(name.text.trim(), relation.text.trim());
+        final member = await widget.apiService.addMember(name.text.trim());
         await widget.apiService.setDefaultMemberId(member['id'] as int);
         await _load();
       });
@@ -243,43 +244,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _memberDialog({Map<String, dynamic>? existing}) async {
     final name = TextEditingController(text: existing?['name']?.toString() ?? '');
-    final relation = TextEditingController(text: existing?['relation']?.toString() ?? '');
     final isEdit = existing != null;
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(isEdit ? AppStrings.t(context, 'edit_member') : AppStrings.t(context, 'add_member')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: name, decoration: InputDecoration(labelText: AppStrings.t(context, 'name'))),
-            TextField(
-              controller: relation,
-              decoration: InputDecoration(labelText: AppStrings.t(context, 'relation')),
-            ),
-          ],
+      builder: (ctx) => AlertDialog(
+        title: Text(isEdit ? AppStrings.t(ctx, 'edit_member') : AppStrings.t(ctx, 'add_member')),
+        content: TextField(
+          controller: name,
+          decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
+          autofocus: true,
         ),
         actions: [
           if (isEdit)
             TextButton(
               onPressed: () async {
                 final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: Text(AppStrings.t(context, 'confirm_delete')),
-                    content: Text(AppStrings.t(context, 'confirm_delete_msg')),
+                  context: ctx,
+                  builder: (ctx2) => AlertDialog(
+                    title: Text(AppStrings.t(ctx2, 'confirm_delete')),
+                    content: Text(AppStrings.t(ctx2, 'confirm_delete_msg')),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
+                      TextButton(onPressed: () => Navigator.pop(ctx2, false), child: Text(AppStrings.t(ctx2, 'cancel'))),
                       TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+                        onPressed: () => Navigator.pop(ctx2, true),
+                        child: Text(AppStrings.t(ctx2, 'delete'), style: const TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
                 );
                 if (confirm == true && mounted) {
-                  Navigator.pop(context, false);
+                  Navigator.pop(ctx, false);
                   await _safeAction(() async {
                     await widget.apiService.deleteMember(existing['id'] as int);
                     _selectedMemberId = null;
@@ -287,20 +282,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   });
                 }
               },
-              child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+              child: Text(AppStrings.t(ctx, 'delete'), style: const TextStyle(color: Colors.red)),
             ),
           const Spacer(),
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(AppStrings.t(context, 'save'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(ctx, 'cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(ctx, 'save'))),
         ],
       ),
     );
     if (saved == true && name.text.trim().isNotEmpty) {
       await _safeAction(() async {
         if (isEdit) {
-          await widget.apiService.updateMember(existing['id'] as int, name.text.trim(), relation.text.trim());
+          await widget.apiService.updateMember(existing['id'] as int, name.text.trim());
         } else {
-          await widget.apiService.addMember(name.text.trim(), relation.text.trim());
+          await widget.apiService.addMember(name.text.trim());
         }
         await _load();
       });

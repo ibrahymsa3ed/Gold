@@ -164,7 +164,7 @@ class ApiService {
     return _rows(await db.query('FamilyMembers', where: 'user_id = ?', whereArgs: [_userId], orderBy: 'id DESC'));
   }
 
-  Future<Map<String, dynamic>> addMember(String name, String relation) async {
+  Future<Map<String, dynamic>> addMember(String name, [String relation = '']) async {
     if (kIsWeb) return (await _httpPost('/api/members', {'name': name, 'relation': relation})) as Map<String, dynamic>;
     final db = await _db;
     final id = await db.insert('FamilyMembers', {
@@ -173,7 +173,7 @@ class ApiService {
     return _row((await db.query('FamilyMembers', where: 'id = ?', whereArgs: [id])).first);
   }
 
-  Future<Map<String, dynamic>> updateMember(int memberId, String name, String relation) async {
+  Future<Map<String, dynamic>> updateMember(int memberId, String name, [String relation = '']) async {
     if (kIsWeb) return (await _httpPut('/api/members/$memberId', {'name': name, 'relation': relation})) as Map<String, dynamic>;
     final db = await _db;
     await db.update('FamilyMembers', {'name': name, 'relation': relation}, where: 'id = ? AND user_id = ?', whereArgs: [memberId, _userId]);
