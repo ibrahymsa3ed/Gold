@@ -200,20 +200,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text(AppStrings.t(ctx, 'add_member')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              AppStrings.t(ctx, 'first_member_hint'),
-              style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: name,
-              decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
-              autofocus: true,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppStrings.t(ctx, 'first_member_hint'),
+                style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: name,
+                decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
+              ),
+            ],
+          ),
         ),
         actions: [
           ElevatedButton(
@@ -250,43 +251,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isEdit ? AppStrings.t(ctx, 'edit_member') : AppStrings.t(ctx, 'add_member')),
-        content: TextField(
-          controller: name,
-          decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
-          autofocus: true,
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: name,
+            decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
+          ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         actions: [
-          if (isEdit)
-            TextButton(
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: ctx,
-                  builder: (ctx2) => AlertDialog(
-                    title: Text(AppStrings.t(ctx2, 'confirm_delete')),
-                    content: Text(AppStrings.t(ctx2, 'confirm_delete_msg')),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx2, false), child: Text(AppStrings.t(ctx2, 'cancel'))),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx2, true),
-                        child: Text(AppStrings.t(ctx2, 'delete'), style: const TextStyle(color: Colors.red)),
+          Row(
+            children: [
+              if (isEdit)
+                TextButton(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: ctx,
+                      builder: (ctx2) => AlertDialog(
+                        title: Text(AppStrings.t(ctx2, 'confirm_delete')),
+                        content: Text(AppStrings.t(ctx2, 'confirm_delete_msg')),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx2, false), child: Text(AppStrings.t(ctx2, 'cancel'))),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx2, true),
+                            child: Text(AppStrings.t(ctx2, 'delete'), style: const TextStyle(color: Colors.red)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-                if (confirm == true && mounted) {
-                  Navigator.pop(ctx, false);
-                  await _safeAction(() async {
-                    await widget.apiService.deleteMember(existing['id'] as int);
-                    _selectedMemberId = null;
-                    await _load();
-                  });
-                }
-              },
-              child: Text(AppStrings.t(ctx, 'delete'), style: const TextStyle(color: Colors.red)),
-            ),
-          const Spacer(),
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(ctx, 'cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(ctx, 'save'))),
+                    );
+                    if (confirm == true && ctx.mounted) {
+                      Navigator.pop(ctx, false);
+                      await _safeAction(() async {
+                        await widget.apiService.deleteMember(existing['id'] as int);
+                        _selectedMemberId = null;
+                        await _load();
+                      });
+                    }
+                  },
+                  child: Text(AppStrings.t(ctx, 'delete'), style: const TextStyle(color: Colors.red)),
+                ),
+              const Spacer(),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(ctx, 'cancel'))),
+              const SizedBox(width: 8),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(ctx, 'save'))),
+            ],
+          ),
         ],
       ),
     );
