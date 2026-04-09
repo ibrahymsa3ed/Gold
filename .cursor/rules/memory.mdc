@@ -1,0 +1,48 @@
+---
+description: Project memory — automatically loaded into every conversation
+alwaysApply: true
+---
+
+# Project Memory — InstaGold (Gold)
+
+## App Identity
+- App name: **InstaGold** (package: com.ibrahym.goldfamily)
+- Platform: **Android only** — ignore iOS for UI, testing, screenshots
+- APK output: `InstaGold.apk` at project root after every build
+- Firebase project: goldcalculate
+
+## Architecture
+- Monorepo: `scraper-service/` (price scraping), `main-backend/` (API), `flutter-app/` (mobile UI)
+- Mobile mode: local SQLite + direct scraping — no backend servers needed on device
+- Web mode: talks to main-backend HTTP APIs
+- No CI/CD pipelines
+
+## UI Design Decisions
+- Muted warm-gold ColorScheme: light `#9E8A4F`, dark `#BFA764`, light surface cream `#FAF8F3`
+- Cards: 0.5px outlines, 14px radius, zero elevation, white in light mode
+- Price cards: gold gradient rounded rectangles, drag-and-drop reorderable
+- Home layout: 21K full-width hero → 24K+18K row → 14K full-width → Pound+Ounce row
+- Gap card: full-width tinted box (green/red), EGP gap value large and centred, tappable for explanation popup showing calculation breakdown
+- Ounce card: shiny gold gradient `[#E0C45C, #CCAE3A, #AA9028]`
+- Asset cards: icon in gold circle (ClipOval for PNGs), title, karat/weight/date subtitle, Purchase/Current/Profit rows with %
+- Bottom nav: outlined/filled icon states with thin top divider
+- No custom ClipPath shapes — standard rounded containers only
+
+## Code Patterns
+- Dialog builders: always use builder context (`ctx`) for AppStrings, Theme, Navigator — never State's `context`
+- Member: name field only, no relation field. API `addMember`/`updateMember` have optional relation param
+- Localization: `AppStrings.t(context, 'key')` — Arabic and English
+- Colors: `withValues(alpha: ...)` not deprecated `withOpacity`
+- Theme variant: `kUiDesignVariant` in `ui_design_variant.dart` — set to `classic` to rollback
+
+## Key Files
+- Theme: `flutter-app/lib/theme/app_themes.dart`
+- Dashboard: `flutter-app/lib/screens/dashboard_screen.dart`
+- API: `flutter-app/lib/services/api_service.dart`
+- L10n: `flutter-app/lib/l10n.dart`
+- Design variant: `flutter-app/lib/theme/ui_design_variant.dart`
+
+## Git
+- Remote: github.com/ibrahymsa3ed/Gold
+- Branch: main
+- Always update `ARCHITECTURE.md` and `README.md` with code changes
