@@ -148,8 +148,6 @@ Implementation note:
 - Shared API key between main backend and scraper (`SCRAPER_API_KEY`) using `x-api-key` header.
 - Keep secrets in `.env` and GitHub repo secrets.
 - Run behind reverse proxy with HTTPS.
-- Use GitHub Actions for CI and deployment workflows.
-
 ---
 
 ## 5) Deployment Topology (Recommended)

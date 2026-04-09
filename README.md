@@ -12,7 +12,6 @@ The Flutter client is branded **InstaGold** (launcher name and in-app title). Th
 Gold/
   ARCHITECTURE.md
   README.md
-  .github/workflows/ci.yml
   .cursor/rules/docs-and-readme-sync.mdc
   scripts/deploy.sh
   scripts/dev-up.sh
@@ -170,12 +169,3 @@ Requires `rclone` with a `gdrive:` remote configured. APK is uploaded to `gdrive
 - Firebase initialization uses `flutter-app/lib/firebase_options.dart` so web/native startup works reliably.
 - Web Google sign-in uses Firebase popup flow with clearer error messages for Firebase config issues.
 - Web auth includes popup-to-redirect fallback to handle popup auto-close/browser policy issues.
-
-## CI/CD Suggestion
-
-- Add GitHub Actions for:
-  - Node install + lint/test for scraper and backend
-  - Flutter analyze/test/build
-  - Optional deploy steps to server/container registry
-
-Starter workflow included at `.github/workflows/ci.yml`.
