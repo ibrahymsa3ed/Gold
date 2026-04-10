@@ -157,7 +157,11 @@ cp build/app/outputs/flutter-apk/app-prod-release.apk ../InstaGold.apk
 
 ### Before you have a Play Developer account
 
-You can still prepare signing, AAB builds, AdMob IDs, screenshots, privacy policy text, and Firebase release SHA keys. See **[PLAY_STORE_PREP.md](PLAY_STORE_PREP.md)** for a full phased checklist (what needs the one-time Play registration vs what does not).
+You can still prepare signing, AAB builds, AdMob IDs, screenshots, privacy policy text, and Firebase release SHA keys.
+
+- **What you must do yourself (commands + Firebase / AdMob):** **[YOUR_ACTIONS_BEFORE_PLAY.md](YOUR_ACTIONS_BEFORE_PLAY.md)**
+- **Phased overview:** **[PLAY_STORE_PREP.md](PLAY_STORE_PREP.md)**
+- **Helper:** `./scripts/print-release-signing-fingerprints.sh` — prints SHA-1/SHA-256 from your upload keystore for Firebase
 
 ### Google Play (AAB)
 

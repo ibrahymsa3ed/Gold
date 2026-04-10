@@ -10,7 +10,7 @@ alwaysApply: true
 - Platform: **Android only** — ignore iOS for UI, testing, screenshots
 - APK outputs at repo root: **`InstaGold-dev.apk`** (dev flavor, test ads, label “InstaGold Dev”) via `./scripts/build-dev-apk.sh`; **`InstaGold.apk`** (prod) via `./scripts/build-and-upload.sh` or `flutter build apk --flavor prod`
 - Play Store bundle: `./scripts/build-play-aab.sh` → `app-prod-release.aab`
-- Play prep (before paying Play registration): `PLAY_STORE_PREP.md`
+- Play prep: `PLAY_STORE_PREP.md`; owner checklist `YOUR_ACTIONS_BEFORE_PLAY.md`; `scripts/print-release-signing-fingerprints.sh` for Firebase SHA
 - Firebase project: goldcalculate
 
 ## Architecture
