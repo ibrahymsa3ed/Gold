@@ -4,6 +4,10 @@ google-services.json
 GoogleService-Info.plist
 *.p12
 *.key
+# Android Play upload signing (never commit)
+flutter-app/android/key.properties
+flutter-app/android/*.jks
+flutter-app/android/*.keystore
 
 # IDE
 .idea/
@@ -14,3 +18,5 @@ GoogleService-Info.plist
 # Old APK builds (keep InstaGold.apk explicit add)
 FamilyGold.apk
 GoldFamily.apk
+# Local dev flavor artifact (rebuild with ./scripts/build-dev-apk.sh)
+InstaGold-dev.apk

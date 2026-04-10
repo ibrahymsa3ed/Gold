@@ -8,7 +8,8 @@ alwaysApply: true
 ## App Identity
 - App name: **InstaGold** (package: com.ibrahym.goldfamily)
 - Platform: **Android only** — ignore iOS for UI, testing, screenshots
-- APK output: `InstaGold.apk` at project root after every build
+- APK outputs at repo root: **`InstaGold-dev.apk`** (dev flavor, test ads, label “InstaGold Dev”) via `./scripts/build-dev-apk.sh`; **`InstaGold.apk`** (prod) via `./scripts/build-and-upload.sh` or `flutter build apk --flavor prod`
+- Play Store bundle: `./scripts/build-play-aab.sh` → `app-prod-release.aab`
 - Firebase project: goldcalculate
 
 ## Architecture

@@ -22,14 +22,29 @@ DRIVE_DEST = f"{DRIVE_FOLDER}/InstaGold.apk"
 
 def build_apk():
     flutter_dir = os.path.join(ROOT, "flutter-app")
-    print("=== Building release APK ===")
+    print("=== Building release APK (prod flavor) ===")
     result = subprocess.run(
-        ["flutter", "build", "apk", "--release"],
+        [
+            "flutter",
+            "build",
+            "apk",
+            "--release",
+            "--flavor",
+            "prod",
+            "--dart-define=INSTAGOLD_FLAVOR=prod",
+        ],
         cwd=flutter_dir,
     )
     if result.returncode != 0:
         sys.exit(1)
-    src = os.path.join(flutter_dir, "build", "app", "outputs", "flutter-apk", "app-release.apk")
+    src = os.path.join(
+        flutter_dir,
+        "build",
+        "app",
+        "outputs",
+        "flutter-apk",
+        "app-prod-release.apk",
+    )
     subprocess.run(["cp", src, APK_PATH])
     print(f"APK ready at {APK_PATH}")
 

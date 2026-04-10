@@ -135,23 +135,57 @@ Premium gold-themed design with rich palette (`#B5973F` primary / `#D4B254` acce
 ### Android-first preview
 
 ```bash
-cd flutter-app && flutter run -d android
+cd flutter-app && flutter run -d android --flavor dev --dart-define=INSTAGOLD_FLAVOR=dev
 ```
 
-### Build APK
+### Android builds (flavors)
+
+InstaGold uses Gradle flavors **`dev`** and **`prod`** (same package id `com.ibrahym.goldfamily` so Firebase stays valid).
+
+| Output at repo root | Command |
+|---------------------|---------|
+| **`InstaGold-dev.apk`** | `./scripts/build-dev-apk.sh` — internal/testing; launcher label **InstaGold Dev**; AdMob **test** IDs (not committed to git; build locally) |
+| **`InstaGold.apk`** | `./scripts/build-and-upload.sh` (or manual prod build below) — **InstaGold**; production AdMob IDs when configured |
+
+Manual prod APK:
 
 ```bash
-cd flutter-app && flutter build apk --release
-cp flutter-app/build/app/outputs/flutter-apk/app-release.apk InstaGold.apk
+cd flutter-app
+flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
+cp build/app/outputs/flutter-apk/app-prod-release.apk ../InstaGold.apk
 ```
 
-### Build + Upload to Google Drive
+### Google Play (AAB)
+
+Upload an **Android App Bundle** to Play Console (not required for sideload APK):
+
+```bash
+./scripts/build-play-aab.sh
+```
+
+Artifact: `flutter-app/build/app/outputs/bundle/prodRelease/app-prod-release.aab`
+
+### Release signing (Play Store)
+
+1. Create an upload keystore (once), e.g. `flutter-app/android/upload-keystore.jks` (keep private; gitignored).
+2. Copy `flutter-app/android/key.properties.example` → `key.properties` and fill passwords/paths.
+3. Release builds use that keystore when `key.properties` exists; otherwise they fall back to **debug** signing (fine for local tests only).
+
+### AdMob (production)
+
+- **App ID** placeholders live in `flutter-app/android/app/build.gradle.kts` per flavor (`admobAppId`). Replace the **prod** value with your real AdMob App ID before a public Play release.
+- **Banner unit:** pass at build time, e.g.  
+  `--dart-define=ADMOB_BANNER_PROD=ca-app-pub-xxx/yyy`  
+  or edit defaults in `flutter-app/lib/config/ad_config.dart`.
+- Declare ads and related data collection in Play **Data safety** and your privacy policy.
+
+### Build + Upload APK to Google Drive
 
 ```bash
 ./scripts/build-and-upload.sh
 ```
 
-Or upload an existing APK:
+Or upload an existing **`InstaGold.apk`**:
 
 ```bash
 python3 scripts/upload_apk.py

@@ -14,6 +14,7 @@ import '../services/backup_service.dart';
 import '../services/gold_scraper.dart';
 import '../services/invoice_attachment_service.dart';
 import '../services/notifications_service.dart';
+import '../widgets/instagold_ad_banner.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -2832,7 +2833,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: _loading
           ? _buildLoadingSkeleton()
           : Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
               child: IndexedStack(
                 index: _selectedTab,
                 children: [
@@ -2844,54 +2845,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
       extendBody: true,
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        decoration: BoxDecoration(
-          color: (Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF1E1B16)
-                  : Colors.white)
-              .withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB5973F).withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, 4),
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: NavigationBar(
-              selectedIndex: _selectedTab,
-              onDestinationSelected: _onTabChanged,
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              destinations: [
-                NavigationDestination(
-                    icon: const Icon(Icons.home_outlined),
-                    selectedIcon: const Icon(Icons.home),
-                    label: AppStrings.t(context, 'home')),
-                NavigationDestination(
-                    icon: const Icon(Icons.workspace_premium_outlined),
-                    selectedIcon: const Icon(Icons.workspace_premium),
-                    label: AppStrings.t(context, 'my_gold')),
-                NavigationDestination(
-                    icon: const Icon(Icons.savings_outlined),
-                    selectedIcon: const Icon(Icons.savings),
-                    label: AppStrings.t(context, 'savings_goals')),
-                NavigationDestination(
-                    icon: const Icon(Icons.settings_outlined),
-                    selectedIcon: const Icon(Icons.settings),
-                    label: AppStrings.t(context, 'settings')),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!kIsWeb) const InstaGoldAdBanner(),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            decoration: BoxDecoration(
+              color: (Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF1E1B16)
+                      : Colors.white)
+                  .withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFB5973F).withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 4),
+                  spreadRadius: -4,
+                ),
               ],
             ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: NavigationBar(
+                  selectedIndex: _selectedTab,
+                  onDestinationSelected: _onTabChanged,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  destinations: [
+                    NavigationDestination(
+                        icon: const Icon(Icons.home_outlined),
+                        selectedIcon: const Icon(Icons.home),
+                        label: AppStrings.t(context, 'home')),
+                    NavigationDestination(
+                        icon: const Icon(Icons.workspace_premium_outlined),
+                        selectedIcon: const Icon(Icons.workspace_premium),
+                        label: AppStrings.t(context, 'my_gold')),
+                    NavigationDestination(
+                        icon: const Icon(Icons.savings_outlined),
+                        selectedIcon: const Icon(Icons.savings),
+                        label: AppStrings.t(context, 'savings_goals')),
+                    NavigationDestination(
+                        icon: const Icon(Icons.settings_outlined),
+                        selectedIcon: const Icon(Icons.settings),
+                        label: AppStrings.t(context, 'settings')),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
