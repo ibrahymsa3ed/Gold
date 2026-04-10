@@ -135,6 +135,7 @@ Implementation note:
 - **Android flavors:** `dev` and `prod` (same `applicationId`). `dev` shows launcher name **InstaGold Dev**; `prod` shows **InstaGold**. Build with `--flavor dev|prod` and matching `--dart-define=INSTAGOLD_FLAVOR=dev|prod`. Root APK outputs: `InstaGold-dev.apk` (dev), `InstaGold.apk` (prod). Play uploads use **AAB**: `flutter build appbundle --flavor prod` → `app-prod-release.aab`.
 - **Release signing:** `android/key.properties` (gitignored) points to the upload keystore; if missing, release APKs/AABs use debug signing (development only). See `android/key.properties.example`.
 - **Play Store prep without a developer account:** phased checklist in `PLAY_STORE_PREP.md`; owner-only steps (keystore, `key.properties`, Firebase fingerprints, AdMob) in `YOUR_ACTIONS_BEFORE_PLAY.md`. Use `scripts/print-release-signing-fingerprints.sh` to print release SHA-1/SHA-256 for Firebase.
+- **Privacy policy (draft):** `docs/PRIVACY_POLICY_TEMPLATE.md` — developer must review, publish to an HTTPS URL, and align Play Data safety with the same content.
 - `classic` rollback preserved via `kUiDesignVariant` in `flutter-app/lib/theme/ui_design_variant.dart` (see `ROLLBACK_UI.md`).
 - Gap info: full-width tinted card (green/red matching alarm direction) below prices with EGP gap value centred, jeweler's dollar on left, premium % and official rate on right; tapping opens explanation dialog.
 

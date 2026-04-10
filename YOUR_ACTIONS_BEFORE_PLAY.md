@@ -2,6 +2,25 @@
 
 This is the **hands-on list only you can do**: passwords, Google consoles, and hosting. The repo already has build scripts; this guide ties them to your actions.
 
+### Where you are now
+
+If you finished **1–4** (keystore + Firebase fingerprints), skipped **5** (AdMob — optional), and did **6** (AAB builds): you are ready for the **pre-launch content** steps below — **7** and **8** — and Play registration (**9**) when you choose.
+
+| Step | Meaning in one line |
+|------|---------------------|
+| **7** | **Marketing images** for the store page (icon, banner, screenshots, text). Nothing technical in the app — you create files on your computer. |
+| **8** | **Privacy policy** = a public web page URL Google requires. You can start from our **template** in the repo, edit it, host it on HTTPS. |
+| **9** | Pay for Play Developer account and upload the **AAB** you already built. |
+
+### What the project / assistant can do vs you
+
+| Topic | You | Repo / assistant |
+|--------|-----|------------------|
+| Keystore, Firebase, AdMob accounts | Yes | Docs + scripts only |
+| Store screenshots / graphics | You take or design | Can suggest sizes, emulator tips |
+| Privacy policy text | You review & publish | **[docs/PRIVACY_POLICY_TEMPLATE.md](docs/PRIVACY_POLICY_TEMPLATE.md)** draft to customize |
+| Play Console forms | You | Checklists in **PLAY_STORE_PREP.md** |
+
 ---
 
 ## 1. Create the upload keystore (once — do not lose it)
@@ -104,26 +123,45 @@ Install a prod APK on a phone (from `./scripts/build-and-upload.sh` or manual co
 
 ---
 
-## 7. Store listing assets (no account needed to *make* them)
+## 7. Store listing assets (no Play account needed to *create* them)
 
-Prepare files locally:
+Google Play will ask for these **when you create the app listing**. You can prepare them now as files on your computer (Photoshop, Figma, or screenshots only).
 
-| Asset | Size / notes |
-|--------|----------------|
-| Icon | 512×512 PNG |
-| Feature graphic | 1024×500 |
-| Phone screenshots | At least 2; capture from emulator or device |
-| Short / full description | Draft in a doc; EN + AR if you ship both |
+**What each one is for:**
+
+| Asset | Size | What it is |
+|-------|------|------------|
+| **App icon** | **512×512** px PNG | The icon shoppers see on the store. Often the same artwork as the launcher icon, exported at 512×512. |
+| **Feature graphic** | **1024×500** px | Wide banner at the top of your store page; usually your logo + tagline on a background. |
+| **Phone screenshots** | Min **2** (Play requires at least one phone screenshot in many cases); **4–8** is common | Real captures of your app: Home, My Gold, Settings, etc. Use the same **phone aspect** (e.g. 9:16) for a clean look. |
+| **Short description** | Max **80** characters | One line under the app name. |
+| **Full description** | Max **4000** characters | Explain features; you can do **English** and **Arabic** if you ship both (or one language first). |
+
+**How to capture screenshots:**
+
+- **Android emulator:** run the app, open each screen, use the emulator’s **Camera** / screenshot tool, or from host:  
+  `adb exec-out screencap -p > screenshot_home.png`  
+- **Physical phone:** built-in screenshot buttons; copy images to your PC.
+
+**What I (or the repo) cannot do for you:** design the feature graphic or take the photos for you — that’s creative work on your side. The repo can keep **size requirements** accurate in this file.
 
 ---
 
 ## 8. Privacy policy URL
 
-- Write what data you collect (account, ads, backups, notifications, price sources).
-- Host on **HTTPS** (GitHub Pages, your site, etc.).
-- You will paste the **URL** into Play Console later and align **Data safety** with the same text.
+Play Console requires a **public HTTPS link** to a privacy policy. It must match what your app actually does (sign-in, local data, backups, ads if any, notifications).
 
-(A template outline can live in-repo if you add one; you still must review and publish the final page.)
+**What you do:**
+
+1. Open the draft: **[docs/PRIVACY_POLICY_TEMPLATE.md](docs/PRIVACY_POLICY_TEMPLATE.md)**.
+2. Replace **`[YOUR_EMAIL]`**, **`[DATE]`**, and read every section. If you are **not** using AdMob yet, shorten or remove the **“Optional advertising”** part until you enable ads.
+3. **Publish** the text as a normal web page with **HTTPS**, for example:
+   - **GitHub Pages** from a small repo (free tier, HTTPS included), or  
+   - Your own website, or  
+   - Any host that gives you a stable `https://…` URL.
+4. Save that **URL** — you will paste it into Play **Store listing** and use it to answer **Data safety** consistently.
+
+**What I can do in the repo:** keep **docs/PRIVACY_POLICY_TEMPLATE.md** updated when app behavior changes (new permissions, ads, etc.). **You** must still read it, agree with it, and put it online — Google expects the **developer** to stand behind the policy.
 
 ---
 

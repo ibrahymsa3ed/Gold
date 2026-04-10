@@ -1,6 +1,8 @@
 # Play Store preparation (before and after developer registration)
 
-**Owner step-by-step (keystore, Firebase, AdMob):** see **[YOUR_ACTIONS_BEFORE_PLAY.md](YOUR_ACTIONS_BEFORE_PLAY.md)**.
+**Owner step-by-step (keystore, Firebase, AdMob, store assets, privacy):** see **[YOUR_ACTIONS_BEFORE_PLAY.md](YOUR_ACTIONS_BEFORE_PLAY.md)**.
+
+**Privacy policy draft:** **[docs/PRIVACY_POLICY_TEMPLATE.md](docs/PRIVACY_POLICY_TEMPLATE.md)** (review and host on HTTPS before Play submission).
 
 You can complete most technical and content work **before** paying the one-time Google Play developer registration fee. This checklist is ordered so nothing blocks you unnecessarily.
 
