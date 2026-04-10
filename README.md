@@ -155,6 +155,10 @@ flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
 cp build/app/outputs/flutter-apk/app-prod-release.apk ../InstaGold.apk
 ```
 
+### Before you have a Play Developer account
+
+You can still prepare signing, AAB builds, AdMob IDs, screenshots, privacy policy text, and Firebase release SHA keys. See **[PLAY_STORE_PREP.md](PLAY_STORE_PREP.md)** for a full phased checklist (what needs the one-time Play registration vs what does not).
+
 ### Google Play (AAB)
 
 Upload an **Android App Bundle** to Play Console (not required for sideload APK):
