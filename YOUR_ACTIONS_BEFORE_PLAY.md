@@ -161,7 +161,11 @@ Play Console requires a **public HTTPS link** to a privacy policy. It must match
    - Any host that gives you a stable `https://…` URL.
 4. Save that **URL** — you will paste it into Play **Store listing** and use it to answer **Data safety** consistently.
 
-**What I can do in the repo:** keep **docs/PRIVACY_POLICY_TEMPLATE.md** updated when app behavior changes (new permissions, ads, etc.). **You** must still read it, agree with it, and put it online — Google expects the **developer** to stand behind the policy.
+**Published at:** **https://ibrahymsa3ed.github.io/instagold-privacy/** (GitHub Pages, public repo `instagold-privacy`).
+
+Use this URL in Play Console **Store listing** → **Privacy policy**. If you add AdMob or change data handling later, update both `docs/privacy-policy.md` in this repo and the matching `docs/index.md` in the `instagold-privacy` repo, then push.
+
+**What I can do in the repo:** keep **docs/PRIVACY_POLICY_TEMPLATE.md** and the live policy updated when app behavior changes (new permissions, ads, etc.). **You** must still read it, agree with it, and put it online — Google expects the **developer** to stand behind the policy.
 
 ---
 

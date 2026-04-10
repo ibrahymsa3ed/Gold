@@ -160,6 +160,7 @@ cp build/app/outputs/flutter-apk/app-prod-release.apk ../InstaGold.apk
 You can still prepare signing, AAB builds, AdMob IDs, screenshots, privacy policy text, and Firebase release SHA keys.
 
 - **What you must do yourself (commands + Firebase / AdMob):** **[YOUR_ACTIONS_BEFORE_PLAY.md](YOUR_ACTIONS_BEFORE_PLAY.md)** — includes steps **7–8** (store graphics + privacy policy) after signing is done
+- **Privacy policy (live):** **https://ibrahymsa3ed.github.io/instagold-privacy/** (source in public repo `instagold-privacy`)
 - **Privacy policy draft (editable):** **[docs/PRIVACY_POLICY_TEMPLATE.md](docs/PRIVACY_POLICY_TEMPLATE.md)** — review, host on HTTPS, then use the URL in Play Console
 - **Phased overview:** **[PLAY_STORE_PREP.md](PLAY_STORE_PREP.md)**
 - **Helper:** `./scripts/print-release-signing-fingerprints.sh` — prints SHA-1/SHA-256 from your upload keystore for Firebase
