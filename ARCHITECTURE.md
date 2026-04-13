@@ -125,12 +125,13 @@ Implementation note:
 
 - **Theme:** Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`/`#0E0E10`) with subtle gradient transitions — never flat. Light mode retains warm cream surfaces (`#F7F2E8`). Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#E8CD5A` light, `#B8962E` muted.
 - **Background:** Subtle abstract wave patterns painted via `CustomPaint` at very low opacity, with soft radial highlights behind key areas (headers, cards). Creates depth without clutter.
-- **IG Logo:** Minimal interlocked "IG" monogram rendered as a `CustomPaint` widget (`IgLogo`). The G wraps around the I for a unified mark. Readable at small sizes. Used in app bar, splash screen, and empty states.
+- **IG Logo:** Uses the provided IG image as a transparent cropped asset (`assets/icons/ig_logo_mark.png`) through `IgLogo`. The square background is removed so the mark sits directly on the screen background; light mode applies a darker gold tone for readability. Used in app bar, splash screen, empty states, and launcher assets.
 - **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and value chips. Default order: 21K (hero), 24K (hero), 14K+18K (paired), Pound+Ounce (paired). Press-and-hold drag-reorderable via `SliverReorderableList`.
 - **Navigation:** Floating glassmorphism pill-shaped bottom nav bar with backdrop blur, dark glass surface in dark mode, gold accent indicators, and subtle gold border.
 - **Section Cards:** Premium dark card surface (`#1A1816`), gold accent gradient bar, `borderRadius: 22`, soft glow shadows, and `w800` typography.
 - **Asset Cards:** Karat badge chips, inner financial detail cards, gold circle icons with gradient/shadow, profit/loss with trend indicators.
-- **Login:** Gradient background, 88px brand icon with 4-stop gold glow, 32px title, refined input fields.
+- **Brand header:** `InstaGoldWordmark` provides the premium in-app title lockup. The app-bar brand is tappable and returns to the Home tab; member switching remains on the separate member chip.
+- **Login:** Gradient background, larger transparent IG mark, premium `InstaGoldWordmark`, refined input fields.
 - **Notifications:** Scheduled price notifications via `flutter_local_notifications` + `timezone`. Android 13+ permission requests for `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`.
 - **Ads:** `google_mobile_ads` with a bottom **banner** on the main dashboard (above the bottom nav). `MobileAds.instance.initialize()` runs in `main.dart` (non-web). Ad unit IDs come from `lib/config/ad_config.dart`.
 - **Android flavors:** `dev` and `prod` (same `applicationId`). `dev` shows launcher name **InstaGold Dev**; `prod` shows **InstaGold**. Build with `--flavor dev|prod` and matching `--dart-define=INSTAGOLD_FLAVOR=dev|prod`.
@@ -144,7 +145,8 @@ Implementation note:
 
 | Widget | File | Purpose |
 |--------|------|---------|
-| `IgLogo` | `lib/widgets/ig_logo.dart` | Scalable IG monogram via `CustomPaint` |
+| `IgLogo` | `lib/widgets/ig_logo.dart` | Transparent IG image wrapper with light-mode tone adjustment |
+| `InstaGoldWordmark` | `lib/widgets/ig_logo.dart` | Reusable premium title lockup for app bar and login |
 | `IgLogoAnimated` | `lib/widgets/ig_logo.dart` | Animated fade+scale variant for splash |
 | `PremiumBackground` | `lib/widgets/premium_background.dart` | Layered dark gradient with wave patterns and radial glow highlights |
 

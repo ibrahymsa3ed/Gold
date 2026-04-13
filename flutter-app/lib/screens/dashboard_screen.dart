@@ -73,6 +73,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _persistSettings({bool rescheduleNotifications = false}) {
+    _safeAction(() async {
+      await widget.apiService.updateSettings(
+        locale: widget.locale.languageCode,
+        theme: widget.themeMode == ThemeMode.dark ? 'dark' : 'light',
+        notificationIntervalHours: _notificationInterval,
+      );
+      if (rescheduleNotifications) {
+        await widget.notificationsService.schedulePriceNotifications(
+          intervalHours: _notificationInterval,
+        );
+      }
+    });
+  }
+
   Future<void> _safeAction(Future<void> Function() action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -94,12 +109,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       try {
         await widget.apiService.createSession();
-      } catch (_) { /* session is optional */ }
+      } catch (_) {/* session is optional */}
 
       Map<String, dynamic>? prices;
       try {
         await widget.apiService.syncPrices();
-      } catch (_) { /* sync is best-effort */ }
+      } catch (_) {/* sync is best-effort */}
       try {
         prices = await widget.apiService.getCurrentPrices();
       } catch (e) {
@@ -109,7 +124,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Fetch exchange rate for دولار الصاغه (works on both web and mobile)
       try {
         final pricesMap = prices?['prices'] as Map<String, dynamic>? ?? {};
-        final rateFromCache = pricesMap['usd_egp_rate'] as Map<String, dynamic>?;
+        final rateFromCache =
+            pricesMap['usd_egp_rate'] as Map<String, dynamic>?;
         if (rateFromCache != null) {
           _usdEgpRate = (rateFromCache['sell_price'] as num?)?.toDouble();
         } else {
@@ -142,7 +158,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         try {
           final defaultId = await widget.apiService.getDefaultMemberId();
           _defaultMemberId = defaultId;
-          if (_selectedMemberId == null && defaultId != null &&
+          if (_selectedMemberId == null &&
+              defaultId != null &&
               members.any((m) => m['id'] == defaultId)) {
             _selectedMemberId = defaultId;
           }
@@ -185,7 +202,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) setState(() => _loading = false);
       if (errors.isNotEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errors.join(' | ')), duration: const Duration(seconds: 5)),
+          SnackBar(
+              content: Text(errors.join(' | ')),
+              duration: const Duration(seconds: 5)),
         );
       }
       if (mounted && _members.isEmpty) {
@@ -210,12 +229,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Text(
                 AppStrings.t(ctx, 'first_member_hint'),
-                style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: name,
-                decoration: InputDecoration(labelText: AppStrings.t(ctx, 'name')),
+                decoration:
+                    InputDecoration(labelText: AppStrings.t(ctx, 'name')),
               ),
             ],
           ),
@@ -248,13 +270,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _memberDialog({Map<String, dynamic>? existing}) async {
-    final name = TextEditingController(text: existing?['name']?.toString() ?? '');
+    final name =
+        TextEditingController(text: existing?['name']?.toString() ?? '');
     final isEdit = existing != null;
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isEdit ? AppStrings.t(ctx, 'edit_member') : AppStrings.t(ctx, 'add_member')),
+        title: Text(isEdit
+            ? AppStrings.t(ctx, 'edit_member')
+            : AppStrings.t(ctx, 'add_member')),
         content: SingleChildScrollView(
           child: TextField(
             controller: name,
@@ -274,10 +299,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: Text(AppStrings.t(ctx2, 'confirm_delete')),
                         content: Text(AppStrings.t(ctx2, 'confirm_delete_msg')),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx2, false), child: Text(AppStrings.t(ctx2, 'cancel'))),
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx2, false),
+                              child: Text(AppStrings.t(ctx2, 'cancel'))),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx2, true),
-                            child: Text(AppStrings.t(ctx2, 'delete'), style: const TextStyle(color: Colors.red)),
+                            child: Text(AppStrings.t(ctx2, 'delete'),
+                                style: const TextStyle(color: Colors.red)),
                           ),
                         ],
                       ),
@@ -285,18 +313,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (confirm == true && ctx.mounted) {
                       Navigator.pop(ctx, false);
                       await _safeAction(() async {
-                        await widget.apiService.deleteMember(existing['id'] as int);
+                        await widget.apiService
+                            .deleteMember(existing['id'] as int);
                         _selectedMemberId = null;
                         await _load();
                       });
                     }
                   },
-                  child: Text(AppStrings.t(ctx, 'delete'), style: const TextStyle(color: Colors.red)),
+                  child: Text(AppStrings.t(ctx, 'delete'),
+                      style: const TextStyle(color: Colors.red)),
                 ),
               const Spacer(),
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(ctx, 'cancel'))),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(AppStrings.t(ctx, 'cancel'))),
               const SizedBox(width: 8),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(ctx, 'save'))),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(AppStrings.t(ctx, 'save'))),
             ],
           ),
         ],
@@ -305,7 +339,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (saved == true && name.text.trim().isNotEmpty) {
       await _safeAction(() async {
         if (isEdit) {
-          await widget.apiService.updateMember(existing['id'] as int, name.text.trim());
+          await widget.apiService
+              .updateMember(existing['id'] as int, name.text.trim());
         } else {
           await widget.apiService.addMember(name.text.trim());
         }
@@ -347,15 +382,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final rawType = existing?['asset_type']?.toString() ?? 'ring';
     String selectedMainType = _mainTypeOf(rawType);
-    final bool isOtherJewellery = !_jewellerySubTypes.contains(rawType) && selectedMainType == 'jewellery' && existing != null;
-    String selectedSubType = _jewellerySubTypes.contains(rawType) ? rawType : (isOtherJewellery ? 'other' : 'ring');
-    final customName = TextEditingController(text: isOtherJewellery ? rawType : '');
+    final bool isOtherJewellery = !_jewellerySubTypes.contains(rawType) &&
+        selectedMainType == 'jewellery' &&
+        existing != null;
+    String selectedSubType = _jewellerySubTypes.contains(rawType)
+        ? rawType
+        : (isOtherJewellery ? 'other' : 'ring');
+    final customName =
+        TextEditingController(text: isOtherJewellery ? rawType : '');
     String selectedCoinSize = 'pound';
     String selectedIngotSize = '10g';
     String selectedKarat = existing?['karat']?.toString() ?? '21k';
-    final weight = TextEditingController(text: existing?['weight_g']?.toString() ?? '');
-    final purchasePrice = TextEditingController(text: existing?['purchase_price']?.toString() ?? '');
-    DateTime selectedDate = DateTime.tryParse(existing?['purchase_date']?.toString() ?? '') ?? DateTime.now();
+    final weight =
+        TextEditingController(text: existing?['weight_g']?.toString() ?? '');
+    final purchasePrice = TextEditingController(
+        text: existing?['purchase_price']?.toString() ?? '');
+    DateTime selectedDate =
+        DateTime.tryParse(existing?['purchase_date']?.toString() ?? '') ??
+            DateTime.now();
     int? companyId = existing?['company_id'] as int?;
     bool weightLocked = false;
     String? invoicePath = existing?['invoice_local_path']?.toString();
@@ -364,7 +408,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     String effectiveType() {
       if (selectedMainType == 'jewellery') {
-        return selectedSubType == 'other' ? (customName.text.trim().isEmpty ? 'other' : customName.text.trim()) : selectedSubType;
+        return selectedSubType == 'other'
+            ? (customName.text.trim().isEmpty
+                ? 'other'
+                : customName.text.trim())
+            : selectedSubType;
       }
       return selectedMainType;
     }
@@ -393,16 +441,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: Text(existing == null ? AppStrings.t(context, 'add_asset') : AppStrings.t(context, 'edit_asset')),
+            title: Text(existing == null
+                ? AppStrings.t(context, 'add_asset')
+                : AppStrings.t(context, 'edit_asset')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
                     value: selectedMainType,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'asset_type')),
+                    decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'asset_type')),
                     items: _mainAssetTypes.map((t) {
-                      return DropdownMenuItem(value: t, child: Text(AppStrings.t(context, t)));
+                      return DropdownMenuItem(
+                          value: t, child: Text(AppStrings.t(context, t)));
                     }).toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -420,19 +472,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('jewellery_sub'),
                       value: selectedSubType,
-                      decoration: InputDecoration(labelText: AppStrings.t(context, 'jewellery_type')),
+                      decoration: InputDecoration(
+                          labelText: AppStrings.t(context, 'jewellery_type')),
                       items: _jewellerySubTypes.map((t) {
-                        return DropdownMenuItem(value: t, child: Text(_assetTypeLabel(t)));
+                        return DropdownMenuItem(
+                            value: t, child: Text(_assetTypeLabel(t)));
                       }).toList(),
                       onChanged: (value) {
-                        if (value != null) setDialogState(() => selectedSubType = value);
+                        if (value != null)
+                          setDialogState(() => selectedSubType = value);
                       },
                     ),
                     if (selectedSubType == 'other') ...[
                       const SizedBox(height: 8),
                       TextField(
                         controller: customName,
-                        decoration: InputDecoration(labelText: AppStrings.t(context, 'custom_name')),
+                        decoration: InputDecoration(
+                            labelText: AppStrings.t(context, 'custom_name')),
                       ),
                     ],
                   ],
@@ -441,11 +497,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('coin_size'),
                       value: selectedCoinSize,
-                      decoration: InputDecoration(labelText: AppStrings.t(context, 'coin_size')),
+                      decoration: InputDecoration(
+                          labelText: AppStrings.t(context, 'coin_size')),
                       items: _coinSizes.entries.map((e) {
                         final g = (e.value['grams']! as num);
                         final suffix = g > 0 ? ' (${g}g)' : '';
-                        return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}$suffix'));
+                        return DropdownMenuItem(
+                            value: e.key,
+                            child: Text('${e.value['label']}$suffix'));
                       }).toList(),
                       onChanged: (value) {
                         if (value == null) return;
@@ -459,9 +518,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('ingot_size'),
                       value: selectedIngotSize,
-                      decoration: InputDecoration(labelText: AppStrings.t(context, 'ingot_size')),
+                      decoration: InputDecoration(
+                          labelText: AppStrings.t(context, 'ingot_size')),
                       items: _ingotSizes.entries.map((e) {
-                        return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}'));
+                        return DropdownMenuItem(
+                            value: e.key, child: Text('${e.value['label']}'));
                       }).toList(),
                       onChanged: (value) {
                         if (value == null) return;
@@ -483,7 +544,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         .map((k) => DropdownMenuItem(value: k, child: Text(k)))
                         .toList(),
                     onChanged: (value) {
-                      if (value != null) setDialogState(() => selectedKarat = value);
+                      if (value != null)
+                        setDialogState(() => selectedKarat = value);
                     },
                   ),
                   const SizedBox(height: 8),
@@ -502,7 +564,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TextField(
                     controller: purchasePrice,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'purchase_price')),
+                    decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'purchase_price')),
                   ),
                   const SizedBox(height: 8),
                   InkWell(
@@ -522,15 +585,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         labelText: AppStrings.t(context, 'purchase_date'),
                         suffixIcon: const Icon(Icons.calendar_today, size: 20),
                       ),
-                      child: Text(selectedDate.toIso8601String().split('T').first),
+                      child:
+                          Text(selectedDate.toIso8601String().split('T').first),
                     ),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int?>(
                     value: companyId,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'company_optional')),
+                    decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'company_optional')),
                     items: [
-                      DropdownMenuItem<int?>(value: null, child: Text(AppStrings.t(context, 'none'))),
+                      DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text(AppStrings.t(context, 'none'))),
                       ..._companies.map((company) {
                         return DropdownMenuItem<int?>(
                           value: company['id'] as int,
@@ -557,7 +624,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onPressed: () async {
                             final r = await FilePicker.platform.pickFiles();
                             if (r != null && r.files.isNotEmpty) {
-                              final path = await invService.copyPickedToAppStorage(r.files.single);
+                              final path = await invService
+                                  .copyPickedToAppStorage(r.files.single);
                               setDialogState(() {
                                 invoicePath = path;
                                 removeInvoice = false;
@@ -573,13 +641,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         if ((invoicePath != null && !removeInvoice) ||
-                            (existing?['invoice_local_path'] != null && !removeInvoice && invoicePath == null))
+                            (existing?['invoice_local_path'] != null &&
+                                !removeInvoice &&
+                                invoicePath == null))
                           TextButton(
                             onPressed: () => setDialogState(() {
                               removeInvoice = true;
                               invoicePath = null;
                             }),
-                            child: Text(AppStrings.t(context, 'remove_attachment')),
+                            child: Text(
+                                AppStrings.t(context, 'remove_attachment')),
                           ),
                       ],
                     ),
@@ -588,8 +659,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(AppStrings.t(context, 'cancel'))),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(AppStrings.t(context, 'save'))),
             ],
           );
         },
@@ -679,12 +754,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: TextField(
           controller: amount,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: AppStrings.t(context, 'amount')),
+          decoration:
+              InputDecoration(labelText: AppStrings.t(context, 'amount')),
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(AppStrings.t(context, 'cancel'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
     );
@@ -699,7 +779,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _editSavingDialog(Map<String, dynamic> entry) async {
-    final amount = TextEditingController(text: (entry['amount'] as num?)?.toString() ?? '');
+    final amount = TextEditingController(
+        text: (entry['amount'] as num?)?.toString() ?? '');
     final id = entry['id'] as int;
 
     final result = await showDialog<String?>(
@@ -709,16 +790,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: TextField(
           controller: amount,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: AppStrings.t(context, 'amount')),
+          decoration:
+              InputDecoration(labelText: AppStrings.t(context, 'amount')),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'delete'),
-            child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+            child: Text(AppStrings.t(context, 'delete'),
+                style: const TextStyle(color: Colors.red)),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppStrings.t(context, 'cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, 'save'), child: Text(AppStrings.t(context, 'save'))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(AppStrings.t(context, 'cancel'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, 'save'),
+              child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
     );
@@ -730,10 +817,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: Text(AppStrings.t(context, 'confirm_delete')),
           content: Text(AppStrings.t(context, 'confirm_delete_msg')),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(AppStrings.t(context, 'cancel'))),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+              child: Text(AppStrings.t(context, 'delete'),
+                  style: const TextStyle(color: Colors.red)),
             ),
           ],
         ),
@@ -762,16 +852,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String goalIngotSize = '10g';
     String goalKarat = '21k';
     final targetWeight = TextEditingController();
-    final savedAmount = TextEditingController(text: _totalSaved.toStringAsFixed(2));
+    final savedAmount =
+        TextEditingController(text: _totalSaved.toStringAsFixed(2));
     int? companyId;
     bool goalWeightLocked = false;
 
     void applyGoalWeight(StateSetter setDialogState) {
       if (goalMainType == 'coins' && goalCoinSize != 'manual') {
-        targetWeight.text = (_coinSizes[goalCoinSize]!['grams']! as num).toString();
+        targetWeight.text =
+            (_coinSizes[goalCoinSize]!['grams']! as num).toString();
         goalWeightLocked = true;
       } else if (goalMainType == 'ingot' && goalIngotSize != 'manual') {
-        targetWeight.text = (_ingotSizes[goalIngotSize]!['grams']! as num).toString();
+        targetWeight.text =
+            (_ingotSizes[goalIngotSize]!['grams']! as num).toString();
         goalWeightLocked = true;
       } else {
         goalWeightLocked = false;
@@ -791,9 +884,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   DropdownButtonFormField<String>(
                     value: goalMainType,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'goal_type')),
+                    decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'goal_type')),
                     items: _mainAssetTypes.map((t) {
-                      return DropdownMenuItem(value: t, child: Text(AppStrings.t(context, t)));
+                      return DropdownMenuItem(
+                          value: t, child: Text(AppStrings.t(context, t)));
                     }).toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -811,19 +906,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('goal_jewellery_sub'),
                       value: goalSubType,
-                      decoration: InputDecoration(labelText: AppStrings.t(context, 'jewellery_type')),
+                      decoration: InputDecoration(
+                          labelText: AppStrings.t(context, 'jewellery_type')),
                       items: _jewellerySubTypes.map((t) {
-                        return DropdownMenuItem(value: t, child: Text(_assetTypeLabel(t)));
+                        return DropdownMenuItem(
+                            value: t, child: Text(_assetTypeLabel(t)));
                       }).toList(),
                       onChanged: (value) {
-                        if (value != null) setDialogState(() => goalSubType = value);
+                        if (value != null)
+                          setDialogState(() => goalSubType = value);
                       },
                     ),
                     if (goalSubType == 'other') ...[
                       const SizedBox(height: 8),
                       TextField(
                         controller: goalCustomName,
-                        decoration: InputDecoration(labelText: AppStrings.t(context, 'custom_name')),
+                        decoration: InputDecoration(
+                            labelText: AppStrings.t(context, 'custom_name')),
                       ),
                     ],
                   ],
@@ -832,11 +931,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('goal_coin_size'),
                       value: goalCoinSize,
-                      decoration: InputDecoration(labelText: AppStrings.t(context, 'coin_size')),
+                      decoration: InputDecoration(
+                          labelText: AppStrings.t(context, 'coin_size')),
                       items: _coinSizes.entries.map((e) {
                         final g = (e.value['grams']! as num);
                         final suffix = g > 0 ? ' (${g}g)' : '';
-                        return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}$suffix'));
+                        return DropdownMenuItem(
+                            value: e.key,
+                            child: Text('${e.value['label']}$suffix'));
                       }).toList(),
                       onChanged: (value) {
                         if (value == null) return;
@@ -850,9 +952,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DropdownButtonFormField<String>(
                       key: const ValueKey('goal_ingot_size'),
                       value: goalIngotSize,
-                      decoration: InputDecoration(labelText: AppStrings.t(context, 'ingot_size')),
+                      decoration: InputDecoration(
+                          labelText: AppStrings.t(context, 'ingot_size')),
                       items: _ingotSizes.entries.map((e) {
-                        return DropdownMenuItem(value: e.key, child: Text('${e.value['label']}'));
+                        return DropdownMenuItem(
+                            value: e.key, child: Text('${e.value['label']}'));
                       }).toList(),
                       onChanged: (value) {
                         if (value == null) return;
@@ -870,9 +974,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ? 'Karat (default ${_defaultKarats[goalMainType]})'
                           : 'Karat',
                     ),
-                    items: _karatOptions.map((k) => DropdownMenuItem(value: k, child: Text(k))).toList(),
+                    items: _karatOptions
+                        .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                        .toList(),
                     onChanged: (value) {
-                      if (value != null) setDialogState(() => goalKarat = value);
+                      if (value != null)
+                        setDialogState(() => goalKarat = value);
                     },
                   ),
                   const SizedBox(height: 8),
@@ -891,14 +998,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TextField(
                     controller: savedAmount,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'saved_amount')),
+                    decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'saved_amount')),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int?>(
                     value: companyId,
-                    decoration: InputDecoration(labelText: AppStrings.t(context, 'company_optional')),
+                    decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'company_optional')),
                     items: [
-                      DropdownMenuItem<int?>(value: null, child: Text(AppStrings.t(context, 'none'))),
+                      DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text(AppStrings.t(context, 'none'))),
                       ..._companies.map((company) => DropdownMenuItem<int?>(
                             value: company['id'] as int,
                             child: Text(company['name'].toString()),
@@ -910,8 +1021,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'save'))),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(AppStrings.t(context, 'cancel'))),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(AppStrings.t(context, 'save'))),
             ],
           );
         },
@@ -931,7 +1046,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _updateGoalSavedDialog(Map<String, dynamic> goal) async {
-    final savedAmount = TextEditingController(text: goal['saved_amount'].toString());
+    final savedAmount =
+        TextEditingController(text: goal['saved_amount'].toString());
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -939,11 +1055,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: TextField(
           controller: savedAmount,
           keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: AppStrings.t(context, 'saved_amount')),
+          decoration:
+              InputDecoration(labelText: AppStrings.t(context, 'saved_amount')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(AppStrings.t(context, 'save'))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(AppStrings.t(context, 'cancel'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
     );
@@ -963,10 +1084,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text(AppStrings.t(context, 'add_company')),
-        content: TextField(controller: name, decoration: InputDecoration(labelText: AppStrings.t(context, 'company_name'))),
+        content: TextField(
+            controller: name,
+            decoration: InputDecoration(
+                labelText: AppStrings.t(context, 'company_name'))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(AppStrings.t(context, 'save'))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(AppStrings.t(context, 'cancel'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(AppStrings.t(context, 'save'))),
         ],
       ),
     );
@@ -1004,10 +1132,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final colors = gradientColors ??
         (isHero
-            ? const [Color(0xFFE8CD5A), Color(0xFFD4B254), Color(0xFFB5973F), Color(0xFF8B7332)]
+            ? const [
+                Color(0xFFE8CD5A),
+                Color(0xFFD4B254),
+                Color(0xFFB5973F),
+                Color(0xFF8B7332)
+              ]
             : const [Color(0xFFD4B254), Color(0xFFC19A3E), Color(0xFF9E8030)]);
 
-    final glowColor = (gradientColors?.first ?? const Color(0xFFD4B254)).withValues(alpha: 0.35);
+    final glowColor = (gradientColors?.first ?? const Color(0xFFD4B254))
+        .withValues(alpha: 0.35);
 
     return Container(
       width: width,
@@ -1028,7 +1162,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      padding: EdgeInsets.symmetric(horizontal: isHero ? 20 : 16, vertical: isHero ? 16 : 12),
+      padding: EdgeInsets.symmetric(
+          horizontal: isHero ? 20 : 16, vertical: isHero ? 16 : 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1140,7 +1275,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cardBorder = gapColor.withValues(alpha: isDark ? 0.3 : 0.2);
 
     return GestureDetector(
-      onTap: () => _showGapExplanation(jewellerDollar, officialRate, premiumPct, egpDiff),
+      onTap: () => _showGapExplanation(
+          jewellerDollar, officialRate, premiumPct, egpDiff),
       child: Container(
         decoration: BoxDecoration(
           color: cardBg,
@@ -1172,13 +1308,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Icon(Icons.info_outline_rounded, size: 14, color: gapColor.withValues(alpha: 0.45)),
+                      Icon(Icons.info_outline_rounded,
+                          size: 14, color: gapColor.withValues(alpha: 0.45)),
                     ],
                   ),
                   const SizedBox(height: 3),
                   Text(
                     jewellerDollar.toStringAsFixed(2),
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: gapColor.withValues(alpha: 0.8)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: gapColor.withValues(alpha: 0.8)),
                   ),
                 ],
               ),
@@ -1199,21 +1339,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   if (premiumPct != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: gapColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         '${premiumPct >= 0 ? '+' : ''}${premiumPct.toStringAsFixed(1)}%',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: gapColor),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: gapColor),
                       ),
                     ),
                   if (officialRate != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       '${AppStrings.t(context, 'official_rate')}: ${officialRate.toStringAsFixed(1)}',
-                      style: TextStyle(fontSize: 10, color: gapColor.withValues(alpha: 0.6)),
+                      style: TextStyle(
+                          fontSize: 10, color: gapColor.withValues(alpha: 0.6)),
                     ),
                   ],
                 ],
@@ -1225,12 +1370,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _showGapExplanation(double jewellerDollar, double? officialRate, double? premiumPct, double? egpDiff) {
+  void _showGapExplanation(double jewellerDollar, double? officialRate,
+      double? premiumPct, double? egpDiff) {
     final isAr = widget.locale.languageCode == 'ar';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isAr ? 'ما هو دولار الصاغة؟' : "What is the Jeweler's Dollar?"),
+        title: Text(
+            isAr ? 'ما هو دولار الصاغة؟' : "What is the Jeweler's Dollar?"),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1245,7 +1392,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 16),
               Text(
                 isAr ? 'طريقة الحساب:' : 'How it\'s calculated:',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               _explanationRow(
@@ -1253,7 +1401,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 '${_priceFor('ounce')?['sell_price'] ?? '—'} USD',
               ),
               _explanationRow(
-                isAr ? 'سعر الجرام العالمي (÷ 31.1)' : 'Global gram price (÷ 31.1)',
+                isAr
+                    ? 'سعر الجرام العالمي (÷ 31.1)'
+                    : 'Global gram price (÷ 31.1)',
                 '${(_priceFor('ounce')?['sell_price'] as num? ?? 0).toDouble() > 0 ? ((_priceFor('ounce')!['sell_price'] as num).toDouble() / 31.1035).toStringAsFixed(2) : '—'} USD',
               ),
               _explanationRow(
@@ -1262,7 +1412,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const Divider(height: 20),
               _explanationRow(
-                isAr ? 'دولار الصاغة = محلي ÷ عالمي' : "Jeweler's \$ = local ÷ global",
+                isAr
+                    ? 'دولار الصاغة = محلي ÷ عالمي'
+                    : "Jeweler's \$ = local ÷ global",
                 jewellerDollar.toStringAsFixed(2),
                 isBold: true,
               ),
@@ -1275,7 +1427,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _explanationRow(
                     isAr ? 'الفرق (علاوة/خصم)' : 'Gap (premium/discount)',
                     '${premiumPct >= 0 ? '+' : ''}${premiumPct.toStringAsFixed(1)}%',
-                    valueColor: premiumPct > 0 ? const Color(0xFFD32F2F) : const Color(0xFF388E3C),
+                    valueColor: premiumPct > 0
+                        ? const Color(0xFFD32F2F)
+                        : const Color(0xFF388E3C),
                     isBold: true,
                   ),
               ],
@@ -1303,14 +1457,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _explanationRow(String label, String value, {Color? valueColor, bool isBold = false}) {
+  Widget _explanationRow(String label, String value,
+      {Color? valueColor, bool isBold = false}) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Expanded(
-            child: Text(label, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+            child: Text(label,
+                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
           ),
           Text(
             value,
@@ -1329,22 +1485,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _priceCard(
       label: widget.locale.languageCode == 'ar' ? 'جنيه ذهب' : 'Gold Pound',
       karat: 'gold_pound_8g',
-      gradientColors: const [Color(0xFFD4B254), Color(0xFFBE9A40), Color(0xFF9E7E2C)],
+      gradientColors: const [
+        Color(0xFFD4B254),
+        Color(0xFFBE9A40),
+        Color(0xFF9E7E2C)
+      ],
     );
   }
 
   Widget _ounceCard() {
     return _priceCard(
-      label: widget.locale.languageCode == 'ar' ? 'أونصة عالمية' : 'Global Ounce',
+      label:
+          widget.locale.languageCode == 'ar' ? 'أونصة عالمية' : 'Global Ounce',
       karat: 'ounce',
       currencyOverride: 'USD',
-      gradientColors: const [Color(0xFFE0C45C), Color(0xFFCCAE3A), Color(0xFFAA9028)],
+      gradientColors: const [
+        Color(0xFFE0C45C),
+        Color(0xFFCCAE3A),
+        Color(0xFFAA9028)
+      ],
     );
   }
 
   Widget _livePricesHeader(String timeLabel) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return Padding(
       padding: const EdgeInsets.only(bottom: 18, top: 4),
       child: Row(
@@ -1354,7 +1520,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [goldAccent.withValues(alpha: 0.18), goldAccent.withValues(alpha: 0.06)],
+                colors: [
+                  goldAccent.withValues(alpha: 0.18),
+                  goldAccent.withValues(alpha: 0.06)
+                ],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -1459,7 +1628,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _livePricesHeader(timeLabel)),
-
         SliverReorderableList(
           itemCount: _priceCardOrder.length,
           onReorder: (oldIndex, newIndex) {
@@ -1502,11 +1670,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
           },
         ),
-
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         SliverToBoxAdapter(child: _gapInfoCard()),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
         if (_summary != null)
           SliverToBoxAdapter(
             child: _sectionCard(
@@ -1522,9 +1688,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _totalRow(
                     AppStrings.t(context, 'profit_loss'),
                     '${(_summary!['summary']['profit_loss'] as num) >= 0 ? '+' : ''}${_currency.format(_summary!['summary']['profit_loss'])} EGP',
-                    valueColor: (_summary!['summary']['profit_loss'] as num) >= 0
-                        ? const Color(0xFF388E3C)
-                        : const Color(0xFFD32F2F),
+                    valueColor:
+                        (_summary!['summary']['profit_loss'] as num) >= 0
+                            ? const Color(0xFF388E3C)
+                            : const Color(0xFFD32F2F),
                   ),
                   const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'equivalent_21k'),
@@ -1543,8 +1710,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               title: AppStrings.t(context, 'zakat'),
               child: Column(
                 children: [
-                  _totalRow(AppStrings.t(context, 'eligible'),
-                      _zakat!['zakat']['eligible'] == true ? AppStrings.t(context, 'yes') : AppStrings.t(context, 'no')),
+                  _totalRow(
+                      AppStrings.t(context, 'eligible'),
+                      _zakat!['zakat']['eligible'] == true
+                          ? AppStrings.t(context, 'yes')
+                          : AppStrings.t(context, 'no')),
                   const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'zakat_due'),
                       '${_currency.format(_zakat!['zakat']['zakat_due'])} EGP'),
@@ -1618,8 +1788,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isPricesAvailable) ...[
-            _totalRow(AppStrings.t(context, 'current_value'), '${_currency.format(totalCurrentValue)} EGP'),
-            _totalRow(AppStrings.t(context, 'purchase_cost'), '${_currency.format(totalPurchaseCost)} EGP'),
+            _totalRow(AppStrings.t(context, 'current_value'),
+                '${_currency.format(totalCurrentValue)} EGP'),
+            _totalRow(AppStrings.t(context, 'purchase_cost'),
+                '${_currency.format(totalPurchaseCost)} EGP'),
             _totalRow(
               AppStrings.t(context, 'profit_loss'),
               '${profitLoss >= 0 ? '+' : ''}${_currency.format(profitLoss)} EGP',
@@ -1658,7 +1830,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _thinDivider() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Divider(
@@ -1709,7 +1882,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AppStrings.t(context, type);
   }
 
-
   static const _assetImageMap = {
     'ring': 'assets/icons/ring.png',
     'necklace': 'assets/icons/necklace.png',
@@ -1729,7 +1901,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _assetCircleIcon(String type, {double size = 48, double? weightG}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     final assetPath = _assetImageMap[type];
     final showWeight = weightG != null && (type == 'ingot' || type == 'coins');
 
@@ -1805,7 +1978,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF2A2210) : Colors.white,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: goldAccent.withValues(alpha: 0.5), width: 0.8),
+                  border: Border.all(
+                      color: goldAccent.withValues(alpha: 0.5), width: 0.8),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.15),
@@ -1841,8 +2015,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final purchaseDate = asset['purchase_date']?.toString() ?? '';
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
-    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
-    final plColor = assetPL >= 0 ? const Color(0xFF388E3C) : const Color(0xFFD32F2F);
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final plColor =
+        assetPL >= 0 ? const Color(0xFF388E3C) : const Color(0xFFD32F2F);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1872,7 +2048,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _assetCircleIcon(type, size: 48, weightG: (asset['weight_g'] as num?)?.toDouble()),
+                _assetCircleIcon(type,
+                    size: 48, weightG: (asset['weight_g'] as num?)?.toDouble()),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -1890,7 +2067,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: goldAccent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
@@ -1920,14 +2098,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (invPath != null && invPath.isNotEmpty && !kIsWeb)
                   IconButton(
                     onPressed: () => OpenFilex.open(invPath),
-                    icon: Icon(Icons.receipt_long_outlined, size: 18, color: cs.onSurfaceVariant),
+                    icon: Icon(Icons.receipt_long_outlined,
+                        size: 18, color: cs.onSurfaceVariant),
                     tooltip: AppStrings.t(context, 'open_invoice'),
                     padding: const EdgeInsets.all(6),
                     constraints: const BoxConstraints(),
                   ),
                 IconButton(
                   onPressed: () => _addAssetDialog(existing: asset),
-                  icon: Icon(Icons.edit_outlined, size: 18, color: cs.onSurfaceVariant),
+                  icon: Icon(Icons.edit_outlined,
+                      size: 18, color: cs.onSurfaceVariant),
                   padding: const EdgeInsets.all(6),
                   constraints: const BoxConstraints(),
                 ),
@@ -1938,25 +2118,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (_) => AlertDialog(
-                              title: Text(AppStrings.t(context, 'confirm_delete')),
-                              content: Text(AppStrings.t(context, 'confirm_delete_msg')),
+                              title:
+                                  Text(AppStrings.t(context, 'confirm_delete')),
+                              content: Text(
+                                  AppStrings.t(context, 'confirm_delete_msg')),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t(context, 'cancel'))),
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child:
+                                        Text(AppStrings.t(context, 'cancel'))),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: Text(AppStrings.t(context, 'delete'), style: const TextStyle(color: Colors.red)),
+                                  child: Text(AppStrings.t(context, 'delete'),
+                                      style:
+                                          const TextStyle(color: Colors.red)),
                                 ),
                               ],
                             ),
                           );
                           if (confirm == true) {
                             await _safeAction(() async {
-                              await widget.apiService.deleteAsset(asset['id'] as int);
+                              await widget.apiService
+                                  .deleteAsset(asset['id'] as int);
                               await _load();
                             });
                           }
                         },
-                  icon: Icon(Icons.delete_outline, size: 18, color: const Color(0xFFD32F2F).withValues(alpha: 0.7)),
+                  icon: Icon(Icons.delete_outline,
+                      size: 18,
+                      color: const Color(0xFFD32F2F).withValues(alpha: 0.7)),
                   padding: const EdgeInsets.all(6),
                   constraints: const BoxConstraints(),
                 ),
@@ -1967,7 +2158,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF252118) : const Color(0xFFFAF7F0),
+                  color: isDark
+                      ? const Color(0xFF252118)
+                      : const Color(0xFFFAF7F0),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
@@ -1983,12 +2176,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       valueColor: const Color(0xFF388E3C),
                     ),
                     const SizedBox(height: 10),
-                    Divider(height: 0.5, thickness: 0.5, color: goldAccent.withValues(alpha: 0.1)),
+                    Divider(
+                        height: 0.5,
+                        thickness: 0.5,
+                        color: goldAccent.withValues(alpha: 0.1)),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: plColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -1997,14 +2194,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                assetPL >= 0 ? Icons.trending_up : Icons.trending_down,
+                                assetPL >= 0
+                                    ? Icons.trending_up
+                                    : Icons.trending_down,
                                 size: 16,
                                 color: plColor,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '${assetPL >= 0 ? '+' : ''}${plPct.toStringAsFixed(1)}%',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: plColor),
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: plColor),
                               ),
                             ],
                           ),
@@ -2057,7 +2259,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _assetsTab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return ListView(
       padding: const EdgeInsets.only(bottom: 40),
       children: [
@@ -2082,7 +2285,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: IconButton(
-                  onPressed: _selectedMemberId == null || _busy ? null : () => _addAssetDialog(),
+                  onPressed: _selectedMemberId == null || _busy
+                      ? null
+                      : () => _addAssetDialog(),
                   icon: Icon(Icons.add_rounded, size: 20, color: goldAccent),
                   padding: const EdgeInsets.all(6),
                   constraints: const BoxConstraints(),
@@ -2098,7 +2303,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             subtitle: widget.locale.languageCode == 'ar'
                 ? 'أضف أول قطعة ذهب لتتبع محفظتك'
                 : 'Add your first gold piece to track your portfolio',
-            onAction: _selectedMemberId == null || _busy ? null : () => _addAssetDialog(),
+            onAction: _selectedMemberId == null || _busy
+                ? null
+                : () => _addAssetDialog(),
             actionLabel: AppStrings.t(context, 'add_asset'),
           )
         else
@@ -2114,7 +2321,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: AppStrings.t(context, 'savings'),
           actions: [
             IconButton(
-              onPressed: _selectedMemberId == null || _busy ? null : _addSavingDialog,
+              onPressed:
+                  _selectedMemberId == null || _busy ? null : _addSavingDialog,
               icon: const Icon(Icons.add),
             ),
           ],
@@ -2123,9 +2331,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Builder(builder: (context) {
                 final isDark = Theme.of(context).brightness == Brightness.dark;
-                final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+                final goldAccent =
+                    isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -2134,7 +2344,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: goldAccent.withValues(alpha: 0.15)),
+                    border:
+                        Border.all(color: goldAccent.withValues(alpha: 0.15)),
                   ),
                   child: Row(
                     children: [
@@ -2144,7 +2355,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: goldAccent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(Icons.savings_rounded, size: 20, color: goldAccent),
+                        child: Icon(Icons.savings_rounded,
+                            size: 20, color: goldAccent),
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -2152,12 +2364,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Text(
                             AppStrings.t(context, 'total_saved'),
-                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${_currency.format(_totalSaved)} EGP',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3),
                           ),
                         ],
                       ),
@@ -2171,29 +2390,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     AppStrings.t(context, 'no_data'),
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ..._savingEntries.map((entry) {
                 final targetType = entry['target_type']?.toString();
                 final targetKarat = entry['target_karat']?.toString();
                 final targetLabel = targetType != null
-                    ? '${_assetTypeLabel(targetType)} ${targetKarat ?? ''}'.trim()
+                    ? '${_assetTypeLabel(targetType)} ${targetKarat ?? ''}'
+                        .trim()
                     : '';
                 return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: targetType != null ? _assetCircleIcon(targetType, size: 28) : null,
-                  title: Text('${_currency.format(entry['amount'])} ${entry['currency']}'),
+                  leading: targetType != null
+                      ? _assetCircleIcon(targetType, size: 28)
+                      : null,
+                  title: Text(
+                      '${_currency.format(entry['amount'])} ${entry['currency']}'),
                   subtitle: Text(
                     '${entry['created_at']}${targetLabel.isNotEmpty ? '  •  ${AppStrings.t(context, 'target')}: $targetLabel' : ''}',
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.edit, size: 20),
-                    onPressed: _busy ? null : () => _editSavingDialog(entry as Map<String, dynamic>),
+                    onPressed: _busy
+                        ? null
+                        : () =>
+                            _editSavingDialog(entry as Map<String, dynamic>),
                     tooltip: AppStrings.t(context, 'edit'),
                   ),
-                  onTap: _busy ? null : () => _editSavingDialog(entry as Map<String, dynamic>),
+                  onTap: _busy
+                      ? null
+                      : () => _editSavingDialog(entry as Map<String, dynamic>),
                 );
               }),
             ],
@@ -2204,7 +2434,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: AppStrings.t(context, 'goals'),
           actions: [
             IconButton(
-              onPressed: _selectedMemberId == null || _busy ? null : _addGoalDialog,
+              onPressed:
+                  _selectedMemberId == null || _busy ? null : _addGoalDialog,
               icon: const Icon(Icons.add),
             ),
           ],
@@ -2213,21 +2444,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     AppStrings.t(context, 'no_data'),
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 )
               : Column(
                   children: _goals.map((goal) {
-                    final target = (goal['target_price'] as num?)?.toDouble() ?? 0;
-                    final saved = (goal['saved_amount'] as num?)?.toDouble() ?? 0;
-                    final progress = target > 0 ? (saved / target).clamp(0, 1) : 0.0;
+                    final target =
+                        (goal['target_price'] as num?)?.toDouble() ?? 0;
+                    final saved =
+                        (goal['saved_amount'] as num?)?.toDouble() ?? 0;
+                    final progress =
+                        target > 0 ? (saved / target).clamp(0, 1) : 0.0;
                     final pct = (progress * 100).toStringAsFixed(0);
                     final cs = Theme.of(context).colorScheme;
-                    final isDark = Theme.of(context).brightness == Brightness.dark;
-                    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
-                    final progressColor = progress >= 1.0
-                        ? const Color(0xFF388E3C)
-                        : goldAccent;
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
+                    final goldAccent = isDark
+                        ? const Color(0xFFD4B254)
+                        : const Color(0xFFB5973F);
+                    final progressColor =
+                        progress >= 1.0 ? const Color(0xFF388E3C) : goldAccent;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 14),
                       padding: const EdgeInsets.all(16),
@@ -2256,25 +2494,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Expanded(
                                 child: Text(
                                   '${goal['karat']} · ${goal['target_weight_g']}g',
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.2),
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => _updateGoalSavedDialog(goal as Map<String, dynamic>),
+                                onTap: () => _updateGoalSavedDialog(
+                                    goal as Map<String, dynamic>),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: progressColor.withValues(alpha: 0.12),
+                                    color:
+                                        progressColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.add, size: 14, color: progressColor),
+                                      Icon(Icons.add,
+                                          size: 14, color: progressColor),
                                       const SizedBox(width: 3),
                                       Text(
                                         AppStrings.t(context, 'save'),
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: progressColor),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: progressColor),
                                       ),
                                     ],
                                   ),
@@ -2288,12 +2536,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Expanded(
                                 child: Text(
                                   '${AppStrings.t(context, 'remaining')}: ${_currency.format(goal['remaining_amount'])} EGP',
-                                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                                  style: TextStyle(
+                                      fontSize: 12, color: cs.onSurfaceVariant),
                                 ),
                               ),
                               Text(
                                 '$pct%',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: progressColor),
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: progressColor),
                               ),
                             ],
                           ),
@@ -2303,7 +2555,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: LinearProgressIndicator(
                               value: progress.toDouble(),
                               minHeight: 8,
-                              backgroundColor: progressColor.withValues(alpha: 0.12),
+                              backgroundColor:
+                                  progressColor.withValues(alpha: 0.12),
                               valueColor: AlwaysStoppedAnimation(progressColor),
                             ),
                           ),
@@ -2324,21 +2577,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _sectionCard(
           title: AppStrings.t(context, 'companies'),
           actions: [
-            IconButton(onPressed: _busy ? null : _addCompanyDialog, icon: const Icon(Icons.add_business)),
+            IconButton(
+                onPressed: _busy ? null : _addCompanyDialog,
+                icon: const Icon(Icons.add_business)),
           ],
           child: _companies.isEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     AppStrings.t(context, 'no_data'),
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 )
               : Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: _companies
-                      .map((company) => Chip(label: Text(company['name'].toString())))
+                      .map((company) =>
+                          Chip(label: Text(company['name'].toString())))
                       .toList(),
                 ),
         ),
@@ -2352,10 +2610,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 title: AppStrings.t(context, 'dark_mode'),
                 trailing: Switch.adaptive(
                   value: widget.themeMode == ThemeMode.dark,
-                  onChanged: widget.onThemeChanged,
+                  onChanged: (isDark) {
+                    widget.onThemeChanged(isDark);
+                    _persistSettings();
+                  },
                 ),
               ),
-              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15)),
+              Divider(
+                  height: 1,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.15)),
               _settingsRow(
                 icon: Icons.language_outlined,
                 title: AppStrings.t(context, 'language'),
@@ -2365,48 +2631,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ButtonSegment(value: 'ar', label: Text('ع')),
                   ],
                   selected: {widget.locale.languageCode},
-                  onSelectionChanged: (value) => widget.onLocaleChanged(Locale(value.first)),
+                  onSelectionChanged: (value) {
+                    widget.onLocaleChanged(Locale(value.first));
+                    _persistSettings();
+                  },
                   style: SegmentedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
               ),
-              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15)),
+              Divider(
+                  height: 1,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.15)),
               _settingsRow(
                 icon: Icons.notifications_outlined,
                 title: AppStrings.t(context, 'notification_interval'),
                 trailing: SegmentedButton<int>(
                   segments: [
-                    ButtonSegment(value: 1, label: Text(AppStrings.t(context, 'hourly'))),
-                    ButtonSegment(value: 6, label: Text(AppStrings.t(context, 'six_hours'))),
+                    ButtonSegment(
+                        value: 1, label: Text(AppStrings.t(context, 'hourly'))),
+                    ButtonSegment(
+                        value: 6,
+                        label: Text(AppStrings.t(context, 'six_hours'))),
                   ],
                   selected: {_notificationInterval},
-                  onSelectionChanged: (value) => setState(() => _notificationInterval = value.first),
+                  onSelectionChanged: (value) {
+                    setState(() => _notificationInterval = value.first);
+                    _persistSettings(rescheduleNotifications: true);
+                  },
                   style: SegmentedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _busy
-                      ? null
-                      : () => _safeAction(() async {
-                            await widget.apiService.updateSettings(
-                              locale: widget.locale.languageCode,
-                              theme: widget.themeMode == ThemeMode.dark ? 'dark' : 'light',
-                              notificationIntervalHours: _notificationInterval,
-                            );
-                            await widget.notificationsService.showSettingsSavedNotification();
-                            await widget.notificationsService.schedulePriceNotifications(
-                              intervalHours: _notificationInterval,
-                            );
-                          }),
-                  child: Text(AppStrings.t(context, 'save')),
                 ),
               ),
             ],
@@ -2418,10 +2678,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _settingsRow({required IconData icon, required String title, required Widget trailing}) {
+  Widget _settingsRow(
+      {required IconData icon,
+      required String title,
+      required Widget trailing}) {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
-    final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -2438,7 +2702,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -2461,22 +2728,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 AppStrings.t(context, 'backup_web_hint'),
-                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
           ListTile(
             leading: const Icon(Icons.save_alt_outlined),
             title: Text(AppStrings.t(context, 'export_backup')),
-            trailing: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right),
+            trailing: _busy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
             onTap: _busy
                 ? null
                 : () => _safeAction(() async {
                       final backupService = BackupService();
-                      final userId = widget.authService.currentUser?.uid ?? 'anonymous';
-                      await backupService.exportBackupZip(widget.apiService, userId);
+                      final userId =
+                          widget.authService.currentUser?.uid ?? 'anonymous';
+                      await backupService.exportBackupZip(
+                          widget.apiService, userId);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(AppStrings.t(context, 'backup_success'))),
+                          SnackBar(
+                              content: Text(
+                                  AppStrings.t(context, 'backup_success'))),
                         );
                       }
                     }),
@@ -2484,20 +2762,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.cloud_upload_outlined),
-            title: Text(widget.locale.languageCode == 'ar' ? 'رفع إلى Google Drive' : 'Upload to Google Drive'),
-            trailing: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right),
+            title: Text(widget.locale.languageCode == 'ar'
+                ? 'رفع إلى Google Drive'
+                : 'Upload to Google Drive'),
+            trailing: _busy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
             onTap: _busy
                 ? null
                 : () => _safeAction(() async {
                       final backupService = BackupService();
-                      final userId = widget.authService.currentUser?.uid ?? 'anonymous';
-                      final fileId = await backupService.uploadToDrive(null, apiService: widget.apiService, userId: userId);
+                      final userId =
+                          widget.authService.currentUser?.uid ?? 'anonymous';
+                      final fileId = await backupService.uploadToDrive(null,
+                          apiService: widget.apiService, userId: userId);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(
+                          SnackBar(
+                              content: Text(
                             fileId != null
-                              ? (widget.locale.languageCode == 'ar' ? 'تم الرفع إلى Google Drive بنجاح' : 'Uploaded to Google Drive successfully')
-                              : (widget.locale.languageCode == 'ar' ? 'فشل الرفع. تأكد من تسجيل الدخول بحساب Google' : 'Upload failed. Make sure you\'re signed in with Google'),
+                                ? (widget.locale.languageCode == 'ar'
+                                    ? 'تم الرفع إلى Google Drive بنجاح'
+                                    : 'Uploaded to Google Drive successfully')
+                                : (widget.locale.languageCode == 'ar'
+                                    ? 'فشل الرفع. تأكد من تسجيل الدخول بحساب Google'
+                                    : 'Upload failed. Make sure you\'re signed in with Google'),
                           )),
                         );
                       }
@@ -2513,7 +2805,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 : () async {
                     if (kIsWeb) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(AppStrings.t(context, 'backup_web_hint'))),
+                        SnackBar(
+                            content:
+                                Text(AppStrings.t(context, 'backup_web_hint'))),
                       );
                       return;
                     }
@@ -2523,21 +2817,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: Text(AppStrings.t(context, 'import_backup')),
                         content: Text(AppStrings.t(context, 'restore_confirm')),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppStrings.t(context, 'cancel'))),
-                          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppStrings.t(context, 'import_backup'))),
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: Text(AppStrings.t(context, 'cancel'))),
+                          ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child:
+                                  Text(AppStrings.t(context, 'import_backup'))),
                         ],
                       ),
                     );
                     if (confirmed != true) return;
-                    final pick = await FilePicker.platform.pickFiles(withData: true);
-                    if (pick == null || pick.files.isEmpty || pick.files.first.bytes == null) return;
+                    final pick =
+                        await FilePicker.platform.pickFiles(withData: true);
+                    if (pick == null ||
+                        pick.files.isEmpty ||
+                        pick.files.first.bytes == null) return;
                     _safeAction(() async {
                       final backupService = BackupService();
-                      final userId = widget.authService.currentUser?.uid ?? 'anonymous';
-                      await backupService.restoreFromPickedBytes(pick.files.first.bytes!, userId);
+                      final userId =
+                          widget.authService.currentUser?.uid ?? 'anonymous';
+                      await backupService.restoreFromPickedBytes(
+                          pick.files.first.bytes!, userId);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(AppStrings.t(context, 'restore_success')),
+                          content:
+                              Text(AppStrings.t(context, 'restore_success')),
                         ));
                         await _load();
                       }
@@ -2567,8 +2872,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Expanded(child: Text(AppStrings.t(context, 'members'),
-                      style: Theme.of(context).textTheme.titleMedium)),
+                  Expanded(
+                      child: Text(AppStrings.t(context, 'members'),
+                          style: Theme.of(context).textTheme.titleMedium)),
                   IconButton(
                     onPressed: () {
                       Navigator.pop(ctx);
@@ -2618,7 +2924,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Navigator.pop(ctx);
                           _safeAction(() async {
                             final newDefault = isDefault ? null : memberId;
-                            await widget.apiService.setDefaultMemberId(newDefault);
+                            await widget.apiService
+                                .setDefaultMemberId(newDefault);
                             _defaultMemberId = newDefault;
                             setState(() {});
                           });
@@ -2652,16 +2959,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String get _currentMemberName {
     if (_selectedMemberId == null || _members.isEmpty) return '';
-    final m = _members.cast<Map<String, dynamic>>().where((m) => m['id'] == _selectedMemberId).firstOrNull;
+    final m = _members
+        .cast<Map<String, dynamic>>()
+        .where((m) => m['id'] == _selectedMemberId)
+        .firstOrNull;
     return m?['name']?.toString() ?? '';
   }
 
   Widget _buildLoadingSkeleton() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final shimmerBase = isDark ? const Color(0xFF2A2520) : const Color(0xFFEDE5D3);
-    final shimmerHighlight = isDark ? const Color(0xFF1E1B16) : const Color(0xFFF7F2E8);
+    final shimmerBase =
+        isDark ? const Color(0xFF2A2520) : const Color(0xFFEDE5D3);
+    final shimmerHighlight =
+        isDark ? const Color(0xFF1E1B16) : const Color(0xFFF7F2E8);
 
-    Widget shimmerBox({double? width, required double height, double radius = 20}) {
+    Widget shimmerBox(
+        {double? width, required double height, double radius = 20}) {
       return TweenAnimationBuilder<double>(
         tween: Tween(begin: 0.3, end: 1.0),
         duration: const Duration(milliseconds: 1200),
@@ -2756,7 +3069,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant, height: 1.4),
+                style: TextStyle(
+                    fontSize: 13, color: cs.onSurfaceVariant, height: 1.4),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -2835,54 +3149,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return PremiumBackground(
       child: Scaffold(
         appBar: AppBar(
-          title: _members.isNotEmpty
-              ? GestureDetector(
-                  onTap: _showMemberMenu,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const IgLogo(size: 36),
-                      const SizedBox(width: 10),
-                      Text(AppStrings.t(context, 'app_title')),
-                      if (_currentMemberName.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: gold.withValues(alpha: isDark ? 0.12 : 0.35),
-                            borderRadius: BorderRadius.circular(8),
-                            border: isDark
-                                ? Border.all(color: gold.withValues(alpha: 0.15), width: 0.5)
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.person, size: 14, color: gold),
-                              const SizedBox(width: 4),
-                              Text(
+          titleSpacing: 20,
+          title: Row(
+            children: [
+              SelectionContainer.disabled(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => _onTabChanged(0),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IgLogo(size: 46),
+                        SizedBox(width: 12),
+                        InstaGoldWordmark(fontSize: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (_currentMemberName.isNotEmpty) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: _showMemberMenu,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: gold.withValues(alpha: isDark ? 0.12 : 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                          border: isDark
+                              ? Border.all(
+                                  color: gold.withValues(alpha: 0.15),
+                                  width: 0.5)
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person, size: 14, color: gold),
+                            const SizedBox(width: 4),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 116),
+                              child: Text(
                                 _currentMemberName,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: gold,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const IgLogo(size: 36),
-                    const SizedBox(width: 10),
-                    Text(AppStrings.t(context, 'app_title')),
-                  ],
                 ),
+              ],
+            ],
+          ),
           actions: [
             if (_members.isEmpty)
               IconButton(
@@ -2919,28 +3251,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               decoration: BoxDecoration(
-                color: isDark
-                    ? kDarkCard.withValues(alpha: 0.85)
-                    : Colors.white.withValues(alpha: 0.88),
+                gradient: isDark
+                    ? LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFF1A1816).withValues(alpha: 0.92),
+                          const Color(0xFF141210).withValues(alpha: 0.95),
+                        ],
+                      )
+                    : null,
+                color: isDark ? null : Colors.white.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(22),
                 border: isDark
-                    ? Border.all(color: gold.withValues(alpha: 0.08), width: 0.5)
+                    ? Border.all(
+                        color: gold.withValues(alpha: 0.06), width: 0.5)
                     : null,
                 boxShadow: [
                   BoxShadow(
                     color: isDark
-                        ? Colors.black.withValues(alpha: 0.4)
-                        : gold.withValues(alpha: 0.12),
-                    blurRadius: 24,
-                    offset: const Offset(0, 4),
-                    spreadRadius: -4,
+                        ? gold.withValues(alpha: 0.06)
+                        : gold.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 2),
+                    spreadRadius: -6,
                   ),
                 ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(22),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                   child: NavigationBar(
                     selectedIndex: _selectedTab,
                     onDestinationSelected: _onTabChanged,
@@ -2990,7 +3331,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF1C1916), Color(0xFF1A1816), Color(0xFF181614)],
+                colors: [
+                  Color(0xFF1C1916),
+                  Color(0xFF1A1816),
+                  Color(0xFF181614)
+                ],
               )
             : null,
         color: isDark ? null : Colors.white,
@@ -3072,4 +3417,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
-

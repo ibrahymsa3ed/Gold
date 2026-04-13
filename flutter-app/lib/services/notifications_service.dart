@@ -50,33 +50,37 @@ class NotificationsService {
     String title = 'InstaGold',
     String body = 'Check the latest gold prices!',
   }) async {
-    await _plugin.cancelAll();
+    try {
+      await _plugin.cancelAll();
 
-    final now = tz.TZDateTime.now(tz.local);
-    final first = now.add(Duration(hours: intervalHours));
+      final now = tz.TZDateTime.now(tz.local);
+      final first = now.add(Duration(hours: intervalHours));
 
-    await _plugin.zonedSchedule(
-      100,
-      title,
-      body,
-      first,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _priceChannelId,
-          _priceChannelName,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+      await _plugin.zonedSchedule(
+        100,
+        title,
+        body,
+        first,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _priceChannelId,
+            _priceChannelName,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: const DarwinNotificationDetails(),
         ),
-        iOS: const DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: intervalHours <= 1
-          ? DateTimeComponents.time
-          : DateTimeComponents.dayOfWeekAndTime,
-    );
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: intervalHours <= 1
+            ? DateTimeComponents.time
+            : DateTimeComponents.dayOfWeekAndTime,
+      );
+    } catch (_) {
+      // Notification scheduling can fail on some devices; non-fatal
+    }
   }
 
   Future<void> showPriceUpdateNotification({
@@ -96,19 +100,23 @@ class NotificationsService {
   }
 
   Future<void> showSettingsSavedNotification() async {
-    const android = AndroidNotificationDetails(
-      _settingsChannelId,
-      _settingsChannelName,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-    );
-    const ios = DarwinNotificationDetails();
-    const details = NotificationDetails(android: android, iOS: ios);
+    try {
+      const android = AndroidNotificationDetails(
+        _settingsChannelId,
+        _settingsChannelName,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      );
+      const ios = DarwinNotificationDetails();
+      const details = NotificationDetails(android: android, iOS: ios);
 
-    await _plugin.show(1, 'InstaGold', 'Settings saved successfully', details);
+      await _plugin.show(1, 'InstaGold', 'Settings saved successfully', details);
+    } catch (_) {}
   }
 
   Future<void> cancelAll() async {
-    await _plugin.cancelAll();
+    try {
+      await _plugin.cancelAll();
+    } catch (_) {}
   }
 }

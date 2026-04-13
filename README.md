@@ -118,14 +118,16 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 
 Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`) with subtle gradient transitions, wave patterns, and radial glow highlights — never flat. Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#B8962E` muted.
 
-- **IG Logo:** Minimal interlocked "IG" monogram rendered via `CustomPaint` — scalable, clean, readable at small sizes.
+- **IG Logo:** Uses the provided IG image as a cleaned transparent asset (`assets/icons/ig_logo_mark.png`) so the mark sits directly on the page background without a visible square. In light mode the mark is toned to a deeper gold for contrast.
 - **Background:** `PremiumBackground` widget adds wave patterns and radial gold highlights behind key content areas.
+- **Brand Header:** App bar uses a reusable `InstaGoldWordmark` lockup beside the IG mark; tapping the brand returns to the Home tab while the member chip stays as the member-switch action.
 - **Price Cards:** 150px hero cards with 4-stop gold gradient, glow shadows, Buy/Sell chips; drag-reorderable.
 - **Navigation:** Floating glassmorphism pill-shaped bottom bar with backdrop blur, dark glass surface, gold border.
 - **Cards:** Premium dark surface (`#1A1816`), `borderRadius: 20-22`, gold accent gradient bars, soft glow shadows, `w800` typography.
 - **Assets:** Karat badge chips, inner financial detail cards, gold gradient circle icons.
 - **Jeweler's Dollar Gap:** Full-width tinted card (green/red) with EGP gap value centred; tapping opens explanation dialog.
 - **Notifications:** Scheduled price alerts via `flutter_local_notifications` with Android 13+ permission handling.
+- **Android branding assets:** Launcher icons are regenerated from the transparent IG mark, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background.
 
 ### Rollback
 
