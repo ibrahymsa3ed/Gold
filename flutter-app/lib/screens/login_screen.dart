@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n.dart';
 import '../services/auth_service.dart';
+import '../widgets/premium_background.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.authService, this.onDevBypass});
@@ -114,17 +115,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     final goldAccent = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [const Color(0xFF1A1714), const Color(0xFF141210)]
-                : [const Color(0xFFF7F2E8), const Color(0xFFF0E9D8)],
+    return PremiumBackground(
+      child: Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: isDark
+                ? null
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFF7F2E8), Color(0xFFF0E9D8)],
+                  ),
           ),
-        ),
         child: Center(
           child: SingleChildScrollView(
             child: ConstrainedBox(
@@ -392,6 +394,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         ),
       ),
+    ),
     );
   }
 

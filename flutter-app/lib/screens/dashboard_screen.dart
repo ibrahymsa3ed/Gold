@@ -2737,14 +2737,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDark ? const Color(0xFF2C2820) : const Color(0xFFF0EAD6),
-              ),
-              child: Icon(icon, size: 30, color: isDark ? const Color(0xFFBFA764) : const Color(0xFF9E8A4F)),
+            Opacity(
+              opacity: isDark ? 0.35 : 0.25,
+              child: const IgLogo(size: 56),
             ),
             const SizedBox(height: 16),
             Text(
@@ -2767,13 +2762,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
             if (onAction != null && actionLabel != null) ...[
               const SizedBox(height: 20),
-              FilledButton.icon(
+              _goldGradientButton(
                 onPressed: onAction,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(actionLabel),
+                label: actionLabel,
+                icon: Icons.add,
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _goldGradientButton({
+    required VoidCallback? onPressed,
+    required String label,
+    IconData? icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8CD5A), Color(0xFFD4AF37), Color(0xFFC9A227)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: kGoldPrimary.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: kDarkBase),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: kDarkBase,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -2793,7 +2841,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IgLogo(size: 28),
+                      const IgLogo(size: 36),
                       const SizedBox(width: 10),
                       Text(AppStrings.t(context, 'app_title')),
                       if (_currentMemberName.isNotEmpty) ...[
@@ -2830,7 +2878,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IgLogo(size: 28),
+                    const IgLogo(size: 36),
                     const SizedBox(width: 10),
                     Text(AppStrings.t(context, 'app_title')),
                   ],
@@ -2938,23 +2986,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? kDarkCard : Colors.white,
+        gradient: isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1C1916), Color(0xFF1A1816), Color(0xFF181614)],
+              )
+            : null,
+        color: isDark ? null : Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isDark
-              ? kGoldPrimary.withValues(alpha: 0.08)
+              ? kGoldPrimary.withValues(alpha: 0.10)
               : accentColor.withValues(alpha: 0.08),
           width: 0.5,
         ),
         boxShadow: [
-          if (isDark)
+          if (isDark) ...[
             BoxShadow(
-              color: kGoldPrimary.withValues(alpha: 0.04),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: kGoldPrimary.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
               spreadRadius: -4,
-            )
-          else
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+              spreadRadius: -2,
+            ),
+          ] else
             BoxShadow(
               color: accentColor.withValues(alpha: 0.06),
               blurRadius: 20,

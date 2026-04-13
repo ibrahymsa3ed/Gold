@@ -177,8 +177,10 @@ ThemeData _buildTheme(ColorScheme cs) {
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        elevation: 0,
-        backgroundColor: isDark ? kDarkElevated : null,
+        elevation: isDark ? 4 : 0,
+        backgroundColor: gold,
+        foregroundColor: isDark ? kDarkBase : Colors.white,
+        shadowColor: gold.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),

@@ -8,10 +8,11 @@ alwaysApply: true
 ## App Identity
 - App name: **InstaGold** (package: com.ibrahym.goldfamily)
 - Platform: **Android only** — ignore iOS for UI, testing, screenshots
-- APK outputs at repo root: **`InstaGold-dev.apk`** (dev flavor, test ads, label “InstaGold Dev”) via `./scripts/build-dev-apk.sh`; **`InstaGold.apk`** (prod) via `./scripts/build-and-upload.sh` or `flutter build apk --flavor prod`
+- APK outputs at repo root: **`InstaGold-dev.apk`** (dev flavor, test ads, label "InstaGold Dev") via `./scripts/build-dev-apk.sh`; **`InstaGold.apk`** (prod) via `./scripts/build-and-upload.sh` or `flutter build apk --flavor prod`
 - Play Store bundle: `./scripts/build-play-aab.sh` → `app-prod-release.aab`
 - Play prep: `PLAY_STORE_PREP.md`; owner checklist `YOUR_ACTIONS_BEFORE_PLAY.md`; privacy draft `docs/PRIVACY_POLICY_TEMPLATE.md`; `scripts/print-release-signing-fingerprints.sh` for Firebase SHA
 - Firebase project: goldcalculate
+- **Build commands ALWAYS require `--flavor dev|prod`** — never build without flavor
 
 ## Architecture
 - Monorepo: `scraper-service/` (price scraping), `main-backend/` (API), `flutter-app/` (mobile UI)
@@ -19,15 +20,57 @@ alwaysApply: true
 - Web mode: talks to main-backend HTTP APIs
 - No CI/CD pipelines
 
+## STRICT Design Rules (MANDATORY — never skip)
+
+### Logo
+- Use ONLY the provided IG monogram image (`assets/icons/ig_logo.png`) — NEVER use Material icons as brand placeholder
+- Logo MUST appear in:
+  - App header (top-left, size 36+)
+  - Login screen (centered, 100x100, gold glow shadow)
+  - Splash screen (Android native mipmap `launch_image`)
+  - Empty states (subtle, low opacity ~0.35)
+  - Android launcher icon (all densities via `flutter_launcher_icons`)
+
+### Dark Mode (CRITICAL — must NOT be flat)
+- Base: `#0B0B0D` with layered gradients using deep gold/brown tones (`#12100C`, `#14110D`)
+- Vertical warm gradient overlay with gold-tinted bands
+- **Visible flowing wave patterns** — gold/dark-gold tones, multiple flowing curves, `CustomPaint` in `PremiumBackground` widget
+- Radial gold glow highlights behind key areas (headers, cards)
+- Section cards use gradient dark background (`#1C1916` → `#181614`), gold border `0.10` alpha
+- **FAIL condition: flat black background = WRONG**
+
+### Gold Styling
+- Primary accent: `#D4AF37`, deep `#C9A227`, light `#E8CD5A`, muted `#B8962E`
+- Always use **gradient gold** — never flat gold
+- Price cards: 3-4 stop gold gradient, soft glow `boxShadow`, rounded corners 20px
+- Buttons: gold gradient (`#E8CD5A → #D4AF37 → #C9A227`), glow shadow, dark text on button
+- `FilledButton` and `ElevatedButton` theme: gold background with dark foreground
+
+### Cards & UI
+- Cards: gradient gold for price cards, gradient dark for section cards
+- Soft glow or elevation (gold-tinted shadow in dark mode)
+- Rounded corners (20-22px)
+- Gold accent gradient bar on section headers
+
+### Navigation
+- Floating glassmorphism pill-shaped bottom nav
+- Dark glass surface in dark mode (`kDarkCard` at 0.85 alpha)
+- Gold border (0.08 alpha) in dark mode
+- `BackdropFilter` blur (sigmaX/Y: 20)
+- Gold active indicator and label
+
+### Background Widget
+- `PremiumBackground` wraps both `DashboardScreen` and `LoginScreen`
+- Only active in dark mode; light mode passes child through
+- Located at `lib/widgets/premium_background.dart`
+
 ## UI Design Decisions
-- Muted warm-gold ColorScheme: light `#9E8A4F`, dark `#BFA764`, light surface cream `#FAF8F3`
-- Cards: 0.5px outlines, 14px radius, zero elevation, white in light mode
 - Price cards: gold gradient rounded rectangles, drag-and-drop reorderable
-- Home layout: 21K full-width hero → 24K+18K row → 14K full-width → Pound+Ounce row
-- Gap card: full-width tinted box (green/red), EGP gap value large and centred, tappable for explanation popup showing calculation breakdown
-- Ounce card: shiny gold gradient `[#E0C45C, #CCAE3A, #AA9028]`
+- Home layout: 21K full-width hero → 24K full-width hero → 14K+18K row → Pound+Ounce row
+- Gap card: full-width tinted box (green/red), EGP gap value large and centred, tappable for explanation popup
+- Ounce card: shiny gold gradient
 - Asset cards: icon in gold circle (ClipOval for PNGs), title, karat/weight/date subtitle, Purchase/Current/Profit rows with %
-- Bottom nav: outlined/filled icon states with thin top divider
+- Empty states: IG logo at low opacity + gold gradient "Add" button
 - No custom ClipPath shapes — standard rounded containers only
 
 ## Code Patterns
@@ -40,9 +83,13 @@ alwaysApply: true
 ## Key Files
 - Theme: `flutter-app/lib/theme/app_themes.dart`
 - Dashboard: `flutter-app/lib/screens/dashboard_screen.dart`
+- Login: `flutter-app/lib/screens/login_screen.dart`
+- IG Logo widget: `flutter-app/lib/widgets/ig_logo.dart`
+- Premium background: `flutter-app/lib/widgets/premium_background.dart`
 - API: `flutter-app/lib/services/api_service.dart`
 - L10n: `flutter-app/lib/l10n.dart`
 - Design variant: `flutter-app/lib/theme/ui_design_variant.dart`
+- IG logo asset: `flutter-app/assets/icons/ig_logo.png`
 
 ## Git
 - Remote: github.com/ibrahymsa3ed/Gold
