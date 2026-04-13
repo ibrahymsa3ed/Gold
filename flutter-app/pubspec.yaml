@@ -35,11 +35,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icons/ig_logo.png"
+  adaptive_icon_background: "#0B0B0D"
+  adaptive_icon_foreground: "assets/icons/ig_logo.png"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/icons/app_icon.png
+    - assets/icons/ig_logo.png
     - assets/icons/ring.png
     - assets/icons/necklace.png
     - assets/icons/bracelet.png

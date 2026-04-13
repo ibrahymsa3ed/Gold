@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(24),
-                            child: Image.asset('assets/icons/app_icon.png', fit: BoxFit.cover),
+                            child: Image.asset('assets/icons/ig_logo.png', fit: BoxFit.cover),
                           ),
                         ),
                         const SizedBox(height: 24),

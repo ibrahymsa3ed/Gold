@@ -2793,7 +2793,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IgLogo(size: 28, color: gold),
+                      IgLogo(size: 28),
                       const SizedBox(width: 10),
                       Text(AppStrings.t(context, 'app_title')),
                       if (_currentMemberName.isNotEmpty) ...[
@@ -2830,7 +2830,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IgLogo(size: 28, color: gold),
+                    IgLogo(size: 28),
                     const SizedBox(width: 10),
                     Text(AppStrings.t(context, 'app_title')),
                   ],

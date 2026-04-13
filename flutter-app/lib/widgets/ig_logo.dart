@@ -1,56 +1,22 @@
 import 'package:flutter/material.dart';
 
 class IgLogo extends StatelessWidget {
-  const IgLogo({super.key, this.size = 48, this.color});
+  const IgLogo({super.key, this.size = 48});
 
   final double size;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _IgLogoPainter(color: color ?? const Color(0xFFD4AF37)),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.18),
+      child: Image.asset(
+        'assets/icons/ig_logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+      ),
     );
   }
-}
-
-class _IgLogoPainter extends CustomPainter {
-  _IgLogoPainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.width;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s * 0.075
-      ..strokeCap = StrokeCap.round;
-
-    // "I" — left vertical bar, slightly shifted right to interlock with G
-    final ix = s * 0.30;
-    canvas.drawLine(Offset(ix, s * 0.18), Offset(ix, s * 0.82), paint);
-
-    // "G" — open arc wrapping around the I
-    final gCenter = Offset(s * 0.55, s * 0.5);
-    final gRadius = s * 0.32;
-    final gRect = Rect.fromCircle(center: gCenter, radius: gRadius);
-
-    // Arc from top-right going counter-clockwise, leaving a gap at top-right
-    canvas.drawArc(gRect, -0.4, 4.8, false, paint);
-
-    // "G" horizontal bar (the tongue of the G)
-    final tongueY = s * 0.5;
-    canvas.drawLine(
-      Offset(gCenter.dx + gRadius * 0.15, tongueY),
-      Offset(gCenter.dx + gRadius, tongueY),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _IgLogoPainter old) => old.color != color;
 }
 
 class IgLogoAnimated extends StatefulWidget {
@@ -97,7 +63,7 @@ class _IgLogoAnimatedState extends State<IgLogoAnimated>
         opacity: _opacity.value,
         child: Transform.scale(
           scale: _scale.value,
-          child: IgLogo(size: widget.size, color: const Color(0xFFD4AF37)),
+          child: IgLogo(size: widget.size),
         ),
       ),
     );
