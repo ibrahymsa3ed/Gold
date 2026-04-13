@@ -1050,21 +1050,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         TextEditingController(text: goal['saved_amount'].toString());
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(AppStrings.t(context, 'update_saving')),
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.t(ctx, 'update_saving')),
         content: TextField(
           controller: savedAmount,
           keyboardType: TextInputType.number,
           decoration:
-              InputDecoration(labelText: AppStrings.t(context, 'saved_amount')),
+              InputDecoration(labelText: AppStrings.t(ctx, 'saved_amount')),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(AppStrings.t(context, 'cancel'))),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(AppStrings.t(ctx, 'cancel'))),
           ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(AppStrings.t(context, 'save'))),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(AppStrings.t(ctx, 'save'))),
         ],
       ),
     );
@@ -1074,6 +1074,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
         goalId: goal['id'] as int,
         savedAmount: double.tryParse(savedAmount.text) ?? 0,
       );
+      await _load();
+    });
+  }
+
+  Future<void> _editGoalDialog(Map<String, dynamic> goal) async {
+    var goalKarat = goal['karat']?.toString() ?? '21k';
+    final targetWeight = TextEditingController(
+        text: (goal['target_weight_g'] as num?)?.toString() ?? '');
+    final savedAmount = TextEditingController(
+        text: (goal['saved_amount'] as num?)?.toString() ?? '0');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(AppStrings.t(ctx, 'edit')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: goalKarat,
+                  decoration: const InputDecoration(labelText: 'Karat'),
+                  items: _karatOptions
+                      .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setDialogState(() => goalKarat = v);
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: targetWeight,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      labelText: AppStrings.t(ctx, 'target_weight')),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: savedAmount,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      labelText: AppStrings.t(ctx, 'saved_amount')),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(AppStrings.t(ctx, 'cancel'))),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(AppStrings.t(ctx, 'save'))),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) return;
+    await _safeAction(() async {
+      await widget.apiService.updateGoal(
+        goalId: goal['id'] as int,
+        karat: goalKarat,
+        targetWeightG: double.tryParse(targetWeight.text) ?? 0,
+        savedAmount: double.tryParse(savedAmount.text) ?? 0,
+      );
+      await _load();
+    });
+  }
+
+  Future<void> _deleteGoalConfirm(Map<String, dynamic> goal) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.t(ctx, 'confirm_delete')),
+        content: Text('${goal['karat']} · ${goal['target_weight_g']}g'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(AppStrings.t(ctx, 'cancel'))),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(AppStrings.t(ctx, 'delete'))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _safeAction(() async {
+      await widget.apiService.deleteGoal(goal['id'] as int);
       await _load();
     });
   }
@@ -2526,6 +2617,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                     ],
                                   ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () => _editGoalDialog(
+                                    goal as Map<String, dynamic>),
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: cs.onSurfaceVariant
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.edit_outlined,
+                                      size: 14, color: cs.onSurfaceVariant),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => _deleteGoalConfirm(
+                                    goal as Map<String, dynamic>),
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: cs.error.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.delete_outline,
+                                      size: 14, color: cs.error),
                                 ),
                               ),
                             ],

@@ -29,8 +29,10 @@ class ApiService {
   }
 
   Future<Database> get _db => _dbHelper.database;
-  List<Map<String, dynamic>> _rows(List<Map<String, Object?>> r) => _dbHelper.toDynamic(r);
-  Map<String, dynamic> _row(Map<String, Object?> r) => _dbHelper.toDynamicMap(r);
+  List<Map<String, dynamic>> _rows(List<Map<String, Object?>> r) =>
+      _dbHelper.toDynamic(r);
+  Map<String, dynamic> _row(Map<String, Object?> r) =>
+      _dbHelper.toDynamicMap(r);
 
   // ════════════════════════════════════════════════════════════
   //  Web HTTP helpers (only used when kIsWeb)
@@ -46,25 +48,29 @@ class ApiService {
   }
 
   Future<dynamic> _httpGet(String path) async {
-    final r = await http.get(Uri.parse('${AppConfig.apiBaseUrl}$path'), headers: await _headers());
+    final r = await http.get(Uri.parse('${AppConfig.apiBaseUrl}$path'),
+        headers: await _headers());
     if (r.statusCode >= 400) throw Exception(r.body);
     return jsonDecode(r.body);
   }
 
   Future<dynamic> _httpPost(String path, Map<String, dynamic> body) async {
-    final r = await http.post(Uri.parse('${AppConfig.apiBaseUrl}$path'), headers: await _headers(), body: jsonEncode(body));
+    final r = await http.post(Uri.parse('${AppConfig.apiBaseUrl}$path'),
+        headers: await _headers(), body: jsonEncode(body));
     if (r.statusCode >= 400) throw Exception(r.body);
     return jsonDecode(r.body);
   }
 
   Future<dynamic> _httpPut(String path, Map<String, dynamic> body) async {
-    final r = await http.put(Uri.parse('${AppConfig.apiBaseUrl}$path'), headers: await _headers(), body: jsonEncode(body));
+    final r = await http.put(Uri.parse('${AppConfig.apiBaseUrl}$path'),
+        headers: await _headers(), body: jsonEncode(body));
     if (r.statusCode >= 400) throw Exception(r.body);
     return jsonDecode(r.body);
   }
 
   Future<dynamic> _httpDelete(String path) async {
-    final r = await http.delete(Uri.parse('${AppConfig.apiBaseUrl}$path'), headers: await _headers());
+    final r = await http.delete(Uri.parse('${AppConfig.apiBaseUrl}$path'),
+        headers: await _headers());
     if (r.statusCode >= 400) throw Exception(r.body);
     if (r.body.isEmpty) return {'success': true};
     return jsonDecode(r.body);
@@ -75,8 +81,12 @@ class ApiService {
   // ════════════════════════════════════════════════════════════
 
   Future<Map<String, dynamic>> createSession() async {
-    if (kIsWeb) return (await _httpPost('/api/auth/session', {})) as Map<String, dynamic>;
-    return {'user': {'uid': _userId}, 'auth': {'uid': _userId}};
+    if (kIsWeb)
+      return (await _httpPost('/api/auth/session', {})) as Map<String, dynamic>;
+    return {
+      'user': {'uid': _userId},
+      'auth': {'uid': _userId}
+    };
   }
 
   // ════════════════════════════════════════════════════════════
@@ -84,14 +94,18 @@ class ApiService {
   // ════════════════════════════════════════════════════════════
 
   Future<Map<String, dynamic>> getCurrentPrices() async {
-    if (kIsWeb) return (await _httpGet('/api/prices/current')) as Map<String, dynamic>;
+    if (kIsWeb)
+      return (await _httpGet('/api/prices/current')) as Map<String, dynamic>;
 
     final db = await _db;
-    final latest = await db.query('GoldPriceCache', orderBy: 'id DESC', limit: 1);
-    if (latest.isEmpty) return {'updated_at': '', 'prices': <String, dynamic>{}};
+    final latest =
+        await db.query('GoldPriceCache', orderBy: 'id DESC', limit: 1);
+    if (latest.isEmpty)
+      return {'updated_at': '', 'prices': <String, dynamic>{}};
 
     final fetchedAt = latest.first['fetched_at'] as String;
-    final allRows = await db.query('GoldPriceCache', where: 'fetched_at = ?', whereArgs: [fetchedAt]);
+    final allRows = await db.query('GoldPriceCache',
+        where: 'fetched_at = ?', whereArgs: [fetchedAt]);
     final prices = <String, dynamic>{};
     for (final row in allRows) {
       prices[row['carat'] as String] = {
@@ -104,7 +118,8 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> syncPrices() async {
-    if (kIsWeb) return (await _httpPost('/api/prices/sync', {})) as Map<String, dynamic>;
+    if (kIsWeb)
+      return (await _httpPost('/api/prices/sync', {})) as Map<String, dynamic>;
 
     final scraped = await GoldScraper.scrapeGoldPrices();
     final db = await _db;
@@ -161,32 +176,54 @@ class ApiService {
   Future<List<dynamic>> getMembers() async {
     if (kIsWeb) return (await _httpGet('/api/members')) as List<dynamic>;
     final db = await _db;
-    return _rows(await db.query('FamilyMembers', where: 'user_id = ?', whereArgs: [_userId], orderBy: 'id DESC'));
+    return _rows(await db.query('FamilyMembers',
+        where: 'user_id = ?', whereArgs: [_userId], orderBy: 'id DESC'));
   }
 
-  Future<Map<String, dynamic>> addMember(String name, [String relation = '']) async {
-    if (kIsWeb) return (await _httpPost('/api/members', {'name': name, 'relation': relation})) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> addMember(String name,
+      [String relation = '']) async {
+    if (kIsWeb)
+      return (await _httpPost(
+              '/api/members', {'name': name, 'relation': relation}))
+          as Map<String, dynamic>;
     final db = await _db;
     final id = await db.insert('FamilyMembers', {
-      'user_id': _userId, 'name': name, 'relation': relation, 'created_at': DateTime.now().toIso8601String(),
+      'user_id': _userId,
+      'name': name,
+      'relation': relation,
+      'created_at': DateTime.now().toIso8601String(),
     });
-    return _row((await db.query('FamilyMembers', where: 'id = ?', whereArgs: [id])).first);
+    return _row(
+        (await db.query('FamilyMembers', where: 'id = ?', whereArgs: [id]))
+            .first);
   }
 
-  Future<Map<String, dynamic>> updateMember(int memberId, String name, [String relation = '']) async {
-    if (kIsWeb) return (await _httpPut('/api/members/$memberId', {'name': name, 'relation': relation})) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> updateMember(int memberId, String name,
+      [String relation = '']) async {
+    if (kIsWeb)
+      return (await _httpPut(
+              '/api/members/$memberId', {'name': name, 'relation': relation}))
+          as Map<String, dynamic>;
     final db = await _db;
-    await db.update('FamilyMembers', {'name': name, 'relation': relation}, where: 'id = ? AND user_id = ?', whereArgs: [memberId, _userId]);
-    return _row((await db.query('FamilyMembers', where: 'id = ?', whereArgs: [memberId])).first);
+    await db.update('FamilyMembers', {'name': name, 'relation': relation},
+        where: 'id = ? AND user_id = ?', whereArgs: [memberId, _userId]);
+    return _row((await db
+            .query('FamilyMembers', where: 'id = ?', whereArgs: [memberId]))
+        .first);
   }
 
   Future<void> deleteMember(int memberId) async {
-    if (kIsWeb) { await _httpDelete('/api/members/$memberId'); return; }
+    if (kIsWeb) {
+      await _httpDelete('/api/members/$memberId');
+      return;
+    }
     final db = await _db;
     await db.delete('Assets', where: 'member_id = ?', whereArgs: [memberId]);
     await db.delete('Savings', where: 'member_id = ?', whereArgs: [memberId]);
-    await db.delete('PurchaseGoals', where: 'member_id = ?', whereArgs: [memberId]);
-    await db.delete('FamilyMembers', where: 'id = ? AND user_id = ?', whereArgs: [memberId, _userId]);
+    await db
+        .delete('PurchaseGoals', where: 'member_id = ?', whereArgs: [memberId]);
+    await db.delete('FamilyMembers',
+        where: 'id = ? AND user_id = ?', whereArgs: [memberId, _userId]);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -194,9 +231,11 @@ class ApiService {
   // ════════════════════════════════════════════════════════════
 
   Future<List<dynamic>> getMemberAssets(int memberId) async {
-    if (kIsWeb) return (await _httpGet('/api/members/$memberId/assets')) as List<dynamic>;
+    if (kIsWeb)
+      return (await _httpGet('/api/members/$memberId/assets')) as List<dynamic>;
     final db = await _db;
-    return _rows(await db.query('Assets', where: 'member_id = ?', whereArgs: [memberId], orderBy: 'id DESC'));
+    return _rows(await db.query('Assets',
+        where: 'member_id = ?', whereArgs: [memberId], orderBy: 'id DESC'));
   }
 
   Future<Map<String, dynamic>> addAsset({
@@ -211,19 +250,29 @@ class ApiService {
   }) async {
     if (kIsWeb) {
       return (await _httpPost('/api/members/$memberId/assets', {
-        'asset_type': assetType, 'karat': karat, 'weight_g': weightG,
-        'purchase_price': purchasePrice, 'purchase_date': purchaseDate, 'company_id': companyId,
+        'asset_type': assetType,
+        'karat': karat,
+        'weight_g': weightG,
+        'purchase_price': purchasePrice,
+        'purchase_date': purchaseDate,
+        'company_id': companyId,
         if (invoiceLocalPath != null) 'invoice_local_path': invoiceLocalPath,
       })) as Map<String, dynamic>;
     }
     final db = await _db;
     final id = await db.insert('Assets', {
-      'member_id': memberId, 'asset_type': assetType, 'karat': karat, 'company_id': companyId,
-      'weight_g': weightG, 'purchase_price': purchasePrice, 'purchase_date': purchaseDate,
+      'member_id': memberId,
+      'asset_type': assetType,
+      'karat': karat,
+      'company_id': companyId,
+      'weight_g': weightG,
+      'purchase_price': purchasePrice,
+      'purchase_date': purchaseDate,
       'invoice_local_path': invoiceLocalPath,
       'created_at': DateTime.now().toIso8601String(),
     });
-    return _row((await db.query('Assets', where: 'id = ?', whereArgs: [id])).first);
+    return _row(
+        (await db.query('Assets', where: 'id = ?', whereArgs: [id])).first);
   }
 
   Future<Map<String, dynamic>> updateAsset({
@@ -251,12 +300,17 @@ class ApiService {
       } else if (invoiceLocalPath != null) {
         body['invoice_local_path'] = invoiceLocalPath;
       }
-      return (await _httpPut('/api/assets/$assetId', body)) as Map<String, dynamic>;
+      return (await _httpPut('/api/assets/$assetId', body))
+          as Map<String, dynamic>;
     }
     final db = await _db;
     final map = <String, Object?>{
-      'asset_type': assetType, 'karat': karat, 'company_id': companyId,
-      'weight_g': weightG, 'purchase_price': purchasePrice, 'purchase_date': purchaseDate,
+      'asset_type': assetType,
+      'karat': karat,
+      'company_id': companyId,
+      'weight_g': weightG,
+      'purchase_price': purchasePrice,
+      'purchase_date': purchaseDate,
     };
     if (clearInvoice) {
       map['invoice_local_path'] = null;
@@ -264,11 +318,16 @@ class ApiService {
       map['invoice_local_path'] = invoiceLocalPath;
     }
     await db.update('Assets', map, where: 'id = ?', whereArgs: [assetId]);
-    return _row((await db.query('Assets', where: 'id = ?', whereArgs: [assetId])).first);
+    return _row(
+        (await db.query('Assets', where: 'id = ?', whereArgs: [assetId]))
+            .first);
   }
 
   Future<void> deleteAsset(int assetId) async {
-    if (kIsWeb) { await _httpDelete('/api/assets/$assetId'); return; }
+    if (kIsWeb) {
+      await _httpDelete('/api/assets/$assetId');
+      return;
+    }
     final db = await _db;
     await db.delete('Assets', where: 'id = ?', whereArgs: [assetId]);
   }
@@ -278,23 +337,34 @@ class ApiService {
   // ════════════════════════════════════════════════════════════
 
   Future<Map<String, dynamic>> getMemberSummary(int memberId) async {
-    if (kIsWeb) return (await _httpGet('/api/members/$memberId/assets-summary')) as Map<String, dynamic>;
+    if (kIsWeb)
+      return (await _httpGet('/api/members/$memberId/assets-summary'))
+          as Map<String, dynamic>;
     final assets = await getMemberAssets(memberId);
     final priceData = await getCurrentPrices();
     final prices = priceData['prices'] as Map<String, dynamic>;
-    final summary = _buildAssetSummary(assets.cast<Map<String, dynamic>>(), prices);
-    return {'member_id': memberId, 'summary': summary, 'assets_count': assets.length};
+    final summary =
+        _buildAssetSummary(assets.cast<Map<String, dynamic>>(), prices);
+    return {
+      'member_id': memberId,
+      'summary': summary,
+      'assets_count': assets.length
+    };
   }
 
   Future<Map<String, dynamic>> getMemberZakat(int memberId) async {
-    if (kIsWeb) return (await _httpGet('/api/members/$memberId/zakat')) as Map<String, dynamic>;
+    if (kIsWeb)
+      return (await _httpGet('/api/members/$memberId/zakat'))
+          as Map<String, dynamic>;
     final assets = await getMemberAssets(memberId);
     final priceData = await getCurrentPrices();
     final prices = priceData['prices'] as Map<String, dynamic>;
-    final summary = _buildAssetSummary(assets.cast<Map<String, dynamic>>(), prices);
+    final summary =
+        _buildAssetSummary(assets.cast<Map<String, dynamic>>(), prices);
     final zakat = _calculateZakat(
       totalValue: (summary['current_value'] as num).toDouble(),
-      total24kWeight: (summary['total_weight_24k_equivalent'] as num).toDouble(),
+      total24kWeight:
+          (summary['total_weight_24k_equivalent'] as num).toDouble(),
     );
     return {
       'member_id': memberId,
@@ -309,28 +379,38 @@ class ApiService {
   // ════════════════════════════════════════════════════════════
 
   Future<Map<String, dynamic>> getSavings(int memberId) async {
-    if (kIsWeb) return (await _httpGet('/api/members/$memberId/savings')) as Map<String, dynamic>;
+    if (kIsWeb)
+      return (await _httpGet('/api/members/$memberId/savings'))
+          as Map<String, dynamic>;
     final db = await _db;
-    final rows = _rows(await db.query('Savings', where: 'member_id = ?', whereArgs: [memberId], orderBy: 'id DESC'));
-    final total = rows.fold<double>(0, (sum, r) => sum + ((r['amount'] as num?) ?? 0).toDouble());
+    final rows = _rows(await db.query('Savings',
+        where: 'member_id = ?', whereArgs: [memberId], orderBy: 'id DESC'));
+    final total = rows.fold<double>(
+        0, (sum, r) => sum + ((r['amount'] as num?) ?? 0).toDouble());
     return {'entries': rows, 'total_saved': total};
   }
 
-  Future<Map<String, dynamic>> addSaving(int memberId, double amount, {String? targetType, String? targetKarat}) async {
+  Future<Map<String, dynamic>> addSaving(int memberId, double amount,
+      {String? targetType, String? targetKarat}) async {
     if (kIsWeb) {
       return (await _httpPost('/api/members/$memberId/savings', {
-        'amount': amount, 'currency': 'EGP',
+        'amount': amount,
+        'currency': 'EGP',
         if (targetType != null) 'target_type': targetType,
         if (targetKarat != null) 'target_karat': targetKarat,
       })) as Map<String, dynamic>;
     }
     final db = await _db;
     final id = await db.insert('Savings', {
-      'member_id': memberId, 'amount': amount, 'currency': 'EGP',
-      'target_type': targetType, 'target_karat': targetKarat,
+      'member_id': memberId,
+      'amount': amount,
+      'currency': 'EGP',
+      'target_type': targetType,
+      'target_karat': targetKarat,
       'created_at': DateTime.now().toIso8601String(),
     });
-    return _row((await db.query('Savings', where: 'id = ?', whereArgs: [id])).first);
+    return _row(
+        (await db.query('Savings', where: 'id = ?', whereArgs: [id])).first);
   }
 
   Future<void> updateSaving(int savingId, double amount) async {
@@ -345,7 +425,8 @@ class ApiService {
       [savingId, _userId],
     );
     if (check.isEmpty) throw Exception('Saving not found.');
-    await db.update('Savings', {'amount': amount}, where: 'id = ?', whereArgs: [savingId]);
+    await db.update('Savings', {'amount': amount},
+        where: 'id = ?', whereArgs: [savingId]);
   }
 
   Future<void> deleteSaving(int savingId) async {
@@ -373,13 +454,16 @@ class ApiService {
     final allGoals = <Map<String, dynamic>>[];
     for (final m in members) {
       final mid = m['id'] as int;
-      allAssets.addAll((await getMemberAssets(mid)).cast<Map<String, dynamic>>());
+      allAssets
+          .addAll((await getMemberAssets(mid)).cast<Map<String, dynamic>>());
       final sv = await getSavings(mid);
-      allSavings.addAll((sv['entries'] as List<dynamic>).cast<Map<String, dynamic>>());
+      allSavings.addAll(
+          (sv['entries'] as List<dynamic>).cast<Map<String, dynamic>>());
       allGoals.addAll((await getGoals(mid)).cast<Map<String, dynamic>>());
     }
     final companiesRaw = (await getCompanies()).cast<Map<String, dynamic>>();
-    final companies = companiesRaw.where((c) => c['type']?.toString() != 'seeded').toList();
+    final companies =
+        companiesRaw.where((c) => c['type']?.toString() != 'seeded').toList();
     Map<String, dynamic>? settingsRow;
     try {
       final me = await _httpGet('/api/me') as Map<String, dynamic>;
@@ -388,7 +472,8 @@ class ApiService {
         settingsRow = Map<String, dynamic>.from(s);
       }
     } catch (_) {}
-    final settings = settingsRow != null ? [settingsRow] : <Map<String, dynamic>>[];
+    final settings =
+        settingsRow != null ? [settingsRow] : <Map<String, dynamic>>[];
     return {
       'version': 2,
       'exported_at': DateTime.now().toIso8601String(),
@@ -407,9 +492,11 @@ class ApiService {
   // ════════════════════════════════════════════════════════════
 
   Future<List<dynamic>> getGoals(int memberId) async {
-    if (kIsWeb) return (await _httpGet('/api/members/$memberId/goals')) as List<dynamic>;
+    if (kIsWeb)
+      return (await _httpGet('/api/members/$memberId/goals')) as List<dynamic>;
     final db = await _db;
-    return _rows(await db.query('PurchaseGoals', where: 'member_id = ?', whereArgs: [memberId], orderBy: 'id DESC'));
+    return _rows(await db.query('PurchaseGoals',
+        where: 'member_id = ?', whereArgs: [memberId], orderBy: 'id DESC'));
   }
 
   Future<Map<String, dynamic>> createGoal({
@@ -421,27 +508,43 @@ class ApiService {
   }) async {
     if (kIsWeb) {
       return (await _httpPost('/api/goals/calculate', {
-        'member_id': memberId, 'karat': karat,
-        'target_weight_g': targetWeightG, 'saved_amount': savedAmount, 'company_id': companyId,
+        'member_id': memberId,
+        'karat': karat,
+        'target_weight_g': targetWeightG,
+        'saved_amount': savedAmount,
+        'company_id': companyId,
       })) as Map<String, dynamic>;
     }
     final priceData = await getCurrentPrices();
     final prices = priceData['prices'] as Map<String, dynamic>;
-    final calc = _calculateGoal(targetWeightG: targetWeightG, karat: karat, savedAmount: savedAmount, priceMap: prices);
+    final calc = _calculateGoal(
+        targetWeightG: targetWeightG,
+        karat: karat,
+        savedAmount: savedAmount,
+        priceMap: prices);
     final db = await _db;
     await db.insert('PurchaseGoals', {
-      'member_id': memberId, 'company_id': companyId, 'karat': karat,
-      'target_weight_g': targetWeightG, 'target_price': calc['target_price'],
-      'saved_amount': calc['saved_amount'], 'remaining_amount': calc['remaining_amount'],
+      'member_id': memberId,
+      'company_id': companyId,
+      'karat': karat,
+      'target_weight_g': targetWeightG,
+      'target_price': calc['target_price'],
+      'saved_amount': calc['saved_amount'],
+      'remaining_amount': calc['remaining_amount'],
       'created_at': DateTime.now().toIso8601String(),
     });
     return calc;
   }
 
-  Future<Map<String, dynamic>> updateGoalSaved({required int goalId, required double savedAmount}) async {
-    if (kIsWeb) return (await _httpPut('/api/goals/$goalId/saved', {'saved_amount': savedAmount})) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> updateGoalSaved(
+      {required int goalId, required double savedAmount}) async {
+    if (kIsWeb)
+      return (await _httpPut(
+              '/api/goals/$goalId/saved', {'saved_amount': savedAmount}))
+          as Map<String, dynamic>;
     final db = await _db;
-    final goals = _rows(await db.query('PurchaseGoals', where: 'id = ?', whereArgs: [goalId]));
+    final goals = _rows(
+        await db.query('PurchaseGoals', where: 'id = ?', whereArgs: [goalId]));
     if (goals.isEmpty) throw Exception('Goal not found');
     final goal = goals.first;
     final priceData = await getCurrentPrices();
@@ -452,10 +555,67 @@ class ApiService {
       savedAmount: savedAmount,
       priceMap: prices,
     );
-    await db.update('PurchaseGoals', {
-      'saved_amount': calc['saved_amount'], 'target_price': calc['target_price'], 'remaining_amount': calc['remaining_amount'],
-    }, where: 'id = ?', whereArgs: [goalId]);
-    return _row((await db.query('PurchaseGoals', where: 'id = ?', whereArgs: [goalId])).first);
+    await db.update(
+        'PurchaseGoals',
+        {
+          'saved_amount': calc['saved_amount'],
+          'target_price': calc['target_price'],
+          'remaining_amount': calc['remaining_amount'],
+        },
+        where: 'id = ?',
+        whereArgs: [goalId]);
+    return _row(
+        (await db.query('PurchaseGoals', where: 'id = ?', whereArgs: [goalId]))
+            .first);
+  }
+
+  Future<Map<String, dynamic>> updateGoal({
+    required int goalId,
+    required String karat,
+    required double targetWeightG,
+    required double savedAmount,
+    int? companyId,
+  }) async {
+    if (kIsWeb) {
+      return (await _httpPut('/api/goals/$goalId/saved', {
+        'karat': karat,
+        'target_weight_g': targetWeightG,
+        'saved_amount': savedAmount,
+        'company_id': companyId,
+      })) as Map<String, dynamic>;
+    }
+    final priceData = await getCurrentPrices();
+    final prices = priceData['prices'] as Map<String, dynamic>;
+    final calc = _calculateGoal(
+        targetWeightG: targetWeightG,
+        karat: karat,
+        savedAmount: savedAmount,
+        priceMap: prices);
+    final db = await _db;
+    await db.update(
+        'PurchaseGoals',
+        {
+          'karat': karat,
+          'target_weight_g': targetWeightG,
+          'target_price': calc['target_price'],
+          'saved_amount': calc['saved_amount'],
+          'remaining_amount': calc['remaining_amount'],
+          'company_id': companyId,
+        },
+        where: 'id = ?',
+        whereArgs: [goalId]);
+    return _row(
+        (await db.query('PurchaseGoals', where: 'id = ?', whereArgs: [goalId]))
+            .first);
+  }
+
+  Future<void> deleteGoal(int goalId) async {
+    if (kIsWeb) {
+      await _httpDelete('/api/goals/$goalId');
+      return;
+    }
+    final db = await _db;
+    await db.delete('PurchaseGoals', where: 'id = ?', whereArgs: [goalId]);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -469,10 +629,17 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> addCompany(String name) async {
-    if (kIsWeb) return (await _httpPost('/api/companies', {'name': name})) as Map<String, dynamic>;
+    if (kIsWeb)
+      return (await _httpPost('/api/companies', {'name': name}))
+          as Map<String, dynamic>;
     final db = await _db;
-    final id = await db.insert('Companies', {'name': name, 'type': 'custom', 'created_at': DateTime.now().toIso8601String()});
-    return _row((await db.query('Companies', where: 'id = ?', whereArgs: [id])).first);
+    final id = await db.insert('Companies', {
+      'name': name,
+      'type': 'custom',
+      'created_at': DateTime.now().toIso8601String()
+    });
+    return _row(
+        (await db.query('Companies', where: 'id = ?', whereArgs: [id])).first);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -486,23 +653,39 @@ class ApiService {
   }) async {
     if (kIsWeb) {
       return (await _httpPut('/api/me/settings', {
-        'locale': locale, 'theme': theme, 'notification_interval_hours': notificationIntervalHours,
+        'locale': locale,
+        'theme': theme,
+        'notification_interval_hours': notificationIntervalHours,
       })) as Map<String, dynamic>;
     }
     final db = await _db;
     final now = DateTime.now().toIso8601String();
-    final existing = await db.query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
+    final existing = await db
+        .query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
     if (existing.isEmpty) {
       await db.insert('UserSettings', {
-        'user_id': _userId, 'locale': locale, 'theme': theme,
-        'notification_interval_hours': notificationIntervalHours, 'created_at': now, 'updated_at': now,
+        'user_id': _userId,
+        'locale': locale,
+        'theme': theme,
+        'notification_interval_hours': notificationIntervalHours,
+        'created_at': now,
+        'updated_at': now,
       });
     } else {
-      await db.update('UserSettings', {
-        'locale': locale, 'theme': theme, 'notification_interval_hours': notificationIntervalHours, 'updated_at': now,
-      }, where: 'user_id = ?', whereArgs: [_userId]);
+      await db.update(
+          'UserSettings',
+          {
+            'locale': locale,
+            'theme': theme,
+            'notification_interval_hours': notificationIntervalHours,
+            'updated_at': now,
+          },
+          where: 'user_id = ?',
+          whereArgs: [_userId]);
     }
-    return _row((await db.query('UserSettings', where: 'user_id = ?', whereArgs: [_userId])).first);
+    return _row((await db
+            .query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]))
+        .first);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -514,7 +697,8 @@ class ApiService {
   Future<int?> getDefaultMemberId() async {
     if (kIsWeb) return _webDefaultMemberId;
     final db = await _db;
-    final rows = await db.query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
+    final rows = await db
+        .query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
     if (rows.isEmpty) return null;
     return rows.first['default_member_id'] as int?;
   }
@@ -524,15 +708,21 @@ class ApiService {
     if (kIsWeb) return;
     final db = await _db;
     final now = DateTime.now().toIso8601String();
-    final existing = await db.query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
+    final existing = await db
+        .query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
     if (existing.isEmpty) {
       await db.insert('UserSettings', {
-        'user_id': _userId, 'default_member_id': memberId,
-        'locale': 'en', 'theme': 'dark', 'notification_interval_hours': 1,
-        'created_at': now, 'updated_at': now,
+        'user_id': _userId,
+        'default_member_id': memberId,
+        'locale': 'en',
+        'theme': 'dark',
+        'notification_interval_hours': 1,
+        'created_at': now,
+        'updated_at': now,
       });
     } else {
-      await db.update('UserSettings', {'default_member_id': memberId, 'updated_at': now},
+      await db.update(
+          'UserSettings', {'default_member_id': memberId, 'updated_at': now},
           where: 'user_id = ?', whereArgs: [_userId]);
     }
   }
@@ -549,10 +739,13 @@ class ApiService {
   double _getBuyPrice(Map<String, dynamic> priceMap, String karat) {
     final key = '${_normalizeKarat(karat)}k';
     final row = priceMap[key] as Map<String, dynamic>?;
-    return (row?['buy_price'] as num?)?.toDouble() ?? (row?['sell_price'] as num?)?.toDouble() ?? 0;
+    return (row?['buy_price'] as num?)?.toDouble() ??
+        (row?['sell_price'] as num?)?.toDouble() ??
+        0;
   }
 
-  Map<String, dynamic> _buildAssetSummary(List<Map<String, dynamic>> assets, Map<String, dynamic> priceMap) {
+  Map<String, dynamic> _buildAssetSummary(
+      List<Map<String, dynamic>> assets, Map<String, dynamic> priceMap) {
     double currentValue = 0, purchaseCost = 0, total24k = 0, total21k = 0;
     final byKarat = <String, double>{};
     for (final a in assets) {
@@ -589,13 +782,19 @@ class ApiService {
       'target_price': targetPrice,
       'saved_amount': savedAmount,
       'remaining_amount': (targetPrice - savedAmount).clamp(0, double.infinity),
-      'progress_percent': targetPrice > 0 ? (savedAmount / targetPrice * 100).clamp(0, 100) : 0,
+      'progress_percent':
+          targetPrice > 0 ? (savedAmount / targetPrice * 100).clamp(0, 100) : 0,
     };
   }
 
-  Map<String, dynamic> _calculateZakat({required double totalValue, required double total24kWeight}) {
+  Map<String, dynamic> _calculateZakat(
+      {required double totalValue, required double total24kWeight}) {
     const threshold = 85.0;
     final eligible = total24kWeight >= threshold;
-    return {'threshold_weight_24k': threshold, 'eligible': eligible, 'zakat_due': eligible ? totalValue * 0.025 : 0.0};
+    return {
+      'threshold_weight_24k': threshold,
+      'eligible': eligible,
+      'zakat_due': eligible ? totalValue * 0.025 : 0.0
+    };
   }
 }
