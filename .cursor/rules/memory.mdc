@@ -91,6 +91,28 @@ alwaysApply: true
 - Design variant: `flutter-app/lib/theme/ui_design_variant.dart`
 - IG logo asset: `flutter-app/assets/icons/ig_logo.png`
 
+## Workflow After Each Edit (MANDATORY)
+1. Build **prod APK** only: `flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod`
+2. Build **prod AAB**: `flutter build appbundle --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod`
+3. Copy outputs: `InstaGold.apk` and `InstaGold.aab` to repo root
+4. Install APK on emulator: `adb install -r` (uninstall first if signature mismatch)
+5. Launch on emulator: `adb shell monkey -p com.ibrahym.goldfamily -c android.intent.category.LAUNCHER 1`
+6. Git commit & push
+7. **Do NOT** build dev APK unless user explicitly asks to include dev
+8. **Do NOT** upload AAB after each change — just build it
+9. Upload APK to Google Drive (`rclone copy ... gdrive:InstaGold/`) only when user asks
+
+## Settings Persistence
+- Uses `shared_preferences` to cache theme (dark/light) and locale (en/ar) at app level
+- On change: `SharedPreferences` is updated immediately in `_handleThemeChanged` / `_handleLocaleChanged` in `app.dart`
+- On startup: `_loadPersistedSettings()` reads from SharedPreferences before showing any screen
+- Also persisted to SQLite `UserSettings` table via `apiService.updateSettings()`
+
+## Login Screen
+- Always uses dark premium background regardless of theme (`PremiumBackground(forceDark: true)`)
+- Gold gradient login button, gold-bordered input fields, top gradient header
+- Matches the premium luxury dark theme reference design
+
 ## Git
 - Remote: github.com/ibrahymsa3ed/Gold
 - Branch: main

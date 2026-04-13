@@ -2728,12 +2728,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _settingsRow(
                 icon: Icons.dark_mode_outlined,
                 title: AppStrings.t(context, 'dark_mode'),
-                trailing: Switch.adaptive(
-                  value: widget.themeMode == ThemeMode.dark,
-                  onChanged: (isDark) {
-                    widget.onThemeChanged(isDark);
-                    _persistSettings();
-                  },
+                trailing: Semantics(
+                  toggled: widget.themeMode == ThemeMode.dark,
+                  label: 'Dark mode',
+                  excludeSemantics: true,
+                  child: Switch.adaptive(
+                    value: widget.themeMode == ThemeMode.dark,
+                    onChanged: (isDark) {
+                      widget.onThemeChanged(isDark);
+                      _persistSettings();
+                    },
+                  ),
                 ),
               ),
               Divider(
@@ -3277,12 +3282,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   borderRadius: BorderRadius.circular(18),
                   onTap: () => _onTabChanged(0),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
+                    padding: EdgeInsets.symmetric(vertical: 2),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IgLogo(size: 46),
-                        SizedBox(width: 12),
+                        IgLogo(size: 54),
+                        SizedBox(width: 6),
                         InstaGoldWordmark(fontSize: 24),
                       ],
                     ),

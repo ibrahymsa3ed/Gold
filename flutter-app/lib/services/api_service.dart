@@ -646,6 +646,15 @@ class ApiService {
   //  Settings
   // ════════════════════════════════════════════════════════════
 
+  Future<Map<String, dynamic>?> getSettings() async {
+    if (kIsWeb) return null;
+    final db = await _db;
+    final rows = await db
+        .query('UserSettings', where: 'user_id = ?', whereArgs: [_userId]);
+    if (rows.isEmpty) return null;
+    return _row(rows.first);
+  }
+
   Future<Map<String, dynamic>> updateSettings({
     required String locale,
     required String theme,

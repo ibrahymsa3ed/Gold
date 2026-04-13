@@ -2,12 +2,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class PremiumBackground extends StatelessWidget {
-  const PremiumBackground({super.key, required this.child});
+  const PremiumBackground({super.key, required this.child, this.forceDark = false});
   final Widget child;
+  final bool forceDark;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = forceDark || Theme.of(context).brightness == Brightness.dark;
     if (!isDark) return child;
 
     return Stack(
