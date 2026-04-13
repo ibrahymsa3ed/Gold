@@ -3286,8 +3286,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IgLogo(size: 54),
-                        SizedBox(width: 6),
+                        IgLogo(size: 66),
+                        SizedBox(width: 2),
                         InstaGoldWordmark(fontSize: 24),
                       ],
                     ),

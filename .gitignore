@@ -20,3 +20,4 @@ FamilyGold.apk
 GoldFamily.apk
 # Local dev flavor artifact (rebuild with ./scripts/build-dev-apk.sh)
 InstaGold-dev.apk
+flutter-app/android/.kotlin/
