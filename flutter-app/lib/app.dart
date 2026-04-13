@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'config/app_flavor.dart';
 import 'l10n.dart';
 import 'screens/dashboard_screen.dart';
 import 'theme/app_themes.dart';
@@ -102,7 +103,9 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
             if (!snapshot.hasData && !_devBypass) {
               return LoginScreen(
                 authService: _authService,
-                onDevBypass: () => setState(() => _devBypass = true),
+                onDevBypass: instaGoldFlavor == InstaGoldFlavor.dev
+                    ? () => setState(() => _devBypass = true)
+                    : null,
               );
             }
             return DashboardScreen(
