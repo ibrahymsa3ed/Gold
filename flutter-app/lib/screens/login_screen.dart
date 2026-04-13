@@ -194,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen>
                           children: [
                             const SelectionContainer.disabled(
                               child: IgLogo(
-                                  size: 160, applyLightModeTone: false),
+                                  size: 180, applyLightModeTone: false),
                             ),
                             const SizedBox(height: 16),
                             SelectionContainer.disabled(
