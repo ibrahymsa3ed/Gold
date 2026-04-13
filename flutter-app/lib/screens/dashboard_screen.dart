@@ -14,7 +14,10 @@ import '../services/backup_service.dart';
 import '../services/gold_scraper.dart';
 import '../services/invoice_attachment_service.dart';
 import '../services/notifications_service.dart';
+import '../theme/app_themes.dart';
+import '../widgets/ig_logo.dart';
 import '../widgets/instagold_ad_banner.dart';
+import '../widgets/premium_background.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -2778,127 +2781,148 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: _members.isNotEmpty
-            ? GestureDetector(
-                onTap: _showMemberMenu,
-                child: Row(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gold = isDark ? kGoldPrimary : kGoldMuted;
+
+    return PremiumBackground(
+      child: Scaffold(
+        appBar: AppBar(
+          title: _members.isNotEmpty
+              ? GestureDetector(
+                  onTap: _showMemberMenu,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IgLogo(size: 28, color: gold),
+                      const SizedBox(width: 10),
+                      Text(AppStrings.t(context, 'app_title')),
+                      if (_currentMemberName.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: gold.withValues(alpha: isDark ? 0.12 : 0.35),
+                            borderRadius: BorderRadius.circular(8),
+                            border: isDark
+                                ? Border.all(color: gold.withValues(alpha: 0.15), width: 0.5)
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.person, size: 14, color: gold),
+                              const SizedBox(width: 4),
+                              Text(
+                                _currentMemberName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: gold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                )
+              : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    IgLogo(size: 28, color: gold),
+                    const SizedBox(width: 10),
                     Text(AppStrings.t(context, 'app_title')),
-                    if (_currentMemberName.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.person, size: 14, color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(width: 4),
-                            Text(
-                              _currentMemberName,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-              )
-            : Text(AppStrings.t(context, 'app_title')),
-        actions: [
-          if (_members.isEmpty)
+          actions: [
+            if (_members.isEmpty)
+              IconButton(
+                onPressed: _busy ? null : () => _memberDialog(),
+                icon: const Icon(Icons.person_add_outlined),
+                tooltip: AppStrings.t(context, 'add_member'),
+              ),
             IconButton(
-              onPressed: _busy ? null : () => _memberDialog(),
-              icon: const Icon(Icons.person_add_outlined),
-              tooltip: AppStrings.t(context, 'add_member'),
+              onPressed: widget.authService.logout,
+              icon: const Icon(Icons.logout, size: 20),
+              tooltip: AppStrings.t(context, 'logout'),
             ),
-          IconButton(
-            onPressed: widget.authService.logout,
-            icon: const Icon(Icons.logout, size: 20),
-            tooltip: AppStrings.t(context, 'logout'),
-          ),
-        ],
-      ),
-      body: _loading
-          ? _buildLoadingSkeleton()
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
-              child: IndexedStack(
-                index: _selectedTab,
-                children: [
-                  _overviewTab(),
-                  _assetsTab(),
-                  _savingsGoalsTab(),
-                  _companiesSettingsTab(),
+          ],
+        ),
+        body: _loading
+            ? _buildLoadingSkeleton()
+            : Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+                child: IndexedStack(
+                  index: _selectedTab,
+                  children: [
+                    _overviewTab(),
+                    _assetsTab(),
+                    _savingsGoalsTab(),
+                    _companiesSettingsTab(),
+                  ],
+                ),
+              ),
+        extendBody: true,
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!kIsWeb) const InstaGoldAdBanner(),
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? kDarkCard.withValues(alpha: 0.85)
+                    : Colors.white.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(22),
+                border: isDark
+                    ? Border.all(color: gold.withValues(alpha: 0.08), width: 0.5)
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.4)
+                        : gold.withValues(alpha: 0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 4),
+                    spreadRadius: -4,
+                  ),
                 ],
               ),
-            ),
-      extendBody: true,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!kIsWeb) const InstaGoldAdBanner(),
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            decoration: BoxDecoration(
-              color: (Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF1E1B16)
-                      : Colors.white)
-                  .withValues(alpha: 0.88),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFB5973F).withValues(alpha: 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 4),
-                  spreadRadius: -4,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: NavigationBar(
-                  selectedIndex: _selectedTab,
-                  onDestinationSelected: _onTabChanged,
-                  backgroundColor: Colors.transparent,
-                  surfaceTintColor: Colors.transparent,
-                  elevation: 0,
-                  destinations: [
-                    NavigationDestination(
-                        icon: const Icon(Icons.home_outlined),
-                        selectedIcon: const Icon(Icons.home),
-                        label: AppStrings.t(context, 'home')),
-                    NavigationDestination(
-                        icon: const Icon(Icons.workspace_premium_outlined),
-                        selectedIcon: const Icon(Icons.workspace_premium),
-                        label: AppStrings.t(context, 'my_gold')),
-                    NavigationDestination(
-                        icon: const Icon(Icons.savings_outlined),
-                        selectedIcon: const Icon(Icons.savings),
-                        label: AppStrings.t(context, 'savings_goals')),
-                    NavigationDestination(
-                        icon: const Icon(Icons.settings_outlined),
-                        selectedIcon: const Icon(Icons.settings),
-                        label: AppStrings.t(context, 'settings')),
-                  ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: NavigationBar(
+                    selectedIndex: _selectedTab,
+                    onDestinationSelected: _onTabChanged,
+                    backgroundColor: Colors.transparent,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 0,
+                    destinations: [
+                      NavigationDestination(
+                          icon: const Icon(Icons.home_outlined),
+                          selectedIcon: const Icon(Icons.home),
+                          label: AppStrings.t(context, 'home')),
+                      NavigationDestination(
+                          icon: const Icon(Icons.workspace_premium_outlined),
+                          selectedIcon: const Icon(Icons.workspace_premium),
+                          label: AppStrings.t(context, 'my_gold')),
+                      NavigationDestination(
+                          icon: const Icon(Icons.savings_outlined),
+                          selectedIcon: const Icon(Icons.savings),
+                          label: AppStrings.t(context, 'savings_goals')),
+                      NavigationDestination(
+                          icon: const Icon(Icons.settings_outlined),
+                          selectedIcon: const Icon(Icons.settings),
+                          label: AppStrings.t(context, 'settings')),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2909,26 +2933,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     List<Widget> actions = const [],
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accentColor = isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final accentColor = isDark ? kGoldPrimary : kGoldMuted;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1B16) : Colors.white,
+        color: isDark ? kDarkCard : Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: accentColor.withValues(alpha: isDark ? 0.12 : 0.08),
+          color: isDark
+              ? kGoldPrimary.withValues(alpha: 0.08)
+              : accentColor.withValues(alpha: 0.08),
           width: 0.5,
         ),
         boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.3)
-                : accentColor.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-            spreadRadius: -2,
-          ),
+          if (isDark)
+            BoxShadow(
+              color: kGoldPrimary.withValues(alpha: 0.04),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+              spreadRadius: -4,
+            )
+          else
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+              spreadRadius: -2,
+            ),
         ],
       ),
       child: Padding(

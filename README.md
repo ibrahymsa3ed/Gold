@@ -116,12 +116,13 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 
 ### Current design
 
-Premium gold-themed design with rich palette (`#B5973F` primary / `#D4B254` accent). Default theme is **light** with warm cream surfaces (`#F7F2E8`).
+Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`) with subtle gradient transitions, wave patterns, and radial glow highlights — never flat. Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#B8962E` muted.
 
-- **App Icon:** Dark luxurious gold coin (gold pound style) with "IG" monogram, dotted rim, radial gradient shine.
+- **IG Logo:** Minimal interlocked "IG" monogram rendered via `CustomPaint` — scalable, clean, readable at small sizes.
+- **Background:** `PremiumBackground` widget adds wave patterns and radial gold highlights behind key content areas.
 - **Price Cards:** 150px hero cards with 4-stop gold gradient, glow shadows, Buy/Sell chips; drag-reorderable.
-- **Navigation:** Floating glassmorphism pill-shaped bottom bar with backdrop blur.
-- **Cards:** `borderRadius: 20-22`, gold accent gradient bars, depth shadows, `w800` typography.
+- **Navigation:** Floating glassmorphism pill-shaped bottom bar with backdrop blur, dark glass surface, gold border.
+- **Cards:** Premium dark surface (`#1A1816`), `borderRadius: 20-22`, gold accent gradient bars, soft glow shadows, `w800` typography.
 - **Assets:** Karat badge chips, inner financial detail cards, gold gradient circle icons.
 - **Jeweler's Dollar Gap:** Full-width tinted card (green/red) with EGP gap value centred; tapping opens explanation dialog.
 - **Notifications:** Scheduled price alerts via `flutter_local_notifications` with Android 13+ permission handling.

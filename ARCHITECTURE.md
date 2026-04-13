@@ -123,21 +123,30 @@ Implementation note:
 
 ### UI design (InstaGold)
 
-- **Theme:** Rich gold palette (`#B5973F` primary, `#D4B254` accent) with warm cream surfaces (`#F7F2E8` light, deep amber `#1A1714` dark). Default mode is **light**.
-- **App Icon:** Dark luxurious gold coin (gold pound style) with "IG" monogram, rim detailing, radial gold gradient shine, and dark background.
-- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and value chips (no Buy/Sell labels). Default order: 21K (hero), 24K (hero), 14K+18K (paired), Pound+Ounce (paired). Press-and-hold drag-reorderable via `SliverReorderableList`.
-- **Navigation:** Floating glassmorphism pill-shaped bottom nav bar with backdrop blur and gold accent indicators.
-- **Section Cards:** Gold accent gradient bar, `borderRadius: 22`, depth shadows, and `w800` typography.
+- **Theme:** Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`/`#0E0E10`) with subtle gradient transitions — never flat. Light mode retains warm cream surfaces (`#F7F2E8`). Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#E8CD5A` light, `#B8962E` muted.
+- **Background:** Subtle abstract wave patterns painted via `CustomPaint` at very low opacity, with soft radial highlights behind key areas (headers, cards). Creates depth without clutter.
+- **IG Logo:** Minimal interlocked "IG" monogram rendered as a `CustomPaint` widget (`IgLogo`). The G wraps around the I for a unified mark. Readable at small sizes. Used in app bar, splash screen, and empty states.
+- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and value chips. Default order: 21K (hero), 24K (hero), 14K+18K (paired), Pound+Ounce (paired). Press-and-hold drag-reorderable via `SliverReorderableList`.
+- **Navigation:** Floating glassmorphism pill-shaped bottom nav bar with backdrop blur, dark glass surface in dark mode, gold accent indicators, and subtle gold border.
+- **Section Cards:** Premium dark card surface (`#1A1816`), gold accent gradient bar, `borderRadius: 22`, soft glow shadows, and `w800` typography.
 - **Asset Cards:** Karat badge chips, inner financial detail cards, gold circle icons with gradient/shadow, profit/loss with trend indicators.
 - **Login:** Gradient background, 88px brand icon with 4-stop gold glow, 32px title, refined input fields.
 - **Notifications:** Scheduled price notifications via `flutter_local_notifications` + `timezone`. Android 13+ permission requests for `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`.
-- **Ads:** `google_mobile_ads` with a bottom **banner** on the main dashboard (above the bottom nav). `MobileAds.instance.initialize()` runs in `main.dart` (non-web). Ad unit IDs come from `lib/config/ad_config.dart` (dev uses Google test banner; prod uses `--dart-define=ADMOB_BANNER_PROD` or defaults until set). Android **AdMob App ID** is injected per flavor via `manifestPlaceholders["admobAppId"]` in `android/app/build.gradle.kts`.
-- **Android flavors:** `dev` and `prod` (same `applicationId`). `dev` shows launcher name **InstaGold Dev**; `prod` shows **InstaGold**. Build with `--flavor dev|prod` and matching `--dart-define=INSTAGOLD_FLAVOR=dev|prod`. Root APK outputs: `InstaGold-dev.apk` (dev), `InstaGold.apk` (prod). Play uploads use **AAB**: `flutter build appbundle --flavor prod` → `app-prod-release.aab`.
+- **Ads:** `google_mobile_ads` with a bottom **banner** on the main dashboard (above the bottom nav). `MobileAds.instance.initialize()` runs in `main.dart` (non-web). Ad unit IDs come from `lib/config/ad_config.dart`.
+- **Android flavors:** `dev` and `prod` (same `applicationId`). `dev` shows launcher name **InstaGold Dev**; `prod` shows **InstaGold**. Build with `--flavor dev|prod` and matching `--dart-define=INSTAGOLD_FLAVOR=dev|prod`.
 - **Release signing:** `android/key.properties` (gitignored) points to the upload keystore; if missing, release APKs/AABs use debug signing (development only). See `android/key.properties.example`.
-- **Play Store prep without a developer account:** phased checklist in `PLAY_STORE_PREP.md`; owner-only steps (keystore, `key.properties`, Firebase fingerprints, AdMob) in `YOUR_ACTIONS_BEFORE_PLAY.md`. Use `scripts/print-release-signing-fingerprints.sh` to print release SHA-1/SHA-256 for Firebase.
-- **Privacy policy (draft):** `docs/PRIVACY_POLICY_TEMPLATE.md` — developer must review, publish to an HTTPS URL, and align Play Data safety with the same content.
+- **Play Store prep without a developer account:** phased checklist in `PLAY_STORE_PREP.md`; owner-only steps in `YOUR_ACTIONS_BEFORE_PLAY.md`.
+- **Privacy policy (draft):** `docs/PRIVACY_POLICY_TEMPLATE.md`.
 - `classic` rollback preserved via `kUiDesignVariant` in `flutter-app/lib/theme/ui_design_variant.dart` (see `ROLLBACK_UI.md`).
 - Gap info: full-width tinted card (green/red matching alarm direction) below prices with EGP gap value centred, jeweler's dollar on left, premium % and official rate on right; tapping opens explanation dialog.
+
+### Reusable UI widgets (new)
+
+| Widget | File | Purpose |
+|--------|------|---------|
+| `IgLogo` | `lib/widgets/ig_logo.dart` | Scalable IG monogram via `CustomPaint` |
+| `IgLogoAnimated` | `lib/widgets/ig_logo.dart` | Animated fade+scale variant for splash |
+| `PremiumBackground` | `lib/widgets/premium_background.dart` | Layered dark gradient with wave patterns and radial glow highlights |
 
 ### Data Access Rules
 
