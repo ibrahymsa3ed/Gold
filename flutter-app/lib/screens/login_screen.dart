@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../l10n.dart';
 import '../services/auth_service.dart';
-import '../theme/app_themes.dart';
 import '../widgets/ig_logo.dart';
 import '../widgets/premium_background.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.authService, this.onDevBypass});
+  const LoginScreen({
+    super.key,
+    required this.authService,
+    this.onGuestLogin,
+  });
   final AuthService authService;
-  final VoidCallback? onDevBypass;
+  final VoidCallback? onGuestLogin;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -121,6 +124,173 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  void _showSignUpDialog() {
+    final signUpEmail = TextEditingController();
+    final signUpPassword = TextEditingController();
+    final signUpConfirm = TextEditingController();
+    bool obscure1 = true;
+    bool obscure2 = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          String? dialogError;
+
+          Future<void> doSignUp() async {
+            final email = signUpEmail.text.trim();
+            final pass = signUpPassword.text.trim();
+            final confirm = signUpConfirm.text.trim();
+
+            if (email.isEmpty || pass.isEmpty) {
+              setDialogState(() => dialogError = 'Please fill all fields.');
+              return;
+            }
+            if (pass != confirm) {
+              setDialogState(() => dialogError = 'Passwords do not match.');
+              return;
+            }
+            if (pass.length < 6) {
+              setDialogState(
+                  () => dialogError = 'Password must be at least 6 characters.');
+              return;
+            }
+
+            Navigator.of(ctx).pop();
+            _run(() => widget.authService.signUpEmailPassword(email, pass));
+          }
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1816),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              AppStrings.t(ctx, 'signup'),
+              style: const TextStyle(
+                color: Color(0xFFF1E6D3),
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: signUpEmail,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    style: const TextStyle(
+                        color: Color(0xFFE8E0D0), fontSize: 15),
+                    decoration: _goldInputDecoration(
+                      label: AppStrings.t(ctx, 'email'),
+                      icon: Icons.email_outlined,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: signUpPassword,
+                    obscureText: obscure1,
+                    textInputAction: TextInputAction.next,
+                    style: const TextStyle(
+                        color: Color(0xFFE8E0D0), fontSize: 15),
+                    decoration: _goldInputDecoration(
+                      label: AppStrings.t(ctx, 'password'),
+                      icon: Icons.lock_outline,
+                      suffixIcon: IconButton(
+                        onPressed: () =>
+                            setDialogState(() => obscure1 = !obscure1),
+                        icon: Icon(
+                          obscure1
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                          color: _textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: signUpConfirm,
+                    obscureText: obscure2,
+                    textInputAction: TextInputAction.done,
+                    style: const TextStyle(
+                        color: Color(0xFFE8E0D0), fontSize: 15),
+                    onSubmitted: (_) => doSignUp(),
+                    decoration: _goldInputDecoration(
+                      label: Localizations.localeOf(ctx).languageCode == 'ar'
+                          ? 'تأكيد كلمة المرور'
+                          : 'Confirm Password',
+                      icon: Icons.lock_outline,
+                      suffixIcon: IconButton(
+                        onPressed: () =>
+                            setDialogState(() => obscure2 = !obscure2),
+                        icon: Icon(
+                          obscure2
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                          color: _textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (dialogError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      dialogError!,
+                      style: const TextStyle(
+                          color: Color(0xFFD32F2F), fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: TextButton.styleFrom(foregroundColor: _textMuted),
+                child: Text(
+                  Localizations.localeOf(ctx).languageCode == 'ar'
+                      ? 'إلغاء'
+                      : 'Cancel',
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_goldLight, _gold, _goldDeep],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: doSignUp,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      child: Text(
+                        AppStrings.t(ctx, 'signup'),
+                        style: const TextStyle(
+                          color: _darkBg,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   InputDecoration _goldInputDecoration({
     required String label,
     required IconData icon,
@@ -151,6 +321,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+
     return PremiumBackground(
       forceDark: true,
       child: Scaffold(
@@ -278,24 +450,20 @@ class _LoginScreenState extends State<LoginScreen>
                                   AppStrings.t(context, 'forgot_password'),
                                   style: TextStyle(
                                       fontSize: 13,
-                                      color:
-                                          _gold.withValues(alpha: 0.8)),
+                                      color: _gold.withValues(alpha: 0.8)),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 28),
 
+                            // Login button
                             SizedBox(
                               width: double.infinity,
                               height: 54,
                               child: Container(
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    colors: [
-                                      _goldLight,
-                                      _gold,
-                                      _goldDeep,
-                                    ],
+                                    colors: [_goldLight, _gold, _goldDeep],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
@@ -332,8 +500,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               ),
                                             )
                                           : Text(
-                                              AppStrings.t(
-                                                  context, 'login'),
+                                              AppStrings.t(context, 'login'),
                                               style: const TextStyle(
                                                 fontSize: 17,
                                                 fontWeight: FontWeight.w700,
@@ -348,31 +515,26 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             const SizedBox(height: 14),
 
+                            // Sign Up button — opens popup
                             SizedBox(
                               width: double.infinity,
                               height: 50,
                               child: TextButton(
-                                onPressed: _isLoading
-                                    ? null
-                                    : () => _run(() =>
-                                        widget.authService
-                                            .signUpEmailPassword(
-                                          _emailController.text.trim(),
-                                          _passwordController.text.trim(),
-                                        )),
+                                onPressed:
+                                    _isLoading ? null : _showSignUpDialog,
                                 style: TextButton.styleFrom(
                                   foregroundColor: _gold,
                                   textStyle: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600),
                                 ),
-                                child:
-                                    Text(AppStrings.t(context, 'signup')),
+                                child: Text(AppStrings.t(context, 'signup')),
                               ),
                             ),
 
                             const SizedBox(height: 20),
 
+                            // Continue with Google
                             SizedBox(
                               width: double.infinity,
                               height: 50,
@@ -384,9 +546,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 icon: const Icon(Icons.g_mobiledata,
                                     size: 24, color: Colors.white),
                                 label: Text(
-                                  Localizations.localeOf(context)
-                                              .languageCode ==
-                                          'ar'
+                                  isAr
                                       ? 'تسجيل الدخول بـ Google'
                                       : 'Continue with Google',
                                   style: const TextStyle(
@@ -395,8 +555,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
-                                      color:
-                                          _gold.withValues(alpha: 0.25),
+                                      color: _gold.withValues(alpha: 0.25),
                                       width: 0.8),
                                   shape: RoundedRectangleBorder(
                                       borderRadius:
@@ -404,6 +563,41 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                             ),
+
+                            const SizedBox(height: 12),
+
+                            // Login as Guest
+                            if (widget.onGuestLogin != null)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: OutlinedButton.icon(
+                                  onPressed:
+                                      _isLoading ? null : widget.onGuestLogin,
+                                  icon: Icon(Icons.person_outline,
+                                      size: 20,
+                                      color:
+                                          _textMuted.withValues(alpha: 0.8)),
+                                  label: Text(
+                                    isAr
+                                        ? 'الدخول كضيف'
+                                        : 'Login as Guest',
+                                    style: TextStyle(
+                                        color:
+                                            _textMuted.withValues(alpha: 0.9),
+                                        fontSize: 15),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                        color: _textMuted
+                                            .withValues(alpha: 0.2),
+                                        width: 0.8),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
+                                  ),
+                                ),
+                              ),
 
                             if (_successMessage != null) ...[
                               const SizedBox(height: 18),
@@ -496,40 +690,6 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                     ],
                                   ],
-                                ),
-                              ),
-                            ],
-
-                            if (widget.onDevBypass != null) ...[
-                              const SizedBox(height: 32),
-                              Divider(
-                                  color: _gold.withValues(alpha: 0.12)),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Dev Mode (backend BYPASS_AUTH=true)',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: _textMuted
-                                        .withValues(alpha: 0.6)),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton(
-                                  onPressed: _isLoading
-                                      ? null
-                                      : widget.onDevBypass,
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                        color: _gold
-                                            .withValues(alpha: 0.2),
-                                        width: 0.8),
-                                    foregroundColor: _gold,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(14)),
-                                  ),
-                                  child: const Text('Enter as Dev User'),
                                 ),
                               ),
                             ],

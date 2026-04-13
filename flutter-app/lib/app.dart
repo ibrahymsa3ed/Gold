@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'config/app_flavor.dart';
 import 'l10n.dart';
 import 'screens/dashboard_screen.dart';
 import 'theme/app_themes.dart';
@@ -26,7 +25,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
 
   ThemeMode _themeMode = ThemeMode.light;
   Locale _locale = const Locale('en');
-  bool _devBypass = false;
+  bool _guestMode = false;
   bool _settingsLoaded = false;
 
   static const _kThemeKey = 'instagold_theme';
@@ -100,17 +99,15 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
             if (snapshot.connectionState == ConnectionState.waiting || !_settingsLoaded) {
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
             }
-            if (!snapshot.hasData && !_devBypass) {
+            if (!snapshot.hasData && !_guestMode) {
               return LoginScreen(
                 authService: _authService,
-                onDevBypass: instaGoldFlavor == InstaGoldFlavor.dev
-                    ? () => setState(() => _devBypass = true)
-                    : null,
+                onGuestLogin: () => setState(() => _guestMode = true),
               );
             }
             return DashboardScreen(
               authService: _authService,
-              apiService: _devBypass ? ApiService.devBypass() : ApiService(_authService),
+              apiService: _guestMode ? ApiService.devBypass() : ApiService(_authService),
               locale: _locale,
               themeMode: _themeMode,
               notificationsService: _notificationsService,
