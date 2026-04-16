@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.gold_family_app"
+    namespace = "com.ibrahym.instagold"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

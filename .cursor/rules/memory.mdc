@@ -6,13 +6,20 @@ alwaysApply: true
 # Project Memory — InstaGold (Gold)
 
 ## App Identity
-- App name: **InstaGold** (package: com.ibrahym.goldfamily)
-- Platform: **Android only** — ignore iOS for UI, testing, screenshots
-- APK outputs at repo root: **`InstaGold-dev.apk`** (dev flavor, test ads, label "InstaGold Dev") via `./scripts/build-dev-apk.sh`; **`InstaGold.apk`** (prod) via `./scripts/build-and-upload.sh` or `flutter build apk --flavor prod`
+- App name: **InstaGold**
+- Android package (applicationId): `com.ibrahym.goldfamily` (Play Store published — do NOT change)
+- Android namespace: `com.ibrahym.instagold`
+- iOS bundle ID: `com.ibrahym.goldtracker` (matches Firebase `GoogleService-Info.plist`)
+- Platforms: **Android + iOS**
+- APK outputs at repo root: **`InstaGold.apk`** (prod) via `flutter build apk --flavor prod`
+- AAB: `InstaGold.aab` at repo root
+- IPA: `InstaGold.ipa` at repo root (development signed, Personal Team Y6S29VSUJ7, 7-day expiry)
 - Play Store bundle: `./scripts/build-play-aab.sh` → `app-prod-release.aab`
 - Play prep: `PLAY_STORE_PREP.md`; owner checklist `YOUR_ACTIONS_BEFORE_PLAY.md`; privacy draft `docs/PRIVACY_POLICY_TEMPLATE.md`; `scripts/print-release-signing-fingerprints.sh` for Firebase SHA
 - Firebase project: goldcalculate
-- **Build commands ALWAYS require `--flavor dev|prod`** — never build without flavor
+- **Build commands ALWAYS require `--flavor dev|prod`** for Android — never build without flavor
+- iOS signing: Personal Team (Y6S29VSUJ7), `CODE_SIGN_STYLE = Automatic`, `ExportOptions.plist` uses `development` method
+- Physical iPhone install: open `ios/Runner.xcworkspace` in Xcode → select iPhone 16 Pro Max → Cmd+R
 
 ## Architecture
 - Monorepo: `scraper-service/` (price scraping), `main-backend/` (API), `flutter-app/` (mobile UI)
@@ -92,15 +99,25 @@ alwaysApply: true
 - IG logo asset: `flutter-app/assets/icons/ig_logo.png`
 
 ## Workflow After Each Edit (MANDATORY)
-1. Build **prod APK** only: `flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod`
+### Android
+1. Build **prod APK**: `flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod`
 2. Build **prod AAB**: `flutter build appbundle --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod`
 3. Copy outputs: `InstaGold.apk` and `InstaGold.aab` to repo root
 4. Install APK on emulator: `adb install -r` (uninstall first if signature mismatch)
 5. Launch on emulator: `adb shell monkey -p com.ibrahym.goldfamily -c android.intent.category.LAUNCHER 1`
-6. Git commit & push
-7. **Do NOT** build dev APK unless user explicitly asks to include dev
-8. **Do NOT** upload AAB after each change — just build it
-9. Upload APK to Google Drive (`rclone copy ... gdrive:InstaGold/`) only when user asks
+
+### iOS
+6. Build iOS simulator: `flutter build ios --simulator`
+7. Install on simulator: `xcrun simctl install booted build/ios/iphonesimulator/Runner.app`
+8. Launch on simulator: `xcrun simctl launch booted com.ibrahym.goldtracker`
+9. Build IPA: `flutter build ipa --release --export-options-plist=ios/ExportOptions.plist`
+10. Copy IPA: `InstaGold.ipa` to repo root
+
+### Finalize
+11. Git commit & push
+12. **Do NOT** build dev APK unless user explicitly asks
+13. **Do NOT** upload to Drive unless user explicitly asks
+14. Upload APK/IPA to Google Drive (`rclone copyto ... "gdrive:InstaGold Releases/..."`) only when user asks
 
 ## Settings Persistence
 - Uses `shared_preferences` to cache theme (dark/light) and locale (en/ar) at app level

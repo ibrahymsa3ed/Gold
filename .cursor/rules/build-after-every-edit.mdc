@@ -1,0 +1,60 @@
+---
+description: Build steps to run after every code edit
+alwaysApply: true
+---
+
+# Build & Ship After Every Edit (MANDATORY)
+
+After every code change, run ALL of the following steps in order:
+
+## 1. Android Builds
+```bash
+cd flutter-app
+
+# Prod APK
+flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
+cp build/app/outputs/flutter-apk/app-prod-release.apk ../InstaGold.apk
+
+# Prod AAB
+flutter build appbundle --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
+cp build/app/outputs/bundle/prodRelease/app-prod-release.aab ../InstaGold.aab
+
+# Install on Android emulator
+adb install -r ../InstaGold.apk
+adb shell monkey -p com.ibrahym.goldfamily -c android.intent.category.LAUNCHER 1
+```
+
+## 2. iOS Builds
+```bash
+cd flutter-app
+
+# Simulator build + install on booted simulator
+flutter build ios --simulator
+xcrun simctl install booted build/ios/iphonesimulator/Runner.app
+xcrun simctl launch booted com.ibrahym.goldtracker
+
+# IPA (development signed, Personal Team Y6S29VSUJ7)
+flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+cp build/ios/ipa/gold_family_app.ipa ../InstaGold.ipa
+```
+
+## 3. Git
+```bash
+git add -A && git commit -m "<message>" && git push
+```
+
+## 4. Upload to Google Drive (ONLY when user asks)
+```bash
+# APK
+rclone copyto InstaGold.apk "gdrive:InstaGold Releases/InstaGold.apk" --progress
+
+# IPA
+rclone copyto InstaGold.ipa "gdrive:InstaGold Releases/InstaGold.ipa" --progress
+```
+
+## Rules
+- **Do NOT** build dev APK unless user explicitly asks
+- **Do NOT** upload to Drive unless user explicitly asks
+- **Do NOT** build AAB separately — it's part of the standard loop
+- Always use `--flavor prod --dart-define=INSTAGOLD_FLAVOR=prod` for Android
+- For physical iPhone: user opens `ios/Runner.xcworkspace` in Xcode, selects device, Cmd+R
