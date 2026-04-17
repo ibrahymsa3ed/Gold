@@ -4,7 +4,6 @@ import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
 class NotificationsService {
   final FlutterLocalNotificationsPlugin _plugin =
@@ -77,52 +76,21 @@ class NotificationsService {
     iOS: DarwinNotificationDetails(),
   );
 
-  /// Schedule repeating price notifications every 4 hours for the next 7 days.
-  /// Called once after prices load; uses the latest known prices as body text.
+  /// No-op on foreground side. All scheduled notifications are now handled by
+  /// the WorkManager background task which scrapes fresh prices before firing.
   Future<void> schedulePriceNotifications({
     required int intervalHours,
-    String title = 'InstaGold',
+    String? title,
     String? body,
     double? price21k,
     double? price24k,
     double? priceOunce,
   }) async {
-    final notifBody = body ??
-        buildPriceBody(
-          price21k: price21k,
-          price24k: price24k,
-          priceOunce: priceOunce,
-        );
-
-    // Cancel previously scheduled notifications (IDs 101-150)
-    for (int i = 1; i <= 50; i++) {
-      try {
-        await _plugin.cancel(100 + i);
-      } catch (_) {}
-    }
-
-    final now = tz.TZDateTime.now(tz.local);
-    final count = (24 * 7) ~/ intervalHours;
-
-    for (int i = 1; i <= count && i <= 50; i++) {
-      final scheduled = now.add(Duration(hours: intervalHours * i));
-      try {
-        await _plugin.zonedSchedule(
-          100 + i,
-          title,
-          notifBody,
-          scheduled,
-          _priceNotifDetails,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-        );
-      } catch (e) {
-        debugPrint('InstaGold: schedule #$i failed: $e');
-      }
-    }
+    debugPrint(
+        'InstaGold: notifications delegated to background price watcher');
   }
 
+  /// Fire a notification immediately with supplied content.
   Future<void> showPriceChangeNotification({
     required String title,
     required String body,

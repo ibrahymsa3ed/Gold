@@ -15,12 +15,15 @@ const _backgroundTaskUniqueName = 'instagold_price_watcher_unique';
 const _kLastPrice21k = 'pw_last_21k';
 const _kLastPrice24k = 'pw_last_24k';
 const _kLastPriceOunce = 'pw_last_ounce';
+const _kLastNotifTimestamp = 'pw_last_notif_ts';
 
 const _priceChannelId = 'price_updates';
 const _priceChannelName = 'Price Updates';
 
+/// Interval between guaranteed notifications in milliseconds (4 hours).
+const _notifIntervalMs = 4 * 60 * 60 * 1000;
+
 /// Top-level entry point invoked by WorkManager when the periodic task fires.
-/// Must be a top-level function annotated with [pragma].
 @pragma('vm:entry-point')
 void priceWatcherCallback() {
   Workmanager().executeTask((task, inputData) async {
@@ -51,12 +54,12 @@ void priceWatcherCallback() {
       final changed24 = _isChanged(last24, p24k);
       final changedOunce = _isChanged(lastOunce, pOunce);
 
-      // Save new values
+      // Persist latest prices
       if (p21k != null) await prefs.setDouble(_kLastPrice21k, p21k);
       if (p24k != null) await prefs.setDouble(_kLastPrice24k, p24k);
       if (pOunce != null) await prefs.setDouble(_kLastPriceOunce, pOunce);
 
-      // Always update the iOS home widget shared store
+      // Always update the iOS/Android home widget
       try {
         if (p21k != null) {
           await HomeWidget.saveWidgetData<double>('price_21k', p21k);
@@ -78,24 +81,41 @@ void priceWatcherCallback() {
         debugPrint('PriceWatcher: widget update failed: $e');
       }
 
-      // Only fire notification when something actually changed
-      if (!changed21 && !changed24 && !changedOunce) {
+      // Determine whether to fire a notification:
+      //   a) prices changed  → immediate alert with change arrows
+      //   b) 4 hours since last notification → guaranteed periodic update
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final lastNotifMs = prefs.getInt(_kLastNotifTimestamp) ?? 0;
+      final timeSinceLastNotif = nowMs - lastNotifMs;
+      final pricesChanged = changed21 || changed24 || changedOunce;
+      final periodicDue = timeSinceLastNotif >= _notifIntervalMs;
+
+      if (!pricesChanged && !periodicDue) {
         return Future.value(true);
       }
 
+      // Build notification body
       final parts = <String>[];
       if (p21k != null) {
-        parts.add('21K: ${p21k.toStringAsFixed(0)} EGP'
-            '${changed21 ? ' (${_arrow(last21, p21k)})' : ''}');
+        final arrow =
+            pricesChanged && changed21 ? ' (${_arrow(last21, p21k)})' : '';
+        parts.add('21K: ${p21k.toStringAsFixed(0)} EGP$arrow');
       }
       if (p24k != null) {
-        parts.add('24K: ${p24k.toStringAsFixed(0)} EGP'
-            '${changed24 ? ' (${_arrow(last24, p24k)})' : ''}');
+        final arrow =
+            pricesChanged && changed24 ? ' (${_arrow(last24, p24k)})' : '';
+        parts.add('24K: ${p24k.toStringAsFixed(0)} EGP$arrow');
       }
       if (pOunce != null) {
-        parts.add('Ounce: \$${pOunce.toStringAsFixed(0)}'
-            '${changedOunce ? ' (${_arrow(lastOunce, pOunce)})' : ''}');
+        final arrow =
+            pricesChanged && changedOunce
+                ? ' (${_arrow(lastOunce, pOunce)})'
+                : '';
+        parts.add('Ounce: \$${pOunce.toStringAsFixed(0)}$arrow');
       }
+
+      final title =
+          pricesChanged ? 'Gold prices updated' : 'Current gold prices';
 
       tz.initializeTimeZones();
       final plugin = FlutterLocalNotificationsPlugin();
@@ -112,8 +132,7 @@ void priceWatcherCallback() {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@drawable/ic_stat_notification',
-          largeIcon:
-              DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           color: Color(0xFFD4AF37),
         ),
         iOS: DarwinNotificationDetails(),
@@ -121,10 +140,12 @@ void priceWatcherCallback() {
 
       await plugin.show(
         DateTime.now().millisecondsSinceEpoch.remainder(100000),
-        'Gold prices updated',
-        parts.join(' | '),
+        title,
+        parts.isNotEmpty ? parts.join(' | ') : 'Check the latest gold prices!',
         details,
       );
+
+      await prefs.setInt(_kLastNotifTimestamp, nowMs);
 
       return Future.value(true);
     } catch (e) {
@@ -137,7 +158,6 @@ void priceWatcherCallback() {
 bool _isChanged(double? a, double? b) {
   if (b == null) return false;
   if (a == null) return true;
-  // Treat sub-1 EGP fluctuations as noise
   return (a - b).abs() >= 1.0;
 }
 
@@ -167,7 +187,7 @@ class PriceWatcher {
           networkType: NetworkType.connected,
           requiresBatteryNotLow: false,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.keep,
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
     } catch (e) {
       debugPrint('PriceWatcher: initialize failed: $e');

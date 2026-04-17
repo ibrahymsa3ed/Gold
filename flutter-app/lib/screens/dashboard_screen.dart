@@ -47,7 +47,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   List<dynamic> _members = [];
   List<dynamic> _assets = [];
   List<dynamic> _goals = [];
@@ -70,14 +71,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _load().then((_) => _scheduleNotifications());
+    WidgetsBinding.instance.addObserver(this);
+    _load().then((_) => _afterPricesLoaded());
   }
 
-  void _scheduleNotifications() {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _load().then((_) => _afterPricesLoaded());
+    }
+  }
+
+  void _afterPricesLoaded() {
     final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
     final p21 = (pricesMap['21k'] as Map<String, dynamic>?)?['buy_price'] as num?;
     final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['buy_price'] as num?;
     final ounce = (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
+
+    // Schedule 4-hour notifications with latest prices
     widget.notificationsService.schedulePriceNotifications(
       intervalHours: 4,
       price21k: p21?.toDouble(),
@@ -85,6 +102,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       priceOunce: ounce?.toDouble(),
     );
 
+    // Push to iOS widget
     _updateHomeWidget(p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
   }
 
@@ -2811,8 +2829,85 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        _testNotificationButton(),
+        const SizedBox(height: 12),
         _backupRestoreCard(),
       ],
+    );
+  }
+
+  Widget _testNotificationButton() {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () async {
+        try {
+          final scraped = await GoldScraper.scrapeGoldPrices();
+          final carats = (scraped['carats'] as Map?) ?? {};
+          final c21 = carats['21'] as Map?;
+          final c24 = carats['24'] as Map?;
+          final p21 = (c21?['buy'] as num?)?.toDouble();
+          final p24 = (c24?['buy'] as num?)?.toDouble();
+          final oz = (scraped['ouncePrice'] as num?)?.toDouble();
+          final body = NotificationsService.buildPriceBody(
+            price21k: p21,
+            price24k: p24,
+            priceOunce: oz,
+          );
+          await widget.notificationsService.showPriceChangeNotification(
+            title: 'InstaGold',
+            body: body,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Test notification sent'),
+                  duration: Duration(seconds: 2)),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed: $e')),
+            );
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: goldAccent.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: goldAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.notifications_active_outlined,
+                  size: 20, color: goldAccent),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                AppStrings.t(context, 'send_test_notification'),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface),
+              ),
+            ),
+            Icon(Icons.send_outlined, size: 18, color: goldAccent),
+          ],
+        ),
+      ),
     );
   }
 
