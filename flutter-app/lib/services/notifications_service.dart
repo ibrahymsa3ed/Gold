@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -13,6 +13,8 @@ class NotificationsService {
   static const _priceChannelName = 'Price Updates';
   static const _settingsChannelId = 'settings';
   static const _settingsChannelName = 'Settings';
+
+  bool _permissionGranted = false;
 
   Future<void> init() async {
     tz.initializeTimeZones();
@@ -32,7 +34,8 @@ class NotificationsService {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
-        await android.requestNotificationsPermission();
+        final granted = await android.requestNotificationsPermission();
+        _permissionGranted = granted ?? false;
         await android.requestExactAlarmsPermission();
         await android.createNotificationChannel(
           const AndroidNotificationChannel(
@@ -46,7 +49,9 @@ class NotificationsService {
     } else if (!kIsWeb && Platform.isIOS) {
       final ios = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
-      await ios?.requestPermissions(alert: true, badge: true, sound: true);
+      final granted = await ios?.requestPermissions(
+          alert: true, badge: true, sound: true);
+      _permissionGranted = granted ?? false;
     }
   }
 
@@ -58,7 +63,9 @@ class NotificationsService {
     final parts = <String>[];
     if (price21k != null) parts.add('21K: ${price21k.toStringAsFixed(0)} EGP');
     if (price24k != null) parts.add('24K: ${price24k.toStringAsFixed(0)} EGP');
-    if (priceOunce != null) parts.add('Ounce: \$${priceOunce.toStringAsFixed(0)}');
+    if (priceOunce != null) {
+      parts.add('Ounce: \$${priceOunce.toStringAsFixed(0)}');
+    }
     if (parts.isEmpty) return 'Check the latest gold prices!';
     return parts.join(' | ');
   }
@@ -71,57 +78,58 @@ class NotificationsService {
     double? price24k,
     double? priceOunce,
   }) async {
+    final notifBody = body ??
+        _buildPriceBody(
+          price21k: price21k,
+          price24k: price24k,
+          priceOunce: priceOunce,
+        );
+
+    const androidDetails = AndroidNotificationDetails(
+      _priceChannelId,
+      _priceChannelName,
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+    const iosDetails = DarwinNotificationDetails();
+    const notifDetails =
+        NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    // Fire an immediate notification so the user knows it's working
+    try {
+      await _plugin.show(0, title, notifBody, notifDetails);
+    } catch (e) {
+      debugPrint('InstaGold: immediate notification failed: $e');
+    }
+
+    // Cancel previously scheduled and reschedule
     try {
       await _plugin.cancelAll();
+    } catch (e) {
+      debugPrint('InstaGold: cancelAll failed: $e');
+    }
 
-      final notifBody = body ??
-          _buildPriceBody(
-            price21k: price21k,
-            price24k: price24k,
-            priceOunce: priceOunce,
-          );
+    final now = tz.TZDateTime.now(tz.local);
+    final count = (24 * 7) ~/ intervalHours;
 
-      final now = tz.TZDateTime.now(tz.local);
-
-      const androidDetails = AndroidNotificationDetails(
-        _priceChannelId,
-        _priceChannelName,
-        importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-      );
-      const iosDetails = DarwinNotificationDetails();
-      const notifDetails =
-          NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-      final count = (24 * 7) ~/ intervalHours;
-      for (int i = 1; i <= count && i <= 50; i++) {
-        final scheduled = now.add(Duration(hours: intervalHours * i));
+    for (int i = 1; i <= count && i <= 50; i++) {
+      final scheduled = now.add(Duration(hours: intervalHours * i));
+      try {
         await _plugin.zonedSchedule(
           100 + i,
           title,
           notifBody,
           scheduled,
           notifDetails,
-          androidScheduleMode: AndroidScheduleMode.alarmClock,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
+      } catch (e) {
+        debugPrint('InstaGold: schedule #$i failed: $e');
       }
-
-      // Also schedule a near-term notification (2 minutes) so user can verify
-      final soon = now.add(const Duration(minutes: 2));
-      await _plugin.zonedSchedule(
-        99,
-        title,
-        notifBody,
-        soon,
-        notifDetails,
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
-    } catch (_) {}
+    }
   }
 
   Future<void> showPriceUpdateNotification({
@@ -155,12 +163,16 @@ class NotificationsService {
 
       await _plugin.show(
           1, 'InstaGold', 'Settings saved successfully', details);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('InstaGold: settings notification failed: $e');
+    }
   }
 
   Future<void> cancelAll() async {
     try {
       await _plugin.cancelAll();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('InstaGold: cancelAll failed: $e');
+    }
   }
 }

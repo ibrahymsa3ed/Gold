@@ -37,17 +37,16 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
   void initState() {
     super.initState();
     _notificationsService.init();
-    _loadPersistedSettings();
-    _restoreGoogleSignIn();
+    _initApp();
   }
 
-  Future<void> _restoreGoogleSignIn() async {
+  Future<void> _initApp() async {
+    // Restore Google Sign-In session first so Firebase has the user ready
     try {
       await sharedGoogleSignIn.signInSilently();
     } catch (_) {}
-  }
 
-  Future<void> _loadPersistedSettings() async {
+    // Then load persisted settings (theme, locale, guest mode)
     try {
       final prefs = await SharedPreferences.getInstance();
       final theme = prefs.getString(_kThemeKey);
@@ -55,16 +54,8 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
       final guest = prefs.getBool(_kGuestKey) ?? false;
       if (mounted) {
         setState(() {
-          if (theme == 'dark') {
-            _themeMode = ThemeMode.dark;
-          } else {
-            _themeMode = ThemeMode.light;
-          }
-          if (locale == 'ar') {
-            _locale = const Locale('ar');
-          } else {
-            _locale = const Locale('en');
-          }
+          _themeMode = theme == 'dark' ? ThemeMode.dark : ThemeMode.light;
+          _locale = locale == 'ar' ? const Locale('ar') : const Locale('en');
           _guestMode = guest;
           _settingsLoaded = true;
         });
