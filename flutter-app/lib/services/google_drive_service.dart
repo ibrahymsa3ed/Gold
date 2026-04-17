@@ -19,7 +19,12 @@ class GoogleDriveService {
   final GoogleSignIn _googleSignIn = sharedGoogleSignIn;
 
   Future<drive.DriveApi?> _driveApi() async {
-    final httpClient = await _googleSignIn.authenticatedClient();
+    var httpClient = await _googleSignIn.authenticatedClient();
+    if (httpClient == null) {
+      // Session expired or app restarted — try restoring silently
+      await _googleSignIn.signInSilently();
+      httpClient = await _googleSignIn.authenticatedClient();
+    }
     if (httpClient == null) return null;
     return drive.DriveApi(httpClient);
   }

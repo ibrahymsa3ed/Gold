@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n.dart';
@@ -30,12 +31,20 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
 
   static const _kThemeKey = 'instagold_theme';
   static const _kLocaleKey = 'instagold_locale';
+  static const _kGuestKey = 'instagold_guest';
 
   @override
   void initState() {
     super.initState();
     _notificationsService.init();
     _loadPersistedSettings();
+    _restoreGoogleSignIn();
+  }
+
+  Future<void> _restoreGoogleSignIn() async {
+    try {
+      await sharedGoogleSignIn.signInSilently();
+    } catch (_) {}
   }
 
   Future<void> _loadPersistedSettings() async {
@@ -43,6 +52,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
       final prefs = await SharedPreferences.getInstance();
       final theme = prefs.getString(_kThemeKey);
       final locale = prefs.getString(_kLocaleKey);
+      final guest = prefs.getBool(_kGuestKey) ?? false;
       if (mounted) {
         setState(() {
           if (theme == 'dark') {
@@ -55,6 +65,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
           } else {
             _locale = const Locale('en');
           }
+          _guestMode = guest;
           _settingsLoaded = true;
         });
       }
@@ -102,7 +113,10 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
             if (!snapshot.hasData && !_guestMode) {
               return LoginScreen(
                 authService: _authService,
-                onGuestLogin: () => setState(() => _guestMode = true),
+                onGuestLogin: () {
+                  setState(() => _guestMode = true);
+                  SharedPreferences.getInstance().then((p) => p.setBool(_kGuestKey, true));
+                },
               );
             }
             return DashboardScreen(
@@ -113,6 +127,10 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
               notificationsService: _notificationsService,
               onLocaleChanged: _handleLocaleChanged,
               onThemeChanged: _handleThemeChanged,
+              onLogout: () {
+                setState(() => _guestMode = false);
+                SharedPreferences.getInstance().then((p) => p.setBool(_kGuestKey, false));
+              },
             );
           },
         ),

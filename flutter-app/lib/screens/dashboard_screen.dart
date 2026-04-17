@@ -30,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
     required this.themeMode,
     required this.onLocaleChanged,
     required this.onThemeChanged,
+    this.onLogout,
   });
 
   final AuthService authService;
@@ -39,6 +40,7 @@ class DashboardScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<Locale> onLocaleChanged;
   final ValueChanged<bool> onThemeChanged;
+  final VoidCallback? onLogout;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -3569,7 +3571,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 tooltip: AppStrings.t(context, 'add_member'),
               ),
             IconButton(
-              onPressed: widget.authService.logout,
+              onPressed: () {
+                widget.authService.logout();
+                widget.onLogout?.call();
+              },
               icon: const Icon(Icons.logout, size: 20),
               tooltip: AppStrings.t(context, 'logout'),
             ),
