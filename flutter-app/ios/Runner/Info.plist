@@ -49,6 +49,8 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>GIDClientID</key>
+	<string>190629243449-uqj0qhpsov43sfbqdp7st9qvkdk6s43p.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -60,6 +62,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>GIDServerClientID</key>
+	<string>190629243449-p8f2shp44omgprs7dlngst9sdnbe48ce.apps.googleusercontent.com</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>UILaunchStoryboardName</key>
