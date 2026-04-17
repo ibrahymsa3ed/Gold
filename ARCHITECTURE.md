@@ -120,12 +120,14 @@ Implementation note:
 - Firebase bootstrapping uses explicit options in `flutter-app/lib/firebase_options.dart` for web/native startup consistency.
 - Web OAuth sign-in uses Firebase popup providers (`GoogleAuthProvider` / `OAuthProvider`) to align with browser flow.
 - Web Google auth falls back to redirect when popup flow is blocked/closed by browser policies.
+- Native cold-start auth restore first uses Firebase's persisted user, then silently restores Google Sign-In and rehydrates Firebase when needed so Google auth and Drive access survive full app restarts.
 
 ### UI design (InstaGold)
 
 - **Theme:** Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`/`#0E0E10`) with subtle gradient transitions — never flat. Light mode retains warm cream surfaces (`#F7F2E8`). Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#E8CD5A` light, `#B8962E` muted.
 - **Background:** Subtle abstract wave patterns painted via `CustomPaint` at very low opacity, with soft radial highlights behind key areas (headers, cards). Creates depth without clutter.
 - **IG Logo:** Uses the provided IG image as a transparent cropped asset (`assets/icons/ig_logo_mark.png`) through `IgLogo`. The square background is removed so the mark sits directly on the screen background; light mode applies a darker gold tone for readability. Used in app bar, splash screen, empty states, and launcher assets.
+- **Launcher icons:** iOS uses a pre-composited dark icon source (`assets/icons/ig_icon_ios.png`) to avoid white alpha flattening. Android adaptive icons use a cropped foreground asset plus a zero-inset adaptive XML so the IG mark fills the icon more aggressively.
 - **Price Cards:** 150px hero cards with 4-stop gold gradient, glow box shadows, label badges, and value chips. Default order: 21K (hero), 24K (hero), 14K+18K (paired), Pound+Ounce (paired). Press-and-hold drag-reorderable via `SliverReorderableList`.
 - **Navigation:** Floating glassmorphism pill-shaped bottom nav bar with backdrop blur, dark glass surface in dark mode, gold accent indicators, and subtle gold border.
 - **Section Cards:** Premium dark card surface (`#1A1816`), gold accent gradient bar, `borderRadius: 22`, soft glow shadows, and `w800` typography.

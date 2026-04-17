@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n.dart';
@@ -41,12 +40,8 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
   }
 
   Future<void> _initApp() async {
-    // Restore Google Sign-In session first so Firebase has the user ready
-    try {
-      await sharedGoogleSignIn.signInSilently();
-    } catch (_) {}
+    await _authService.restoreSession();
 
-    // Then load persisted settings (theme, locale, guest mode)
     try {
       final prefs = await SharedPreferences.getInstance();
       final theme = prefs.getString(_kThemeKey);
@@ -97,6 +92,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
       home: SelectionArea(
         child: StreamBuilder<User?>(
           stream: _authService.authState,
+          initialData: _authService.currentUser,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting || !_settingsLoaded) {
               return const Scaffold(body: Center(child: CircularProgressIndicator()));

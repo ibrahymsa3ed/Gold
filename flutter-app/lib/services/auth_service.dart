@@ -87,6 +87,28 @@ class AuthService {
     return _auth.currentUser?.getIdToken();
   }
 
+  Future<void> restoreSession() async {
+    if (kIsWeb || _auth.currentUser != null) return;
+
+    try {
+      final googleUser =
+          sharedGoogleSignIn.currentUser ?? await sharedGoogleSignIn.signInSilently();
+      if (googleUser == null) return;
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) return;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: idToken,
+      );
+      await _auth.signInWithCredential(credential);
+    } catch (_) {
+      // Ignore restore failures; the login screen remains the fallback.
+    }
+  }
+
   Future<void> logout() async {
     await sharedGoogleSignIn.signOut();
     await _auth.signOut();
