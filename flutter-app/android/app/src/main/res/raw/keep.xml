@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Preserve drawables that are referenced only by string from Dart code
+  (flutter_local_notifications uses '@drawable/ic_stat_notification').
+  Without this, the Android resource shrinker would strip the notification
+  icon from the release APK and notifications would fail with 'invalid_icon'.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_notification,@mipmap/ic_launcher,@mipmap/launch_image" />

@@ -131,7 +131,7 @@ Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B
 - **Background price watcher (Android):** A `workmanager` periodic task fetches gold prices and notifies the user only when 21K/24K/ounce values actually change vs the last known values stored in `SharedPreferences`. Implemented in `lib/services/price_watcher.dart`.
 - **iOS Home Widget:** WidgetKit extension `ios/InstaGoldWidget/` shows live 21K/24K/ounce prices on the iOS home screen via App Group `group.com.ibrahym.goldtracker`. The Flutter app writes prices through the `home_widget` package on dashboard load and from the background watcher.
 - **Cold-start auth restore:** On native launches, the app first checks Firebase's persisted session, then silently restores Google Sign-In and rehydrates Firebase when needed so Google login and Drive access survive full app restarts.
-- **Android branding assets:** Launcher icons are regenerated from the master PNGs, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background. A "Send Test Notification" button in Settings helps verify notification delivery on OEM-restricted devices.
+- **Android branding assets:** Launcher icons are regenerated from the master PNGs, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background. The notification status-bar drawable (`ic_stat_notification`) is preserved by `android/app/src/main/res/raw/keep.xml` so the release shrinker does not strip it.
 
 ### Rollback
 

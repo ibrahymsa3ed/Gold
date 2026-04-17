@@ -111,7 +111,7 @@ If scraper unavailable:
 - Goals with progress bars and saved-amount update
 - Zakat calculator page
 - Companies page (default + custom create)
-- Settings (alerts hourly/six-hour, Arabic/English, dark/light)
+- Settings (Arabic/English, dark/light) — notifications are fixed to hourly, no user-selectable interval
 - Optional logs viewer for admin/dev
 
 Implementation note:
@@ -134,7 +134,13 @@ Implementation note:
 - **Asset Cards:** Karat badge chips, inner financial detail cards, gold circle icons with gradient/shadow, profit/loss with trend indicators.
 - **Brand header:** `InstaGoldWordmark` provides the premium in-app title lockup. The app-bar brand is tappable and returns to the Home tab; member switching remains on the separate member chip.
 - **Login:** Gradient background, larger transparent IG mark, premium `InstaGoldWordmark`, refined input fields.
-- **Notifications:** Scheduled price alerts via `flutter_local_notifications` + `timezone`. Android 13+ permission requests for `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`. Android notifications use `@drawable/ic_stat_notification` (white silhouette) for the status bar icon and `@mipmap/ic_launcher` as `largeIcon` for the expanded view, with `Color(0xFFD4AF37)` gold tint. A "Send Test Notification" button in Settings fires an immediate notification for debugging. Foreground price-change detection in `_load()` compares new prices against `pw_last_*` SharedPreferences keys and fires a notification on actual change. See `MIUI_NOTIFICATIONS.md` for Xiaomi/Redmi whitelist steps.
+- **Notifications:** Hourly price alerts delivered through two complementary paths:
+  1. **Background:** `PriceWatcher` registers a periodic WorkManager task (15-min minimum frequency) that scrapes live prices in a Flutter background isolate and fires a notification when prices change OR when at least 1 hour has passed since the last notification (`_kLastNotifTimestamp` in SharedPreferences).
+  2. **Foreground guarantee:** On app open and on resume from background, `_afterPricesLoaded()` calls `_maybeFireForegroundNotification()` which fires a notification if 1 hour has passed since the last one. This guarantees delivery on devices where background execution is restricted (MIUI/Xiaomi/aggressive battery savers).
+  - Android notifications use `@drawable/ic_stat_notification` (white silhouette) for the status bar icon and `@mipmap/ic_launcher` as `largeIcon` for the expanded view, with `Color(0xFFD4AF37)` gold tint.
+  - The `ScheduledNotificationReceiver` and `ScheduledNotificationBootReceiver` from `flutter_local_notifications` are explicitly removed via `tools:node="remove"` in `AndroidManifest.xml` because they crash on app reinstall ("Missing type parameter") when stale persisted notifications exist; we do not use `zonedSchedule` so they are unnecessary.
+  - The notification icon is preserved by `res/raw/keep.xml` so the Android resource shrinker does not strip it (the resource is referenced only by string from Dart).
+  - See `MIUI_NOTIFICATIONS.md` for Xiaomi/Redmi battery-whitelist steps.
 - **Background price watcher (Android):** `lib/services/price_watcher.dart` registers a periodic `workmanager` task that fetches prices via `GoldScraper`, compares against the last persisted values in `SharedPreferences`, fires a notification only when 21K/24K/ounce actually changed, and pushes the new prices to the iOS widget shared store via `home_widget`. Initialized from `main.dart` on Android only.
 - **iOS Home Widget:** `ios/InstaGoldWidget/` is a WidgetKit extension (small + medium families) that reads gold prices from a shared App Group `group.com.ibrahym.goldtracker` (`UserDefaults`). The Flutter app writes 21K/24K/ounce values via the `home_widget` package whenever the dashboard loads or the background watcher detects a change. Bundle id: `com.ibrahym.goldtracker.InstaGoldWidget`. The widget target is added to `Runner.xcodeproj` via `ios/scripts/add_widget_target.rb` and embedded into the Runner app as an app extension.
 - **Ads:** `google_mobile_ads` with a bottom **banner** on the main dashboard (above the bottom nav). `MobileAds.instance.initialize()` runs in `main.dart` (non-web). Ad unit IDs come from `lib/config/ad_config.dart`.

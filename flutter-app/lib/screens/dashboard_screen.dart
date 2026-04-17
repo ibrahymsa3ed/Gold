@@ -4,9 +4,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n.dart';
 import '../services/api_service.dart';
@@ -94,16 +95,46 @@ class _DashboardScreenState extends State<DashboardScreen>
     final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['buy_price'] as num?;
     final ounce = (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
 
-    // Schedule 4-hour notifications with latest prices
-    widget.notificationsService.schedulePriceNotifications(
-      intervalHours: 4,
-      price21k: p21?.toDouble(),
-      price24k: p24?.toDouble(),
-      priceOunce: ounce?.toDouble(),
-    );
-
-    // Push to iOS widget
+    // Push to home widget (iOS + Android)
     _updateHomeWidget(p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
+
+    // Foreground guarantee: fire a price notification if at least 1 hour has
+    // passed since the last one. This complements the background WorkManager
+    // task and ensures notifications work even when background execution is
+    // restricted (e.g., MIUI/Xiaomi or aggressive battery savers).
+    _maybeFireForegroundNotification(
+        p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
+  }
+
+  Future<void> _maybeFireForegroundNotification(
+      double? p21, double? p24, double? ounce) async {
+    if (kIsWeb) return;
+    if (p21 == null && p24 == null && ounce == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'pw_last_notif_ts';
+      const intervalMs = 60 * 60 * 1000; // 1 hour
+      final last = prefs.getInt(key) ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - last < intervalMs) {
+        debugPrint(
+            'InstaGold: skipping foreground notif (last=${(now - last) ~/ 1000}s ago)');
+        return;
+      }
+      final body = NotificationsService.buildPriceBody(
+        price21k: p21,
+        price24k: p24,
+        priceOunce: ounce,
+      );
+      await widget.notificationsService.showPriceChangeNotification(
+        title: 'InstaGold',
+        body: body,
+      );
+      await prefs.setInt(key, now);
+      debugPrint('InstaGold: foreground notification fired');
+    } catch (e) {
+      debugPrint('InstaGold: foreground notif failed: $e');
+    }
   }
 
   Future<void> _updateHomeWidget(
@@ -2829,106 +2860,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         const SizedBox(height: 12),
-        _testNotificationButton(),
-        const SizedBox(height: 12),
         _backupRestoreCard(),
       ],
     );
   }
-
-  bool _sendingTestNotif = false;
-
-  Widget _testNotificationButton() {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final goldAccent =
-        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: _sendingTestNotif
-          ? null
-          : () async {
-              setState(() => _sendingTestNotif = true);
-              try {
-                final scraped = await GoldScraper.scrapeGoldPrices();
-                final carats = (scraped['carats'] as Map?) ?? {};
-                final c21 = carats['21'] as Map?;
-                final c24 = carats['24'] as Map?;
-                final p21 = (c21?['buy'] as num?)?.toDouble();
-                final p24 = (c24?['buy'] as num?)?.toDouble();
-                final oz = (scraped['ouncePrice'] as num?)?.toDouble();
-                final body = NotificationsService.buildPriceBody(
-                  price21k: p21,
-                  price24k: p24,
-                  priceOunce: oz,
-                );
-                await widget.notificationsService.showPriceChangeNotification(
-                  title: 'InstaGold – Test',
-                  body: body,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Test notification sent ✓'),
-                        duration: Duration(seconds: 2)),
-                  );
-                }
-              } catch (e) {
-                debugPrint('InstaGold: test notif error: $e');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Notification failed: $e'),
-                        duration: const Duration(seconds: 4)),
-                  );
-                }
-              } finally {
-                if (mounted) setState(() => _sendingTestNotif = false);
-              }
-            },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: goldAccent.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: goldAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.notifications_active_outlined,
-                  size: 20, color: goldAccent),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                AppStrings.t(context, 'send_test_notification'),
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurface),
-              ),
-            ),
-            if (_sendingTestNotif)
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: goldAccent),
-              )
-            else
-              Icon(Icons.send_outlined, size: 18, color: goldAccent),
-          ],
-        ),
-      ),
-    );
-  }
-
 
   Widget _settingsRow(
       {required IconData icon,
@@ -3613,7 +3548,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return PremiumBackground(
       child: Scaffold(
-        appBar: AppBar(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: AppBar(
           titleSpacing: 20,
           title: Row(
             children: [
@@ -3695,6 +3634,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               tooltip: AppStrings.t(context, 'logout'),
             ),
           ],
+            ),
+          ),
         ),
         body: _loading
             ? _buildLoadingSkeleton()

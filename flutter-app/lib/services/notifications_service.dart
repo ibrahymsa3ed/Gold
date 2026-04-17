@@ -53,6 +53,15 @@ class NotificationsService {
         await ios?.requestPermissions(alert: true, badge: true, sound: true);
       }
 
+      // Cancel any stale scheduled notifications from previous app versions.
+      // We delegate periodic notifications to the WorkManager-based PriceWatcher,
+      // so no foreground-scheduled notifications should remain.
+      try {
+        await _plugin.cancelAll();
+      } catch (e) {
+        debugPrint('InstaGold: stale notif cleanup failed: $e');
+      }
+
       debugPrint('InstaGold: NotificationsService initialized');
     } catch (e) {
       debugPrint('InstaGold: NotificationsService init failed: $e');

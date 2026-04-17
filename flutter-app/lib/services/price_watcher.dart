@@ -20,8 +20,8 @@ const _kLastNotifTimestamp = 'pw_last_notif_ts';
 const _priceChannelId = 'price_updates';
 const _priceChannelName = 'Price Updates';
 
-/// Interval between guaranteed notifications in milliseconds (4 hours).
-const _notifIntervalMs = 4 * 60 * 60 * 1000;
+/// Interval between guaranteed notifications in milliseconds (1 hour).
+const _notifIntervalMs = 60 * 60 * 1000;
 
 /// Top-level entry point invoked by WorkManager when the periodic task fires.
 @pragma('vm:entry-point')
