@@ -75,7 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
     final p21 = (pricesMap['21k'] as Map<String, dynamic>?)?['buy_price'] as num?;
     final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['buy_price'] as num?;
-    final ounce = (pricesMap['gold_ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
+    final ounce = (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
     widget.notificationsService.schedulePriceNotifications(
       intervalHours: _notificationInterval,
       price21k: p21?.toDouble(),

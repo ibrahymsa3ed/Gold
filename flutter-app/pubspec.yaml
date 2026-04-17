@@ -45,6 +45,7 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icons/ig_icon_foreground.png"
   ios_content_mode: center
   ios_background_color: "#0B0B0D"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true

@@ -28,17 +28,22 @@ class NotificationsService {
         InitializationSettings(android: androidSettings, iOS: iosSettings);
     await _plugin.initialize(settings);
 
-    await _requestPermissions();
-  }
-
-  Future<void> _requestPermissions() async {
-    if (kIsWeb) return;
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-      await android?.requestNotificationsPermission();
-      await android?.requestExactAlarmsPermission();
-    } else if (Platform.isIOS) {
+      if (android != null) {
+        await android.requestNotificationsPermission();
+        await android.requestExactAlarmsPermission();
+        await android.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _priceChannelId,
+            _priceChannelName,
+            description: 'Gold price update notifications',
+            importance: Importance.high,
+          ),
+        );
+      }
+    } else if (!kIsWeb && Platform.isIOS) {
       final ios = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
       await ios?.requestPermissions(alert: true, badge: true, sound: true);
@@ -69,26 +74,26 @@ class NotificationsService {
     try {
       await _plugin.cancelAll();
 
-      final notifBody = body ?? _buildPriceBody(
-        price21k: price21k,
-        price24k: price24k,
-        priceOunce: priceOunce,
-      );
+      final notifBody = body ??
+          _buildPriceBody(
+            price21k: price21k,
+            price24k: price24k,
+            priceOunce: priceOunce,
+          );
 
       final now = tz.TZDateTime.now(tz.local);
 
-      const notifDetails = NotificationDetails(
-        android: AndroidNotificationDetails(
-          _priceChannelId,
-          _priceChannelName,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-        ),
-        iOS: DarwinNotificationDetails(),
+      const androidDetails = AndroidNotificationDetails(
+        _priceChannelId,
+        _priceChannelName,
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
       );
+      const iosDetails = DarwinNotificationDetails();
+      const notifDetails =
+          NotificationDetails(android: androidDetails, iOS: iosDetails);
 
-      // Schedule multiple notifications spread over the next 7 days
       final count = (24 * 7) ~/ intervalHours;
       for (int i = 1; i <= count && i <= 50; i++) {
         final scheduled = now.add(Duration(hours: intervalHours * i));
@@ -98,11 +103,24 @@ class NotificationsService {
           notifBody,
           scheduled,
           notifDetails,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.alarmClock,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
+
+      // Also schedule a near-term notification (2 minutes) so user can verify
+      final soon = now.add(const Duration(minutes: 2));
+      await _plugin.zonedSchedule(
+        99,
+        title,
+        notifBody,
+        soon,
+        notifDetails,
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
     } catch (_) {}
   }
 
@@ -115,6 +133,7 @@ class NotificationsService {
       _priceChannelName,
       importance: Importance.high,
       priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
     );
     const ios = DarwinNotificationDetails();
     const details = NotificationDetails(android: android, iOS: ios);
@@ -129,11 +148,13 @@ class NotificationsService {
         _settingsChannelName,
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
+        icon: '@mipmap/ic_launcher',
       );
       const ios = DarwinNotificationDetails();
       const details = NotificationDetails(android: android, iOS: ios);
 
-      await _plugin.show(1, 'InstaGold', 'Settings saved successfully', details);
+      await _plugin.show(
+          1, 'InstaGold', 'Settings saved successfully', details);
     } catch (_) {}
   }
 
