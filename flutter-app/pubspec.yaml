@@ -23,7 +23,6 @@ dependencies:
   sqflite: ^2.4.1
   file_picker: ^8.1.4
   path_provider: ^2.1.4
-  share_plus: ^10.1.4
   archive: ^3.6.1
   open_filex: ^4.5.0
   googleapis: ^16.0.0

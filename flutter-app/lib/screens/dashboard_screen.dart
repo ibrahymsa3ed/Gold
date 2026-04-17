@@ -11,6 +11,7 @@ import '../l10n.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/backup_service.dart';
+import '../services/google_drive_service.dart';
 import '../services/gold_scraper.dart';
 import '../services/invoice_attachment_service.dart';
 import '../services/notifications_service.dart';
@@ -2850,6 +2851,197 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Shows a dialog that lets the user navigate Google Drive folders and pick
+  /// one to upload the backup into. Returns the chosen folder ID, or null if
+  /// the user cancelled or the API failed.
+  Future<String?> _pickDriveFolder() async {
+    final driveService = GoogleDriveService();
+    final isAr = widget.locale.languageCode == 'ar';
+
+    // Stack for navigation: each entry is (parentId, folderName).
+    final nav = <(String?, String)>[(null, isAr ? 'My Drive' : 'My Drive')];
+    List<DriveFolder>? folders;
+
+    try {
+      folders = await driveService.listFolders();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(isAr
+              ? 'فشل الاتصال بـ Google Drive'
+              : 'Could not connect to Google Drive'),
+        ));
+      }
+      return null;
+    }
+    if (folders == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(isAr
+              ? 'تأكد من تسجيل الدخول بحساب Google'
+              : 'Sign in with Google first'),
+        ));
+      }
+      return null;
+    }
+
+    if (!mounted) return null;
+
+    return showDialog<String?>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDlgState) {
+            final current = nav.last;
+            final currentId = current.$1;
+            final currentName = current.$2;
+            final loading = folders == null;
+
+            return AlertDialog(
+              backgroundColor: Theme.of(ctx).colorScheme.surface,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  if (nav.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, size: 20),
+                      onPressed: () async {
+                        nav.removeLast();
+                        setDlgState(() => folders = null);
+                        final parentId = nav.last.$1;
+                        try {
+                          final f = await driveService.listFolders(
+                              parentId: parentId);
+                          setDlgState(() => folders = f ?? []);
+                        } catch (_) {
+                          setDlgState(() => folders = []);
+                        }
+                      },
+                    ),
+                  Expanded(
+                    child: Text(
+                      currentName,
+                      style: const TextStyle(fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.create_new_folder_outlined,
+                        size: 20),
+                    tooltip: isAr ? 'مجلد جديد' : 'New folder',
+                    onPressed: () async {
+                      final nameCtrl = TextEditingController();
+                      final name = await showDialog<String>(
+                        context: ctx,
+                        builder: (c2) => AlertDialog(
+                          title: Text(
+                              isAr ? 'مجلد جديد' : 'New folder'),
+                          content: TextField(
+                            controller: nameCtrl,
+                            autofocus: true,
+                            decoration: InputDecoration(
+                              hintText: isAr
+                                  ? 'اسم المجلد'
+                                  : 'Folder name',
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2),
+                              child: Text(isAr ? 'إلغاء' : 'Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(c2, nameCtrl.text.trim()),
+                              child: Text(isAr ? 'إنشاء' : 'Create'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (name != null && name.isNotEmpty) {
+                        setDlgState(() => folders = null);
+                        final created = await driveService.createFolder(
+                            name,
+                            parentId: currentId);
+                        if (created != null) {
+                          try {
+                            final f = await driveService.listFolders(
+                                parentId: currentId);
+                            setDlgState(() => folders = f ?? []);
+                          } catch (_) {
+                            setDlgState(() => folders = []);
+                          }
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 300,
+                child: loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : folders!.isEmpty
+                        ? Center(
+                            child: Text(
+                              isAr ? 'لا توجد مجلدات' : 'No folders',
+                              style: TextStyle(
+                                  color: Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurfaceVariant),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: folders!.length,
+                            itemBuilder: (_, i) {
+                              final f = folders![i];
+                              return ListTile(
+                                leading: Icon(Icons.folder,
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .primary),
+                                title: Text(f.name),
+                                trailing: const Icon(
+                                    Icons.chevron_right,
+                                    size: 18),
+                                onTap: () async {
+                                  nav.add((f.id, f.name));
+                                  setDlgState(() => folders = null);
+                                  try {
+                                    final sub =
+                                        await driveService.listFolders(
+                                            parentId: f.id);
+                                    setDlgState(
+                                        () => folders = sub ?? []);
+                                  } catch (_) {
+                                    setDlgState(() => folders = []);
+                                  }
+                                },
+                              );
+                            },
+                          ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: Text(isAr ? 'إلغاء' : 'Cancel'),
+                ),
+                FilledButton.icon(
+                  icon: const Icon(Icons.cloud_upload, size: 18),
+                  label: Text(isAr ? 'رفع هنا' : 'Upload here'),
+                  onPressed: () =>
+                      Navigator.pop(ctx, currentId ?? '__root__'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((v) => v == '__root__' ? null : v);
+  }
+
   Widget _backupRestoreCard() {
     return _sectionCard(
       title: AppStrings.t(context, 'backup_restore'),
@@ -2906,12 +3098,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 : const Icon(Icons.chevron_right),
             onTap: _busy
                 ? null
-                : () => _safeAction(() async {
+                : () async {
+                    final folderId = await _pickDriveFolder();
+                    if (folderId == null) return;
+                    _safeAction(() async {
                       final backupService = BackupService();
                       final userId =
                           widget.authService.currentUser?.uid ?? 'anonymous';
                       final fileId = await backupService.uploadToDrive(null,
-                          apiService: widget.apiService, userId: userId);
+                          apiService: widget.apiService,
+                          userId: userId,
+                          folderId: folderId);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -2926,7 +3123,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           )),
                         );
                       }
-                    }),
+                    });
+                  },
           ),
           const Divider(height: 1),
           ListTile(

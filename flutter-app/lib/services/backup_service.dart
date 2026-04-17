@@ -86,8 +86,15 @@ class BackupService {
     }
   }
 
-  /// Uploads backup zip to Google Drive without local save dialog.
-  Future<String?> uploadToDrive(Uint8List? zipBytes, {ApiService? apiService, String? userId}) async {
+  /// Uploads backup zip to Google Drive. When [folderId] is provided the file
+  /// is placed inside that folder; otherwise the default "InstaGold Backups"
+  /// folder is used.
+  Future<String?> uploadToDrive(
+    Uint8List? zipBytes, {
+    ApiService? apiService,
+    String? userId,
+    String? folderId,
+  }) async {
     Uint8List bytes;
     if (zipBytes != null) {
       bytes = zipBytes;
@@ -104,7 +111,7 @@ class BackupService {
     }
 
     final driveService = GoogleDriveService();
-    return driveService.uploadBackup(bytes, _zipName);
+    return driveService.uploadBackup(bytes, _zipName, folderId: folderId);
   }
 
   Future<Uint8List> _buildZipBytes(Map<String, dynamic> data) async {

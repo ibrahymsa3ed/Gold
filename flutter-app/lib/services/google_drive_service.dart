@@ -6,8 +6,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'auth_service.dart';
 
+class DriveFolder {
+  final String id;
+  final String name;
+  const DriveFolder(this.id, this.name);
+}
+
 class GoogleDriveService {
-  static const _folderName = 'InstaGold Backups';
+  static const _defaultFolderName = 'InstaGold Backups';
   static const _mimeFolder = 'application/vnd.google-apps.folder';
 
   final GoogleSignIn _googleSignIn = sharedGoogleSignIn;
@@ -18,32 +24,76 @@ class GoogleDriveService {
     return drive.DriveApi(httpClient);
   }
 
-  Future<String?> _getOrCreateFolder(drive.DriveApi api) async {
-    final query = "name = '$_folderName' and mimeType = '$_mimeFolder' and trashed = false";
-    final found = await api.files.list(q: query, spaces: 'drive', $fields: 'files(id)');
+  /// Lists folders inside [parentId] (defaults to root "My Drive").
+  /// Returns null when the user isn't signed in.
+  Future<List<DriveFolder>?> listFolders({String? parentId}) async {
+    final api = await _driveApi();
+    if (api == null) return null;
+
+    final parent = parentId ?? 'root';
+    final query =
+        "'$parent' in parents and mimeType = '$_mimeFolder' and trashed = false";
+    final result = await api.files.list(
+      q: query,
+      spaces: 'drive',
+      orderBy: 'name',
+      $fields: 'files(id, name)',
+      pageSize: 100,
+    );
+    return (result.files ?? [])
+        .where((f) => f.id != null && f.name != null)
+        .map((f) => DriveFolder(f.id!, f.name!))
+        .toList();
+  }
+
+  /// Creates a new folder in [parentId] and returns its metadata.
+  Future<DriveFolder?> createFolder(String name, {String? parentId}) async {
+    final api = await _driveApi();
+    if (api == null) return null;
+
+    final folder = drive.File()
+      ..name = name
+      ..mimeType = _mimeFolder
+      ..parents = [parentId ?? 'root'];
+    final created = await api.files.create(folder);
+    if (created.id == null) return null;
+    return DriveFolder(created.id!, name);
+  }
+
+  Future<String?> _getOrCreateDefaultFolder(drive.DriveApi api) async {
+    final query =
+        "name = '$_defaultFolderName' and mimeType = '$_mimeFolder' and trashed = false";
+    final found = await api.files
+        .list(q: query, spaces: 'drive', $fields: 'files(id)');
     if (found.files != null && found.files!.isNotEmpty) {
       return found.files!.first.id;
     }
 
     final folder = drive.File()
-      ..name = _folderName
+      ..name = _defaultFolderName
       ..mimeType = _mimeFolder;
     final created = await api.files.create(folder);
     return created.id;
   }
 
-  /// Uploads [zipBytes] as a backup file to Google Drive under the
-  /// "InstaGold Backups" folder. Returns the file ID on success.
-  Future<String?> uploadBackup(Uint8List zipBytes, String fileName) async {
+  /// Uploads [zipBytes] to Google Drive. When [folderId] is null it falls back
+  /// to the auto-created "InstaGold Backups" folder.
+  Future<String?> uploadBackup(
+    Uint8List zipBytes,
+    String fileName, {
+    String? folderId,
+  }) async {
     final api = await _driveApi();
     if (api == null) return null;
 
-    final folderId = await _getOrCreateFolder(api);
-    if (folderId == null) return null;
+    final targetFolder =
+        folderId ?? await _getOrCreateDefaultFolder(api);
+    if (targetFolder == null) return null;
 
     final existingQuery =
-        "name = '$fileName' and '$folderId' in parents and trashed = false";
-    final existing = await api.files.list(q: existingQuery, spaces: 'drive', $fields: 'files(id)');
+        "name = '$fileName' and '$targetFolder' in parents and trashed = false";
+    final existing = await api.files
+        .list(q: existingQuery, spaces: 'drive', $fields: 'files(id)');
     if (existing.files != null && existing.files!.isNotEmpty) {
       for (final old in existing.files!) {
         if (old.id != null) await api.files.delete(old.id!);
@@ -52,7 +102,7 @@ class GoogleDriveService {
 
     final driveFile = drive.File()
       ..name = fileName
-      ..parents = [folderId];
+      ..parents = [targetFolder];
 
     final media = drive.Media(
       Stream.value(zipBytes),
