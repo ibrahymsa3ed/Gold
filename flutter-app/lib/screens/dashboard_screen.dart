@@ -2836,6 +2836,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  bool _sendingTestNotif = false;
+
   Widget _testNotificationButton() {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
@@ -2843,39 +2845,47 @@ class _DashboardScreenState extends State<DashboardScreen>
         isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () async {
-        try {
-          final scraped = await GoldScraper.scrapeGoldPrices();
-          final carats = (scraped['carats'] as Map?) ?? {};
-          final c21 = carats['21'] as Map?;
-          final c24 = carats['24'] as Map?;
-          final p21 = (c21?['buy'] as num?)?.toDouble();
-          final p24 = (c24?['buy'] as num?)?.toDouble();
-          final oz = (scraped['ouncePrice'] as num?)?.toDouble();
-          final body = NotificationsService.buildPriceBody(
-            price21k: p21,
-            price24k: p24,
-            priceOunce: oz,
-          );
-          await widget.notificationsService.showPriceChangeNotification(
-            title: 'InstaGold',
-            body: body,
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Test notification sent'),
-                  duration: Duration(seconds: 2)),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed: $e')),
-            );
-          }
-        }
-      },
+      onTap: _sendingTestNotif
+          ? null
+          : () async {
+              setState(() => _sendingTestNotif = true);
+              try {
+                final scraped = await GoldScraper.scrapeGoldPrices();
+                final carats = (scraped['carats'] as Map?) ?? {};
+                final c21 = carats['21'] as Map?;
+                final c24 = carats['24'] as Map?;
+                final p21 = (c21?['buy'] as num?)?.toDouble();
+                final p24 = (c24?['buy'] as num?)?.toDouble();
+                final oz = (scraped['ouncePrice'] as num?)?.toDouble();
+                final body = NotificationsService.buildPriceBody(
+                  price21k: p21,
+                  price24k: p24,
+                  priceOunce: oz,
+                );
+                await widget.notificationsService.showPriceChangeNotification(
+                  title: 'InstaGold – Test',
+                  body: body,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Test notification sent ✓'),
+                        duration: Duration(seconds: 2)),
+                  );
+                }
+              } catch (e) {
+                debugPrint('InstaGold: test notif error: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Notification failed: $e'),
+                        duration: const Duration(seconds: 4)),
+                  );
+                }
+              } finally {
+                if (mounted) setState(() => _sendingTestNotif = false);
+              }
+            },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
@@ -2904,7 +2914,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: cs.onSurface),
               ),
             ),
-            Icon(Icons.send_outlined, size: 18, color: goldAccent),
+            if (_sendingTestNotif)
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: goldAccent),
+              )
+            else
+              Icon(Icons.send_outlined, size: 18, color: goldAccent),
           ],
         ),
       ),

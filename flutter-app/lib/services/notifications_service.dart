@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show Color;
 
@@ -12,39 +13,51 @@ class NotificationsService {
   static const _priceChannelId = 'price_updates';
   static const _priceChannelName = 'Price Updates';
 
+  /// Completer that resolves once [init] finishes. Every public method
+  /// awaits this so callers never race against plugin initialization.
+  final Completer<void> _ready = Completer<void>();
+
   Future<void> init() async {
-    tz.initializeTimeZones();
+    try {
+      tz.initializeTimeZones();
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    const settings =
-        InitializationSettings(android: androidSettings, iOS: iosSettings);
-    await _plugin.initialize(settings);
+      const androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      const settings =
+          InitializationSettings(android: androidSettings, iOS: iosSettings);
+      await _plugin.initialize(settings);
 
-    if (!kIsWeb && Platform.isAndroid) {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      if (android != null) {
-        await android.requestNotificationsPermission();
-        await android.requestExactAlarmsPermission();
-        await android.createNotificationChannel(
-          const AndroidNotificationChannel(
-            _priceChannelId,
-            _priceChannelName,
-            description: 'Gold price update notifications',
-            importance: Importance.high,
-          ),
-        );
+      if (!kIsWeb && Platform.isAndroid) {
+        final android = _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+        if (android != null) {
+          await android.requestNotificationsPermission();
+          await android.requestExactAlarmsPermission();
+          await android.createNotificationChannel(
+            const AndroidNotificationChannel(
+              _priceChannelId,
+              _priceChannelName,
+              description: 'Gold price update notifications',
+              importance: Importance.high,
+            ),
+          );
+        }
+      } else if (!kIsWeb && Platform.isIOS) {
+        final ios = _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+        await ios?.requestPermissions(alert: true, badge: true, sound: true);
       }
-    } else if (!kIsWeb && Platform.isIOS) {
-      final ios = _plugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
-      await ios?.requestPermissions(alert: true, badge: true, sound: true);
+
+      debugPrint('InstaGold: NotificationsService initialized');
+    } catch (e) {
+      debugPrint('InstaGold: NotificationsService init failed: $e');
+    } finally {
+      if (!_ready.isCompleted) _ready.complete();
     }
   }
 
@@ -73,7 +86,11 @@ class NotificationsService {
       largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       color: Color(0xFFD4AF37),
     ),
-    iOS: DarwinNotificationDetails(),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
   );
 
   /// No-op on foreground side. All scheduled notifications are now handled by
@@ -91,18 +108,18 @@ class NotificationsService {
   }
 
   /// Fire a notification immediately with supplied content.
+  /// Throws on failure so callers can surface the error to the user.
   Future<void> showPriceChangeNotification({
     required String title,
     required String body,
   }) async {
-    try {
-      await _plugin.show(2, title, body, _priceNotifDetails);
-    } catch (e) {
-      debugPrint('InstaGold: price change notification failed: $e');
-    }
+    await _ready.future;
+    await _plugin.show(2, title, body, _priceNotifDetails);
+    debugPrint('InstaGold: notification shown — $title | $body');
   }
 
   Future<void> cancelAll() async {
+    await _ready.future;
     try {
       await _plugin.cancelAll();
     } catch (e) {
