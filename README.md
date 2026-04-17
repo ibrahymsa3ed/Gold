@@ -119,7 +119,7 @@ GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
 Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`) with subtle gradient transitions, wave patterns, and radial glow highlights — never flat. Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#B8962E` muted.
 
 - **IG Logo:** Uses the provided IG image as a cleaned transparent asset (`assets/icons/ig_logo_mark.png`) so the mark sits directly on the page background without a visible square. In light mode the mark is toned to a deeper gold for contrast.
-- **Launcher icons:** iOS uses a dedicated dark pre-composited icon source and Android uses a cropped adaptive foreground with zero inset so the IG logo stays centered and fills more of the home-screen icon.
+- **Launcher icons:** Generated from two master PNGs (`ig_icon_master.png` + `ig_notification_master.png`) via `scripts/generate_insta_app_icon.py` (masters) and `flutter-app/scripts/generate_app_icons.py` (platform assets). iOS uses a pre-composited icon; Android uses a cropped adaptive foreground with zero inset. Android notifications use a dedicated white silhouette `@drawable/ic_stat_notification` so the status bar icon renders correctly.
 - **Background:** `PremiumBackground` widget adds wave patterns and radial gold highlights behind key content areas.
 - **Brand Header:** App bar uses a reusable `InstaGoldWordmark` lockup beside the IG mark; tapping the brand returns to the Home tab while the member chip stays as the member-switch action.
 - **Price Cards:** 150px hero cards with 4-stop gold gradient, glow shadows, Buy/Sell chips; drag-reorderable.
@@ -127,11 +127,11 @@ Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B
 - **Cards:** Premium dark surface (`#1A1816`), `borderRadius: 20-22`, gold accent gradient bars, soft glow shadows, `w800` typography.
 - **Assets:** Karat badge chips, inner financial detail cards, gold gradient circle icons.
 - **Jeweler's Dollar Gap:** Full-width tinted card (green/red) with EGP gap value centred; tapping opens explanation dialog.
-- **Notifications:** Scheduled price alerts via `flutter_local_notifications` with Android 13+ permission handling.
+- **Notifications:** Scheduled price alerts + foreground price-change detection. Android uses a white silhouette notification icon with gold tint; expanded view shows the full-color app icon. See `MIUI_NOTIFICATIONS.md` for Xiaomi/Redmi notification whitelist steps.
 - **Background price watcher (Android):** A `workmanager` periodic task fetches gold prices and notifies the user only when 21K/24K/ounce values actually change vs the last known values stored in `SharedPreferences`. Implemented in `lib/services/price_watcher.dart`.
 - **iOS Home Widget:** WidgetKit extension `ios/InstaGoldWidget/` shows live 21K/24K/ounce prices on the iOS home screen via App Group `group.com.ibrahym.goldtracker`. The Flutter app writes prices through the `home_widget` package on dashboard load and from the background watcher.
 - **Cold-start auth restore:** On native launches, the app first checks Firebase's persisted session, then silently restores Google Sign-In and rehydrates Firebase when needed so Google login and Drive access survive full app restarts.
-- **Android branding assets:** Launcher icons are regenerated from the transparent IG mark, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background.
+- **Android branding assets:** Launcher icons are regenerated from the master PNGs, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background. A "Send Test Notification" button in Settings helps verify notification delivery on OEM-restricted devices.
 
 ### Rollback
 

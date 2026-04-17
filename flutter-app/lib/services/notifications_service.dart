@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -65,16 +66,18 @@ class NotificationsService {
     return parts.join(' | ');
   }
 
-  static NotificationDetails get _priceNotifDetails => const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _priceChannelId,
-          _priceChannelName,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-        ),
-        iOS: DarwinNotificationDetails(),
-      );
+  static const _priceNotifDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _priceChannelId,
+      _priceChannelName,
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@drawable/ic_stat_notification',
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      color: Color(0xFFD4AF37),
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
 
   /// Schedule fallback periodic notifications (the primary notification path is
   /// the WorkManager background task that fires only on actual price change).
@@ -152,7 +155,8 @@ class NotificationsService {
         _settingsChannelName,
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_stat_notification',
+        color: Color(0xFFD4AF37),
       );
       const ios = DarwinNotificationDetails();
       const details = NotificationDetails(android: android, iOS: ios);

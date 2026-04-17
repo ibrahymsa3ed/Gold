@@ -7,6 +7,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n.dart';
 import '../services/api_service.dart';
@@ -71,7 +72,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _load().then((_) => _scheduleNotifications());
+    _load().then((_) {
+      _scheduleNotifications();
+      _checkForegroundPriceChange();
+    });
   }
 
   void _scheduleNotifications() {
@@ -88,6 +92,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // Push latest values to the iOS home widget shared store
     _updateHomeWidget(p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
+  }
+
+  Future<void> _checkForegroundPriceChange() async {
+    try {
+      final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
+      final p21 =
+          (pricesMap['21k'] as Map<String, dynamic>?)?['buy_price'] as num?;
+      final p24 =
+          (pricesMap['24k'] as Map<String, dynamic>?)?['buy_price'] as num?;
+      final ounce =
+          (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
+
+      final prefs = await SharedPreferences.getInstance();
+      final last21 = prefs.getDouble('pw_last_21k');
+      final last24 = prefs.getDouble('pw_last_24k');
+      final lastOunce = prefs.getDouble('pw_last_ounce');
+
+      bool changed(double? prev, double? curr) {
+        if (curr == null) return false;
+        if (prev == null) return true;
+        return (prev - curr).abs() >= 1.0;
+      }
+
+      final c21 = changed(last21, p21?.toDouble());
+      final c24 = changed(last24, p24?.toDouble());
+      final cOz = changed(lastOunce, ounce?.toDouble());
+
+      if (!c21 && !c24 && !cOz) return;
+
+      if (p21 != null) await prefs.setDouble('pw_last_21k', p21.toDouble());
+      if (p24 != null) await prefs.setDouble('pw_last_24k', p24.toDouble());
+      if (ounce != null) {
+        await prefs.setDouble('pw_last_ounce', ounce.toDouble());
+      }
+
+      final parts = <String>[];
+      if (p21 != null) {
+        final arrow = c21 && last21 != null
+            ? ' (${p21 > last21 ? '+' : ''}${(p21 - last21).toStringAsFixed(0)})'
+            : '';
+        parts.add('21K: ${p21.toStringAsFixed(0)} EGP$arrow');
+      }
+      if (p24 != null) {
+        final arrow = c24 && last24 != null
+            ? ' (${p24 > last24 ? '+' : ''}${(p24 - last24).toStringAsFixed(0)})'
+            : '';
+        parts.add('24K: ${p24.toStringAsFixed(0)} EGP$arrow');
+      }
+      if (ounce != null) {
+        final arrow = cOz && lastOunce != null
+            ? ' (${ounce > lastOunce ? '+' : ''}${(ounce - lastOunce).toStringAsFixed(0)})'
+            : '';
+        parts.add('Ounce: \$${ounce.toStringAsFixed(0)}$arrow');
+      }
+
+      widget.notificationsService.showPriceChangeNotification(
+        title: 'Gold prices updated',
+        body: parts.join(' | '),
+      );
+    } catch (_) {}
   }
 
   Future<void> _updateHomeWidget(
@@ -2834,8 +2898,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        _testNotificationButton(),
+        const SizedBox(height: 12),
         _backupRestoreCard(),
       ],
+    );
+  }
+
+  Widget _testNotificationButton() {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        final body = NotificationsService.buildPriceBody(
+          price21k: (_prices?['prices']?['21k']
+              as Map<String, dynamic>?)?['buy_price'] as double?,
+          price24k: (_prices?['prices']?['24k']
+              as Map<String, dynamic>?)?['buy_price'] as double?,
+          priceOunce: (_prices?['prices']?['ounce']
+              as Map<String, dynamic>?)?['sell_price'] as double?,
+        );
+        widget.notificationsService.showImmediateTestNotification(body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Test notification sent'),
+              duration: Duration(seconds: 2)),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: goldAccent.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: goldAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.notifications_active_outlined,
+                  size: 20, color: goldAccent),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                AppStrings.t(context, 'send_test_notification'),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface),
+              ),
+            ),
+            Icon(Icons.send_outlined, size: 18, color: goldAccent),
+          ],
+        ),
+      ),
     );
   }
 
