@@ -40,10 +40,12 @@ dev_dependencies:
 
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/icons/ig_icon_foreground.png"
   adaptive_icon_background: "#0B0B0D"
   adaptive_icon_foreground: "assets/icons/ig_icon_foreground.png"
+  ios_content_mode: center
+  ios_background_color: "#0B0B0D"
 
 flutter:
   uses-material-design: true

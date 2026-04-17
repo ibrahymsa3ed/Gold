@@ -67,9 +67,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load().then((_) => _scheduleNotifications());
+  }
+
+  void _scheduleNotifications() {
+    final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
+    final p21 = (pricesMap['21k'] as Map<String, dynamic>?)?['buy_price'] as num?;
+    final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['buy_price'] as num?;
+    final ounce = (pricesMap['gold_ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
     widget.notificationsService.schedulePriceNotifications(
       intervalHours: _notificationInterval,
+      price21k: p21?.toDouble(),
+      price24k: p24?.toDouble(),
+      priceOunce: ounce?.toDouble(),
     );
   }
 
@@ -81,9 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         notificationIntervalHours: _notificationInterval,
       );
       if (rescheduleNotifications) {
-        await widget.notificationsService.schedulePriceNotifications(
-          intervalHours: _notificationInterval,
-        );
+        _scheduleNotifications();
       }
     });
   }
@@ -2969,6 +2977,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           content:
                               Text(AppStrings.t(context, 'restore_success')),
                         ));
+                        // Reload settings from restored DB and push to app
+                        try {
+                          final restoredSettings =
+                              await widget.apiService.getSettings();
+                          if (restoredSettings != null && mounted) {
+                            final theme = restoredSettings['theme']?.toString();
+                            final locale =
+                                restoredSettings['locale']?.toString();
+                            if (theme != null) {
+                              widget.onThemeChanged(theme == 'dark');
+                            }
+                            if (locale != null) {
+                              widget.onLocaleChanged(Locale(locale));
+                            }
+                          }
+                        } catch (_) {}
                         await _load();
                       }
                     });

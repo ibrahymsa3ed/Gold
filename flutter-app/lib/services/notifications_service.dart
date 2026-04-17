@@ -45,42 +45,65 @@ class NotificationsService {
     }
   }
 
+  String _buildPriceBody({
+    double? price21k,
+    double? price24k,
+    double? priceOunce,
+  }) {
+    final parts = <String>[];
+    if (price21k != null) parts.add('21K: ${price21k.toStringAsFixed(0)} EGP');
+    if (price24k != null) parts.add('24K: ${price24k.toStringAsFixed(0)} EGP');
+    if (priceOunce != null) parts.add('Ounce: \$${priceOunce.toStringAsFixed(0)}');
+    if (parts.isEmpty) return 'Check the latest gold prices!';
+    return parts.join(' | ');
+  }
+
   Future<void> schedulePriceNotifications({
     required int intervalHours,
     String title = 'InstaGold',
-    String body = 'Check the latest gold prices!',
+    String? body,
+    double? price21k,
+    double? price24k,
+    double? priceOunce,
   }) async {
     try {
       await _plugin.cancelAll();
 
-      final now = tz.TZDateTime.now(tz.local);
-      final first = now.add(Duration(hours: intervalHours));
-
-      await _plugin.zonedSchedule(
-        100,
-        title,
-        body,
-        first,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _priceChannelId,
-            _priceChannelName,
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
-          iOS: const DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: intervalHours <= 1
-            ? DateTimeComponents.time
-            : DateTimeComponents.dayOfWeekAndTime,
+      final notifBody = body ?? _buildPriceBody(
+        price21k: price21k,
+        price24k: price24k,
+        priceOunce: priceOunce,
       );
-    } catch (_) {
-      // Notification scheduling can fail on some devices; non-fatal
-    }
+
+      final now = tz.TZDateTime.now(tz.local);
+
+      const notifDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          _priceChannelId,
+          _priceChannelName,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      );
+
+      // Schedule multiple notifications spread over the next 7 days
+      final count = (24 * 7) ~/ intervalHours;
+      for (int i = 1; i <= count && i <= 50; i++) {
+        final scheduled = now.add(Duration(hours: intervalHours * i));
+        await _plugin.zonedSchedule(
+          100 + i,
+          title,
+          notifBody,
+          scheduled,
+          notifDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> showPriceUpdateNotification({
