@@ -84,6 +84,19 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Force a single androidx.work version to avoid duplicate class errors
+    // between work-runtime (pulled in by other plugins) and work-runtime-ktx
+    // (pulled in by workmanager).
+    constraints {
+        implementation("androidx.work:work-runtime-ktx:2.9.0")
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.work:work-runtime:2.9.0")
+        force("androidx.work:work-runtime-ktx:2.9.0")
+    }
 }
 
 flutter {

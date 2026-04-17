@@ -14,8 +14,6 @@ class NotificationsService {
   static const _settingsChannelId = 'settings';
   static const _settingsChannelName = 'Settings';
 
-  bool _permissionGranted = false;
-
   Future<void> init() async {
     tz.initializeTimeZones();
 
@@ -34,8 +32,7 @@ class NotificationsService {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
-        final granted = await android.requestNotificationsPermission();
-        _permissionGranted = granted ?? false;
+        await android.requestNotificationsPermission();
         await android.requestExactAlarmsPermission();
         await android.createNotificationChannel(
           const AndroidNotificationChannel(
@@ -49,13 +46,11 @@ class NotificationsService {
     } else if (!kIsWeb && Platform.isIOS) {
       final ios = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
-      final granted = await ios?.requestPermissions(
-          alert: true, badge: true, sound: true);
-      _permissionGranted = granted ?? false;
+      await ios?.requestPermissions(alert: true, badge: true, sound: true);
     }
   }
 
-  String _buildPriceBody({
+  static String buildPriceBody({
     double? price21k,
     double? price24k,
     double? priceOunce,
@@ -70,6 +65,21 @@ class NotificationsService {
     return parts.join(' | ');
   }
 
+  static NotificationDetails get _priceNotifDetails => const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _priceChannelId,
+          _priceChannelName,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      );
+
+  /// Schedule fallback periodic notifications (the primary notification path is
+  /// the WorkManager background task that fires only on actual price change).
+  /// This still ensures the user sees something even if background fetch is
+  /// throttled by the OS.
   Future<void> schedulePriceNotifications({
     required int intervalHours,
     String title = 'InstaGold',
@@ -79,35 +89,17 @@ class NotificationsService {
     double? priceOunce,
   }) async {
     final notifBody = body ??
-        _buildPriceBody(
+        buildPriceBody(
           price21k: price21k,
           price24k: price24k,
           priceOunce: priceOunce,
         );
 
-    const androidDetails = AndroidNotificationDetails(
-      _priceChannelId,
-      _priceChannelName,
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
-    const iosDetails = DarwinNotificationDetails();
-    const notifDetails =
-        NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-    // Fire an immediate notification so the user knows it's working
-    try {
-      await _plugin.show(0, title, notifBody, notifDetails);
-    } catch (e) {
-      debugPrint('InstaGold: immediate notification failed: $e');
-    }
-
-    // Cancel previously scheduled and reschedule
-    try {
-      await _plugin.cancelAll();
-    } catch (e) {
-      debugPrint('InstaGold: cancelAll failed: $e');
+    // Cancel only the previously scheduled ones in our id range
+    for (int i = 1; i <= 50; i++) {
+      try {
+        await _plugin.cancel(100 + i);
+      } catch (_) {}
     }
 
     final now = tz.TZDateTime.now(tz.local);
@@ -121,7 +113,7 @@ class NotificationsService {
           title,
           notifBody,
           scheduled,
-          notifDetails,
+          _priceNotifDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -132,21 +124,25 @@ class NotificationsService {
     }
   }
 
-  Future<void> showPriceUpdateNotification({
+  /// Fire an immediate notification — used by the background change detector
+  /// when prices actually change.
+  Future<void> showPriceChangeNotification({
     required String title,
     required String body,
   }) async {
-    const android = AndroidNotificationDetails(
-      _priceChannelId,
-      _priceChannelName,
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
-    const ios = DarwinNotificationDetails();
-    const details = NotificationDetails(android: android, iOS: ios);
+    try {
+      await _plugin.show(2, title, body, _priceNotifDetails);
+    } catch (e) {
+      debugPrint('InstaGold: price change notification failed: $e');
+    }
+  }
 
-    await _plugin.show(2, title, body, details);
+  Future<void> showImmediateTestNotification(String body) async {
+    try {
+      await _plugin.show(0, 'InstaGold', body, _priceNotifDetails);
+    } catch (e) {
+      debugPrint('InstaGold: test notification failed: $e');
+    }
   }
 
   Future<void> showSettingsSavedNotification() async {

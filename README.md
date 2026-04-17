@@ -128,6 +128,8 @@ Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B
 - **Assets:** Karat badge chips, inner financial detail cards, gold gradient circle icons.
 - **Jeweler's Dollar Gap:** Full-width tinted card (green/red) with EGP gap value centred; tapping opens explanation dialog.
 - **Notifications:** Scheduled price alerts via `flutter_local_notifications` with Android 13+ permission handling.
+- **Background price watcher (Android):** A `workmanager` periodic task fetches gold prices and notifies the user only when 21K/24K/ounce values actually change vs the last known values stored in `SharedPreferences`. Implemented in `lib/services/price_watcher.dart`.
+- **iOS Home Widget:** WidgetKit extension `ios/InstaGoldWidget/` shows live 21K/24K/ounce prices on the iOS home screen via App Group `group.com.ibrahym.goldtracker`. The Flutter app writes prices through the `home_widget` package on dashboard load and from the background watcher.
 - **Cold-start auth restore:** On native launches, the app first checks Firebase's persisted session, then silently restores Google Sign-In and rehydrates Firebase when needed so Google login and Drive access survive full app restarts.
 - **Android branding assets:** Launcher icons are regenerated from the transparent IG mark, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background.
 

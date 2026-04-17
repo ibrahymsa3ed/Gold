@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
@@ -84,6 +85,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       price24k: p24?.toDouble(),
       priceOunce: ounce?.toDouble(),
     );
+
+    // Push latest values to the iOS home widget shared store
+    _updateHomeWidget(p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
+  }
+
+  Future<void> _updateHomeWidget(
+      double? p21, double? p24, double? ounce) async {
+    try {
+      if (p21 != null) {
+        await HomeWidget.saveWidgetData<double>('price_21k', p21);
+      }
+      if (p24 != null) {
+        await HomeWidget.saveWidgetData<double>('price_24k', p24);
+      }
+      if (ounce != null) {
+        await HomeWidget.saveWidgetData<double>('price_ounce', ounce);
+      }
+      await HomeWidget.saveWidgetData<String>(
+          'updated_at', DateTime.now().toIso8601String());
+      await HomeWidget.updateWidget(
+        name: 'InstaGoldWidgetProvider',
+        iOSName: 'InstaGoldWidget',
+      );
+    } catch (_) {}
   }
 
   void _persistSettings({bool rescheduleNotifications = false}) {
