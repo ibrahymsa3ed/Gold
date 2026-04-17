@@ -45,7 +45,12 @@ def _gold_gradient(w: int, h: int) -> Image.Image:
 
 
 def _extract_mask(target_w: int, target_h: int, fill: float = 0.82) -> Image.Image:
-    """Extract the IG shape from the source logo's alpha channel and scale to fill."""
+    """Extract the IG shape from the source logo's alpha channel and scale to fill.
+
+    Uses alpha-weighted centroid for optical centering instead of bounding-box center.
+    """
+    import numpy as np
+
     logo = Image.open(LOGO_SRC).convert("RGBA")
     alpha = logo.split()[3]
 
@@ -66,12 +71,21 @@ def _extract_mask(target_w: int, target_h: int, fill: float = 0.82) -> Image.Ima
     nh = max(1, int(round(ch * scale)))
     scaled = cropped.resize((nw, nh), Image.Resampling.LANCZOS)
 
-    # Optically center on canvas
-    # The iG monogram has visual weight shifted right (the G extends further)
-    # and upward, so we nudge the position to compensate
+    # Compute alpha-weighted centroid of the scaled content for optical centering
+    arr = np.array(scaled, dtype=float)
+    total = arr.sum()
+    if total > 0:
+        ys, xs = np.mgrid[0:nh, 0:nw]
+        cx_content = (xs * arr).sum() / total
+        cy_content = (ys * arr).sum() / total
+    else:
+        cx_content, cy_content = nw / 2.0, nh / 2.0
+
+    # Place so the centroid lands at the canvas center
+    ox = int(round(target_w / 2.0 - cx_content))
+    oy = int(round(target_h / 2.0 - cy_content))
+
     out = Image.new("L", (target_w, target_h), 0)
-    ox = (target_w - nw) // 2
-    oy = (target_h - nh) // 2
     out.paste(scaled, (ox, oy))
     return out
 

@@ -12,8 +12,6 @@ class NotificationsService {
 
   static const _priceChannelId = 'price_updates';
   static const _priceChannelName = 'Price Updates';
-  static const _settingsChannelId = 'settings';
-  static const _settingsChannelName = 'Settings';
 
   Future<void> init() async {
     tz.initializeTimeZones();
@@ -79,10 +77,8 @@ class NotificationsService {
     iOS: DarwinNotificationDetails(),
   );
 
-  /// Schedule fallback periodic notifications (the primary notification path is
-  /// the WorkManager background task that fires only on actual price change).
-  /// This still ensures the user sees something even if background fetch is
-  /// throttled by the OS.
+  /// Schedule repeating price notifications every 4 hours for the next 7 days.
+  /// Called once after prices load; uses the latest known prices as body text.
   Future<void> schedulePriceNotifications({
     required int intervalHours,
     String title = 'InstaGold',
@@ -98,7 +94,7 @@ class NotificationsService {
           priceOunce: priceOunce,
         );
 
-    // Cancel only the previously scheduled ones in our id range
+    // Cancel previously scheduled notifications (IDs 101-150)
     for (int i = 1; i <= 50; i++) {
       try {
         await _plugin.cancel(100 + i);
@@ -127,8 +123,6 @@ class NotificationsService {
     }
   }
 
-  /// Fire an immediate notification — used by the background change detector
-  /// when prices actually change.
   Future<void> showPriceChangeNotification({
     required String title,
     required String body,
@@ -137,34 +131,6 @@ class NotificationsService {
       await _plugin.show(2, title, body, _priceNotifDetails);
     } catch (e) {
       debugPrint('InstaGold: price change notification failed: $e');
-    }
-  }
-
-  Future<void> showImmediateTestNotification(String body) async {
-    try {
-      await _plugin.show(0, 'InstaGold', body, _priceNotifDetails);
-    } catch (e) {
-      debugPrint('InstaGold: test notification failed: $e');
-    }
-  }
-
-  Future<void> showSettingsSavedNotification() async {
-    try {
-      const android = AndroidNotificationDetails(
-        _settingsChannelId,
-        _settingsChannelName,
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
-        icon: '@drawable/ic_stat_notification',
-        color: Color(0xFFD4AF37),
-      );
-      const ios = DarwinNotificationDetails();
-      const details = NotificationDetails(android: android, iOS: ios);
-
-      await _plugin.show(
-          1, 'InstaGold', 'Settings saved successfully', details);
-    } catch (e) {
-      debugPrint('InstaGold: settings notification failed: $e');
     }
   }
 

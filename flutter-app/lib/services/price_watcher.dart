@@ -51,16 +51,12 @@ void priceWatcherCallback() {
       final changed24 = _isChanged(last24, p24k);
       final changedOunce = _isChanged(lastOunce, pOunce);
 
-      if (!changed21 && !changed24 && !changedOunce) {
-        return Future.value(true);
-      }
-
       // Save new values
       if (p21k != null) await prefs.setDouble(_kLastPrice21k, p21k);
       if (p24k != null) await prefs.setDouble(_kLastPrice24k, p24k);
       if (pOunce != null) await prefs.setDouble(_kLastPriceOunce, pOunce);
 
-      // Update the iOS home widget shared store
+      // Always update the iOS home widget shared store
       try {
         if (p21k != null) {
           await HomeWidget.saveWidgetData<double>('price_21k', p21k);
@@ -82,7 +78,11 @@ void priceWatcherCallback() {
         debugPrint('PriceWatcher: widget update failed: $e');
       }
 
-      // Build a notification body that highlights changed values
+      // Only fire notification when something actually changed
+      if (!changed21 && !changed24 && !changedOunce) {
+        return Future.value(true);
+      }
+
       final parts = <String>[];
       if (p21k != null) {
         parts.add('21K: ${p21k.toStringAsFixed(0)} EGP'
