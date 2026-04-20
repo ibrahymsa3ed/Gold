@@ -6,28 +6,30 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
 import 'api_service.dart';
 import 'notifications_service.dart';
-import 'push_notifications_service.dart';
 
 const _backgroundTaskName = 'instagold_price_watcher';
 const _backgroundTaskUniqueName = 'instagold_price_watcher_unique';
-const _kLastNotifTimestamp = 'pw_last_notif_ts';
+const _kLastSlotKey = 'pw_last_slot';
 
 const _priceChannelId = 'price_updates';
 const _priceChannelName = 'Price Updates';
 
-/// Interval between guaranteed notifications in milliseconds (1 hour).
-const _notifIntervalMs = 60 * 60 * 1000;
+/// Cairo fixed-time notification slots (hours in Africa/Cairo).
+const _cairoSlotHours = [7, 11, 15, 19];
+
+/// Quiet hours: no notifications between 23:00 and 07:00 Cairo.
+const _quietStart = 23;
+const _quietEnd = 7;
 
 /// Reads the latest gold prices the same way the dashboard does:
-///   • call [ApiService.syncPrices] to scrape and write [GoldPriceCache]
-///   • read back via [ApiService.getCurrentPrices]
-///   • pick `sell_price` for 21K, 24K, and ounce
-/// Notification banners and the home-screen widget show sell prices only;
-/// the in-app dashboard still renders both buy and sell columns separately.
+///   - call [ApiService.syncPrices] to scrape and write [GoldPriceCache]
+///   - read back via [ApiService.getCurrentPrices]
+///   - pick `sell_price` for 21K, 24K, and ounce
 Future<({double? p21, double? p24, double? ounce})> _loadFreshPrices() async {
   final api = ApiService.devBypass();
   try {
@@ -46,6 +48,26 @@ Future<({double? p21, double? p24, double? ounce})> _loadFreshPrices() async {
   );
 }
 
+/// Returns the current Cairo slot key (e.g. "2026-04-20#11") if we are
+/// within the 30-minute window after a fixed slot hour, or null otherwise.
+String? _currentCairoSlot() {
+  tz.initializeTimeZones();
+  final cairo = tz.getLocation('Africa/Cairo');
+  final now = tz.TZDateTime.now(cairo);
+
+  final hour = now.hour;
+
+  // Quiet hours check
+  if (hour >= _quietStart || hour < _quietEnd) return null;
+
+  for (final slotHour in _cairoSlotHours) {
+    if (hour == slotHour && now.minute < 30) {
+      return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}#$slotHour';
+    }
+  }
+  return null;
+}
+
 /// Top-level entry point invoked by WorkManager when the periodic task fires.
 @pragma('vm:entry-point')
 void priceWatcherCallback() {
@@ -58,6 +80,7 @@ void priceWatcherCallback() {
 
       final prefs = await SharedPreferences.getInstance();
 
+      // Always update the home-screen widget with fresh prices.
       try {
         if (p21 != null) {
           await HomeWidget.saveWidgetData<double>('price_21k', p21);
@@ -80,21 +103,16 @@ void priceWatcherCallback() {
         debugPrint('PriceWatcher: widget update failed: $e');
       }
 
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final lastNotifMs = prefs.getInt(_kLastNotifTimestamp) ?? 0;
-      final periodicDue = (nowMs - lastNotifMs) >= _notifIntervalMs;
-
-      if (!periodicDue) {
+      // Fixed Cairo slot notification: only fire if we are inside a
+      // 30-minute window after 07:00/11:00/15:00/19:00 Cairo time,
+      // and we haven't already sent for this exact slot.
+      final slot = _currentCairoSlot();
+      if (slot == null) {
         return Future.value(true);
       }
 
-      // Self-disable when the backend is going to push us. The flag is set
-      // by PushNotificationsService after a successful registration where
-      // the server confirms this device qualifies (FCM_SUMMARIES_ENABLED on
-      // AND build_number >= MIN_FCM_CLIENT_BUILD AND summaries_enabled=1).
-      // Avoids double notifications during/after the FCM rollout.
-      if (await PushNotificationsService.isFcmActive()) {
-        debugPrint('PriceWatcher: skip local notif (fcm_summaries_active)');
+      final lastSlot = prefs.getString(_kLastSlotKey);
+      if (lastSlot == slot) {
         return Future.value(true);
       }
 
@@ -107,8 +125,6 @@ void priceWatcherCallback() {
         price21k: p21,
         price24k: p24,
         priceOunce: pOunce,
-        // Background isolate has no BuildContext; pull the user's last
-        // selected locale from SharedPreferences (written by app.dart).
         localeCode: prefs.getString('instagold_locale') ?? 'en',
       );
 
@@ -144,7 +160,8 @@ void priceWatcherCallback() {
         details,
       );
 
-      await prefs.setInt(_kLastNotifTimestamp, nowMs);
+      await prefs.setString(_kLastSlotKey, slot);
+      debugPrint('PriceWatcher: notification fired for slot $slot');
 
       return Future.value(true);
     } catch (e) {

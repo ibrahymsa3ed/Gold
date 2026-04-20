@@ -8,6 +8,8 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../l10n.dart';
 import '../services/api_service.dart';
@@ -116,22 +118,36 @@ class _DashboardScreenState extends State<DashboardScreen>
       double? p21, double? p24, double? ounce) async {
     if (kIsWeb) return;
     if (p21 == null && p24 == null && ounce == null) return;
-    // Self-disable when backend FCM is going to push us (see push_notifications_service.dart).
-    if (await PushNotificationsService.isFcmActive()) {
-      debugPrint('InstaGold: skip foreground notif (fcm_summaries_active)');
-      return;
-    }
     try {
       final prefs = await SharedPreferences.getInstance();
-      const key = 'pw_last_notif_ts';
-      const intervalMs = 60 * 60 * 1000; // 1 hour
-      final last = prefs.getInt(key) ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      if (now - last < intervalMs) {
-        debugPrint(
-            'InstaGold: skipping foreground notif (last=${(now - last) ~/ 1000}s ago)');
+      const slotKey = 'pw_last_slot';
+
+      // Check if we are inside a Cairo fixed-time slot window.
+      tz.initializeTimeZones();
+      final cairo = tz.getLocation('Africa/Cairo');
+      final now = tz.TZDateTime.now(cairo);
+      const slots = [7, 11, 15, 19];
+      const quietStart = 23;
+      const quietEnd = 7;
+
+      if (now.hour >= quietStart || now.hour < quietEnd) return;
+
+      String? currentSlot;
+      for (final h in slots) {
+        if (now.hour == h && now.minute < 30) {
+          currentSlot =
+              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}#$h';
+          break;
+        }
+      }
+      if (currentSlot == null) return;
+
+      final lastSlot = prefs.getString(slotKey);
+      if (lastSlot == currentSlot) {
+        debugPrint('InstaGold: foreground slot $currentSlot already sent');
         return;
       }
+
       final body = NotificationsService.buildPriceBody(
         price21k: p21,
         price24k: p24,
@@ -142,8 +158,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         title: 'InstaGold',
         body: body,
       );
-      await prefs.setInt(key, now);
-      debugPrint('InstaGold: foreground notification fired');
+      await prefs.setString(slotKey, currentSlot);
+      debugPrint('InstaGold: foreground notification fired for slot $currentSlot');
     } catch (e) {
       debugPrint('InstaGold: foreground notif failed: $e');
     }

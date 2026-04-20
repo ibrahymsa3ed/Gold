@@ -10,7 +10,7 @@ import 'dart:ui' show Color;
 
 import 'api_service.dart';
 import 'notifications_service.dart';
-import 'push_notifications_service.dart';
+
 
 const _kLastNotifTimestamp = 'pw_last_notif_ts';
 const _notifIntervalMs = 60 * 60 * 1000;
@@ -84,13 +84,6 @@ Future<void> _runFetch() async {
 
   if (p21 == null && p24 == null && pOunce == null) {
     debugPrint('IosBackgroundFetch: no prices available — skipping notif');
-    return;
-  }
-
-  // Self-disable when backend will push this device — see price_watcher.dart
-  // for the full reasoning.
-  if (await PushNotificationsService.isFcmActive()) {
-    debugPrint('IosBackgroundFetch: skip local notif (fcm_summaries_active)');
     return;
   }
 
