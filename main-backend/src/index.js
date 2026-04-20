@@ -8,6 +8,13 @@ const { syncFromScraper, getLatestCachedPrices, startPriceScheduler } = require(
 const { buildAssetSummary, calculateGoal, calculateZakat } = require("./calculations");
 const { initFirebaseAdmin } = require("./firebase");
 const { requireAuth, upsertUserFromClaims } = require("./authMiddleware");
+const {
+  registerDevice,
+  updateDevice,
+  removeDevice,
+  sendTest
+} = require("./notificationsService");
+const { startNotificationsScheduler } = require("./notificationsScheduler");
 
 const app = express();
 app.use(cors());
@@ -415,6 +422,115 @@ app.put("/api/savings/:savingId", requireAuth, async (req, res) => {
   return res.json(updated);
 });
 
+// ---------------------------------------------------------------------------
+// FCM device registration + test endpoints.
+// All routes are auth-gated. The :device_id path segment refers to the
+// client-generated stable id (Keychain on iOS, secure storage on Android),
+// not the SQLite primary key.
+// ---------------------------------------------------------------------------
+
+app.post("/api/devices", requireAuth, async (req, res) => {
+  try {
+    const { device_id, platform, fcm_token, locale, build_number } = req.body || {};
+    if (!device_id || !platform || !fcm_token) {
+      return res.status(400).json({
+        message: "device_id, platform, and fcm_token are required."
+      });
+    }
+    const buildInt = Number.isFinite(Number(build_number))
+      ? Number(build_number)
+      : null;
+    const device = await registerDevice({
+      userId: req.user.id,
+      deviceId: String(device_id),
+      platform: String(platform),
+      fcmToken: String(fcm_token),
+      locale: typeof locale === "string" ? locale : "en",
+      buildNumber: buildInt
+    });
+    return res.status(201).json(device);
+  } catch (error) {
+    await logEntry({
+      level: "ERROR",
+      action: "DEVICE_REGISTER_ERROR",
+      details: error.message
+    });
+    return res.status(500).json({ message: "Failed to register device." });
+  }
+});
+
+app.put("/api/devices/:device_id", requireAuth, async (req, res) => {
+  try {
+    const fields = {};
+    if (typeof req.body.fcm_token === "string") fields.fcm_token = req.body.fcm_token;
+    if (typeof req.body.locale === "string") fields.locale = req.body.locale;
+    if (req.body.summaries_enabled !== undefined) {
+      fields.summaries_enabled = !!req.body.summaries_enabled;
+    }
+    if (req.body.build_number !== undefined) {
+      fields.build_number = Number(req.body.build_number);
+    }
+    const updated = await updateDevice({
+      userId: req.user.id,
+      deviceId: req.params.device_id,
+      fields
+    });
+    if (!updated) return res.status(404).json({ message: "Device not found." });
+    return res.json(updated);
+  } catch (error) {
+    await logEntry({
+      level: "ERROR",
+      action: "DEVICE_UPDATE_ERROR",
+      details: error.message
+    });
+    return res.status(500).json({ message: "Failed to update device." });
+  }
+});
+
+app.delete("/api/devices/:device_id", requireAuth, async (req, res) => {
+  try {
+    const removed = await removeDevice({
+      userId: req.user.id,
+      deviceId: req.params.device_id
+    });
+    if (!removed) return res.status(404).json({ message: "Device not found." });
+    return res.json({ success: true });
+  } catch (error) {
+    await logEntry({
+      level: "ERROR",
+      action: "DEVICE_DELETE_ERROR",
+      details: error.message
+    });
+    return res.status(500).json({ message: "Failed to remove device." });
+  }
+});
+
+// One-shot test push. Owner-only (requireAuth + scope to req.user.id) and
+// uses the latest cached prices regardless of slot/last_sent_slot. Useful
+// for the in-app "Send test notification" button.
+app.post("/api/devices/:device_id/test", requireAuth, async (req, res) => {
+  try {
+    const latest = await getLatestCachedPrices();
+    const pricesMap = (latest && latest.prices) || {};
+    const result = await sendTest({
+      userId: req.user.id,
+      deviceId: req.params.device_id,
+      pricesMap
+    });
+    if (!result.ok && result.reason === "device_not_found") {
+      return res.status(404).json({ message: "Device not found." });
+    }
+    return res.json(result);
+  } catch (error) {
+    await logEntry({
+      level: "ERROR",
+      action: "DEVICE_TEST_ERROR",
+      details: error.message
+    });
+    return res.status(500).json({ message: "Failed to send test push." });
+  }
+});
+
 app.delete("/api/savings/:savingId", requireAuth, async (req, res) => {
   const row = await get(
     `SELECT s.id FROM Savings s
@@ -436,6 +552,10 @@ async function bootstrap() {
   }
   await logEntry({ action: "SERVICE_START", details: `port=${config.port}` });
   startPriceScheduler();
+  // Behind config.fcmSummariesEnabled (default false). Even when on, the
+  // per-device build_number gate (config.minFcmClientBuild, default 999999)
+  // prevents any send until clients ship with a high enough build number.
+  startNotificationsScheduler();
   await syncFromScraper().catch(() => {});
 
   app.listen(config.port, () => {

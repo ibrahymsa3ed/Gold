@@ -698,6 +698,72 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════════════════════
+  //  Devices (FCM push registration) — always HTTP, since the push
+  //  backend has no offline equivalent. Methods return null on failure
+  //  so callers can degrade gracefully without exceptions bubbling up
+  //  to the UI when the backend is unreachable.
+  // ════════════════════════════════════════════════════════════
+
+  Future<Map<String, dynamic>?> registerDevice({
+    required String deviceId,
+    required String platform,
+    required String fcmToken,
+    String locale = 'en',
+    int? buildNumber,
+  }) async {
+    try {
+      final body = await _httpPost('/api/devices', {
+        'device_id': deviceId,
+        'platform': platform,
+        'fcm_token': fcmToken,
+        'locale': locale,
+        if (buildNumber != null) 'build_number': buildNumber,
+      });
+      return Map<String, dynamic>.from(body as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> updateDevice({
+    required String deviceId,
+    String? fcmToken,
+    String? locale,
+    bool? summariesEnabled,
+    int? buildNumber,
+  }) async {
+    try {
+      final body = await _httpPut('/api/devices/$deviceId', {
+        if (fcmToken != null) 'fcm_token': fcmToken,
+        if (locale != null) 'locale': locale,
+        if (summariesEnabled != null) 'summaries_enabled': summariesEnabled,
+        if (buildNumber != null) 'build_number': buildNumber,
+      });
+      return Map<String, dynamic>.from(body as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> removeDevice(String deviceId) async {
+    try {
+      await _httpDelete('/api/devices/$deviceId');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> sendTestPush(String deviceId) async {
+    try {
+      final body = await _httpPost('/api/devices/$deviceId/test', {});
+      return Map<String, dynamic>.from(body as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
   //  Default Member
   // ════════════════════════════════════════════════════════════
 

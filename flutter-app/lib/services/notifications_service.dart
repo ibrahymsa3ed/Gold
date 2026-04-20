@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 
+import '../l10n.dart';
+
 class NotificationsService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -70,18 +72,38 @@ class NotificationsService {
     }
   }
 
+  /// Renders the notification body for a sell-only price summary.
+  ///
+  /// English: `21K: 5240 EGP | 24K: 5990 EGP | Ounce: $2350`
+  /// Arabic:  `عيار 21: 5240 جنيه | عيار 24: 5990 جنيه | الأونصه: $2350`
+  ///
+  /// Numbers are intentionally kept in Western digits in both modes
+  /// (product decision: parity with the in-app price cards and widget).
   static String buildPriceBody({
     double? price21k,
     double? price24k,
     double? priceOunce,
+    String localeCode = 'en',
   }) {
+    final isAr = localeCode == 'ar';
+    final egp = isAr ? 'جنيه' : 'EGP';
+    final ounceLabel = isAr ? 'الأونصه' : 'Ounce';
+
     final parts = <String>[];
-    if (price21k != null) parts.add('21K: ${price21k.toStringAsFixed(0)} EGP');
-    if (price24k != null) parts.add('24K: ${price24k.toStringAsFixed(0)} EGP');
-    if (priceOunce != null) {
-      parts.add('Ounce: \$${priceOunce.toStringAsFixed(0)}');
+    if (price21k != null) {
+      parts.add(
+          '${AppStrings.formatKarat(localeCode, 21)}: ${price21k.toStringAsFixed(0)} $egp');
     }
-    if (parts.isEmpty) return 'Check the latest gold prices!';
+    if (price24k != null) {
+      parts.add(
+          '${AppStrings.formatKarat(localeCode, 24)}: ${price24k.toStringAsFixed(0)} $egp');
+    }
+    if (priceOunce != null) {
+      parts.add('$ounceLabel: \$${priceOunce.toStringAsFixed(0)}');
+    }
+    if (parts.isEmpty) {
+      return isAr ? 'تحقق من آخر أسعار الذهب!' : 'Check the latest gold prices!';
+    }
     return parts.join(' | ');
   }
 

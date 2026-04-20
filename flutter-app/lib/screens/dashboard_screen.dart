@@ -17,6 +17,7 @@ import '../services/google_drive_service.dart';
 import '../services/gold_scraper.dart';
 import '../services/invoice_attachment_service.dart';
 import '../services/notifications_service.dart';
+import '../services/push_notifications_service.dart';
 import '../theme/app_themes.dart';
 import '../widgets/ig_logo.dart';
 import '../widgets/instagold_ad_banner.dart';
@@ -28,6 +29,7 @@ class DashboardScreen extends StatefulWidget {
     required this.authService,
     required this.apiService,
     required this.notificationsService,
+    this.pushNotificationsService,
     required this.locale,
     required this.themeMode,
     required this.onLocaleChanged,
@@ -38,6 +40,7 @@ class DashboardScreen extends StatefulWidget {
   final AuthService authService;
   final ApiService apiService;
   final NotificationsService notificationsService;
+  final PushNotificationsService? pushNotificationsService;
   final Locale locale;
   final ThemeMode themeMode;
   final ValueChanged<Locale> onLocaleChanged;
@@ -90,9 +93,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _afterPricesLoaded() {
+    // Sell-only feed for home-screen widget + notification banner. The
+    // dashboard UI renders its own buy/sell columns directly from `_prices`
+    // and is unaffected by what we read here.
     final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
-    final p21 = (pricesMap['21k'] as Map<String, dynamic>?)?['buy_price'] as num?;
-    final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['buy_price'] as num?;
+    final p21 = (pricesMap['21k'] as Map<String, dynamic>?)?['sell_price'] as num?;
+    final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['sell_price'] as num?;
     final ounce = (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
 
     // Push to home widget (iOS + Android)
@@ -110,6 +116,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       double? p21, double? p24, double? ounce) async {
     if (kIsWeb) return;
     if (p21 == null && p24 == null && ounce == null) return;
+    // Self-disable when backend FCM is going to push us (see push_notifications_service.dart).
+    if (await PushNotificationsService.isFcmActive()) {
+      debugPrint('InstaGold: skip foreground notif (fcm_summaries_active)');
+      return;
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       const key = 'pw_last_notif_ts';
@@ -125,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         price21k: p21,
         price24k: p24,
         priceOunce: ounce,
+        localeCode: widget.locale.languageCode,
       );
       await widget.notificationsService.showPriceChangeNotification(
         title: 'InstaGold',
@@ -627,11 +639,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                     value: selectedKarat,
                     decoration: InputDecoration(
                       labelText: _defaultKarats.containsKey(selectedMainType)
-                          ? 'Karat (default ${_defaultKarats[selectedMainType]} for $selectedMainType)'
-                          : 'Karat',
+                          ? '${AppStrings.t(context, 'karat')} (${AppStrings.t(context, 'karat_default_hint')} ${_karatLabelFromKey(_defaultKarats[selectedMainType]!)})'
+                          : AppStrings.t(context, 'karat'),
                     ),
                     items: _karatOptions
-                        .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                        .map((k) => DropdownMenuItem(
+                            value: k, child: Text(_karatLabelFromKey(k))))
                         .toList(),
                     onChanged: (value) {
                       if (value != null)
@@ -1061,11 +1074,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                     value: goalKarat,
                     decoration: InputDecoration(
                       labelText: _defaultKarats.containsKey(goalMainType)
-                          ? 'Karat (default ${_defaultKarats[goalMainType]})'
-                          : 'Karat',
+                          ? '${AppStrings.t(context, 'karat')} (${AppStrings.t(context, 'karat_default_hint')} ${_karatLabelFromKey(_defaultKarats[goalMainType]!)})'
+                          : AppStrings.t(context, 'karat'),
                     ),
                     items: _karatOptions
-                        .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                        .map((k) => DropdownMenuItem(
+                            value: k, child: Text(_karatLabelFromKey(k))))
                         .toList(),
                     onChanged: (value) {
                       if (value != null)
@@ -1186,9 +1200,11 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: [
                 DropdownButtonFormField<String>(
                   value: goalKarat,
-                  decoration: const InputDecoration(labelText: 'Karat'),
+                  decoration: InputDecoration(
+                      labelText: AppStrings.t(context, 'karat')),
                   items: _karatOptions
-                      .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                      .map((k) => DropdownMenuItem(
+                          value: k, child: Text(_karatLabelFromKey(k))))
                       .toList(),
                   onChanged: (v) {
                     if (v != null) setDialogState(() => goalKarat = v);
@@ -1239,7 +1255,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(AppStrings.t(ctx, 'confirm_delete')),
-        content: Text('${goal['karat']} · ${goal['target_weight_g']}g'),
+        content: Text(
+            '${_karatLabelFromKey('${goal['karat']}')} · ${goal['target_weight_g']}g'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -1770,15 +1787,21 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _priceCardForKey(String key) {
     switch (key) {
       case '21k':
-        return _priceCard(label: '21 Karat', karat: '21k', isHero: true);
+        return _priceCard(
+            label: _karatLabelFromKey('21k'), karat: '21k', isHero: true);
       case '24k':
-        return _priceCard(label: '24 Karat', karat: '24k', isHero: true);
+        return _priceCard(
+            label: _karatLabelFromKey('24k'), karat: '24k', isHero: true);
       case '14k_18k':
         return Row(
           children: [
-            Expanded(child: _priceCard(label: '14K', karat: '14k')),
+            Expanded(
+                child: _priceCard(
+                    label: _karatLabelFromKey('14k'), karat: '14k')),
             const SizedBox(width: 8),
-            Expanded(child: _priceCard(label: '18K', karat: '18k')),
+            Expanded(
+                child: _priceCard(
+                    label: _karatLabelFromKey('18k'), karat: '18k')),
           ],
         );
       case 'pound_ounce':
@@ -1919,6 +1942,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     return match != null ? int.parse(match.group(0)!) : 24;
   }
 
+  /// Renders a karat key (e.g. "21k", "24k") in the user's locale.
+  ///   en -> "21K", "24K"
+  ///   ar -> "عيار 21", "عيار 24"
+  /// Numbers stay in Western digits in both modes (product decision).
+  String _karatLabelFromKey(String karatKey) {
+    return AppStrings.formatKarat(
+        widget.locale.languageCode, _karatNumber(karatKey));
+  }
+
   Map<String, double> _gramsByKarat() {
     final map = <String, double>{};
     for (final asset in _assets) {
@@ -1997,7 +2029,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(height: 4),
           ...gramsByKarat.entries.map(
-            (e) => _totalRow(e.key, '${_currency.format(e.value)} g'),
+            (e) => _totalRow(
+                _karatLabelFromKey(e.key), '${_currency.format(e.value)} g'),
           ),
           _thinDivider(),
           _totalRow(
@@ -2255,7 +2288,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              '${asset['karat']}',
+                              _karatLabelFromKey('${asset['karat']}'),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -2579,9 +2612,11 @@ class _DashboardScreenState extends State<DashboardScreen>
               ..._savingEntries.map((entry) {
                 final targetType = entry['target_type']?.toString();
                 final targetKarat = entry['target_karat']?.toString();
+                final targetKaratLabel = (targetKarat == null || targetKarat.isEmpty)
+                    ? ''
+                    : _karatLabelFromKey(targetKarat);
                 final targetLabel = targetType != null
-                    ? '${_assetTypeLabel(targetType)} ${targetKarat ?? ''}'
-                        .trim()
+                    ? '${_assetTypeLabel(targetType)} $targetKaratLabel'.trim()
                     : '';
                 return ListTile(
                   dense: true,
@@ -2674,7 +2709,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${goal['karat']} · ${goal['target_weight_g']}g',
+                                  '${_karatLabelFromKey('${goal['karat']}')} · ${goal['target_weight_g']}g',
                                   style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -2856,6 +2891,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ),
               ),
+              if (!kIsWeb && widget.pushNotificationsService != null) ...[
+                Divider(
+                    height: 1,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withValues(alpha: 0.15)),
+                _PushSummariesRow(
+                  pushService: widget.pushNotificationsService!,
+                  apiService: widget.apiService,
+                  buildSettingsRow: _settingsRow,
+                ),
+                
+              ],
             ],
           ),
         ),
@@ -3825,3 +3874,61 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 }
+
+/// Settings row with the user-facing "Price summaries" toggle. Wired through
+/// [PushNotificationsService] so flipping it both persists locally and syncs
+/// `summaries_enabled` to the backend (best-effort).
+class _PushSummariesRow extends StatefulWidget {
+  const _PushSummariesRow({
+    required this.pushService,
+    required this.apiService,
+    required this.buildSettingsRow,
+  });
+
+  final PushNotificationsService pushService;
+  final ApiService apiService;
+  final Widget Function({
+    required IconData icon,
+    required String title,
+    required Widget trailing,
+  }) buildSettingsRow;
+
+  @override
+  State<_PushSummariesRow> createState() => _PushSummariesRowState();
+}
+
+class _PushSummariesRowState extends State<_PushSummariesRow> {
+  bool _enabled = true;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    PushNotificationsService.readSummariesEnabled().then((value) {
+      if (mounted) setState(() => _enabled = value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.buildSettingsRow(
+      icon: Icons.notifications_active_outlined,
+      title: AppStrings.t(context, 'price_summaries'),
+      trailing: Switch.adaptive(
+        value: _enabled,
+        onChanged: _busy
+            ? null
+            : (next) async {
+                setState(() {
+                  _enabled = next;
+                  _busy = true;
+                });
+                await widget.pushService
+                    .setSummariesEnabled(widget.apiService, next);
+                if (mounted) setState(() => _busy = false);
+              },
+      ),
+    );
+  }
+}
+

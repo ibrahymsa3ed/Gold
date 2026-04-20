@@ -8,13 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
-import 'gold_scraper.dart';
+import 'api_service.dart';
+import 'notifications_service.dart';
+import 'push_notifications_service.dart';
 
 const _backgroundTaskName = 'instagold_price_watcher';
 const _backgroundTaskUniqueName = 'instagold_price_watcher_unique';
-const _kLastPrice21k = 'pw_last_21k';
-const _kLastPrice24k = 'pw_last_24k';
-const _kLastPriceOunce = 'pw_last_ounce';
 const _kLastNotifTimestamp = 'pw_last_notif_ts';
 
 const _priceChannelId = 'price_updates';
@@ -23,49 +22,48 @@ const _priceChannelName = 'Price Updates';
 /// Interval between guaranteed notifications in milliseconds (1 hour).
 const _notifIntervalMs = 60 * 60 * 1000;
 
+/// Reads the latest gold prices the same way the dashboard does:
+///   • call [ApiService.syncPrices] to scrape and write [GoldPriceCache]
+///   • read back via [ApiService.getCurrentPrices]
+///   • pick `sell_price` for 21K, 24K, and ounce
+/// Notification banners and the home-screen widget show sell prices only;
+/// the in-app dashboard still renders both buy and sell columns separately.
+Future<({double? p21, double? p24, double? ounce})> _loadFreshPrices() async {
+  final api = ApiService.devBypass();
+  try {
+    await api.syncPrices();
+  } catch (e) {
+    debugPrint('PriceWatcher: syncPrices failed, falling back to cache: $e');
+  }
+  final current = await api.getCurrentPrices();
+  final pricesMap = (current['prices'] as Map?) ?? const {};
+  num? readSell(String key) =>
+      (pricesMap[key] as Map?)?['sell_price'] as num?;
+  return (
+    p21: readSell('21k')?.toDouble(),
+    p24: readSell('24k')?.toDouble(),
+    ounce: readSell('ounce')?.toDouble(),
+  );
+}
+
 /// Top-level entry point invoked by WorkManager when the periodic task fires.
 @pragma('vm:entry-point')
 void priceWatcherCallback() {
   Workmanager().executeTask((task, inputData) async {
     try {
-      final scraped = await GoldScraper.scrapeGoldPrices();
-      final carats = (scraped['carats'] as Map?) ?? {};
-
-      double? p21k;
-      double? p24k;
-      final c21 = carats['21'];
-      if (c21 is Map) {
-        p21k = (c21['buy'] as num?)?.toDouble() ??
-            (c21['sell'] as num?)?.toDouble();
-      }
-      final c24 = carats['24'];
-      if (c24 is Map) {
-        p24k = (c24['buy'] as num?)?.toDouble() ??
-            (c24['sell'] as num?)?.toDouble();
-      }
-      final pOunce = (scraped['ouncePrice'] as num?)?.toDouble();
+      final prices = await _loadFreshPrices();
+      final p21 = prices.p21;
+      final p24 = prices.p24;
+      final pOunce = prices.ounce;
 
       final prefs = await SharedPreferences.getInstance();
-      final last21 = prefs.getDouble(_kLastPrice21k);
-      final last24 = prefs.getDouble(_kLastPrice24k);
-      final lastOunce = prefs.getDouble(_kLastPriceOunce);
 
-      final changed21 = _isChanged(last21, p21k);
-      final changed24 = _isChanged(last24, p24k);
-      final changedOunce = _isChanged(lastOunce, pOunce);
-
-      // Persist latest prices
-      if (p21k != null) await prefs.setDouble(_kLastPrice21k, p21k);
-      if (p24k != null) await prefs.setDouble(_kLastPrice24k, p24k);
-      if (pOunce != null) await prefs.setDouble(_kLastPriceOunce, pOunce);
-
-      // Always update the iOS/Android home widget
       try {
-        if (p21k != null) {
-          await HomeWidget.saveWidgetData<double>('price_21k', p21k);
+        if (p21 != null) {
+          await HomeWidget.saveWidgetData<double>('price_21k', p21);
         }
-        if (p24k != null) {
-          await HomeWidget.saveWidgetData<double>('price_24k', p24k);
+        if (p24 != null) {
+          await HomeWidget.saveWidgetData<double>('price_24k', p24);
         }
         if (pOunce != null) {
           await HomeWidget.saveWidgetData<double>('price_ounce', pOunce);
@@ -74,48 +72,45 @@ void priceWatcherCallback() {
             'updated_at', DateTime.now().toIso8601String());
         await HomeWidget.updateWidget(
           name: 'InstaGoldWidgetProvider',
-          androidName: 'InstaGoldWidgetProvider',
           iOSName: 'InstaGoldWidget',
+          qualifiedAndroidName:
+              'com.ibrahym.instagold.InstaGoldWidgetProvider',
         );
       } catch (e) {
         debugPrint('PriceWatcher: widget update failed: $e');
       }
 
-      // Determine whether to fire a notification:
-      //   a) prices changed  → immediate alert with change arrows
-      //   b) 4 hours since last notification → guaranteed periodic update
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final lastNotifMs = prefs.getInt(_kLastNotifTimestamp) ?? 0;
-      final timeSinceLastNotif = nowMs - lastNotifMs;
-      final pricesChanged = changed21 || changed24 || changedOunce;
-      final periodicDue = timeSinceLastNotif >= _notifIntervalMs;
+      final periodicDue = (nowMs - lastNotifMs) >= _notifIntervalMs;
 
-      if (!pricesChanged && !periodicDue) {
+      if (!periodicDue) {
         return Future.value(true);
       }
 
-      // Build notification body
-      final parts = <String>[];
-      if (p21k != null) {
-        final arrow =
-            pricesChanged && changed21 ? ' (${_arrow(last21, p21k)})' : '';
-        parts.add('21K: ${p21k.toStringAsFixed(0)} EGP$arrow');
-      }
-      if (p24k != null) {
-        final arrow =
-            pricesChanged && changed24 ? ' (${_arrow(last24, p24k)})' : '';
-        parts.add('24K: ${p24k.toStringAsFixed(0)} EGP$arrow');
-      }
-      if (pOunce != null) {
-        final arrow =
-            pricesChanged && changedOunce
-                ? ' (${_arrow(lastOunce, pOunce)})'
-                : '';
-        parts.add('Ounce: \$${pOunce.toStringAsFixed(0)}$arrow');
+      // Self-disable when the backend is going to push us. The flag is set
+      // by PushNotificationsService after a successful registration where
+      // the server confirms this device qualifies (FCM_SUMMARIES_ENABLED on
+      // AND build_number >= MIN_FCM_CLIENT_BUILD AND summaries_enabled=1).
+      // Avoids double notifications during/after the FCM rollout.
+      if (await PushNotificationsService.isFcmActive()) {
+        debugPrint('PriceWatcher: skip local notif (fcm_summaries_active)');
+        return Future.value(true);
       }
 
-      final title =
-          pricesChanged ? 'Gold prices updated' : 'Current gold prices';
+      if (p21 == null && p24 == null && pOunce == null) {
+        debugPrint('PriceWatcher: no prices available — skipping notif');
+        return Future.value(true);
+      }
+
+      final body = NotificationsService.buildPriceBody(
+        price21k: p21,
+        price24k: p24,
+        priceOunce: pOunce,
+        // Background isolate has no BuildContext; pull the user's last
+        // selected locale from SharedPreferences (written by app.dart).
+        localeCode: prefs.getString('instagold_locale') ?? 'en',
+      );
 
       tz.initializeTimeZones();
       final plugin = FlutterLocalNotificationsPlugin();
@@ -135,13 +130,17 @@ void priceWatcherCallback() {
           largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           color: Color(0xFFD4AF37),
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       );
 
       await plugin.show(
         DateTime.now().millisecondsSinceEpoch.remainder(100000),
-        title,
-        parts.isNotEmpty ? parts.join(' | ') : 'Check the latest gold prices!',
+        'InstaGold',
+        body,
         details,
       );
 
@@ -153,19 +152,6 @@ void priceWatcherCallback() {
       return Future.value(false);
     }
   });
-}
-
-bool _isChanged(double? a, double? b) {
-  if (b == null) return false;
-  if (a == null) return true;
-  return (a - b).abs() >= 1.0;
-}
-
-String _arrow(double? prev, double curr) {
-  if (prev == null) return '';
-  if (curr > prev) return '+${(curr - prev).toStringAsFixed(0)}';
-  if (curr < prev) return '${(curr - prev).toStringAsFixed(0)}';
-  return '';
 }
 
 class PriceWatcher {

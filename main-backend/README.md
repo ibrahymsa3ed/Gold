@@ -32,6 +32,13 @@ Reused / pre-existing:
 Added:
 
 - `GoldPriceCache`
+- `Devices` — one row per `(user_id, device_id)`. Stores `fcm_token`,
+  `platform`, `locale`, `summaries_enabled`, `build_number`, and
+  `last_sent_slot` (Cairo slot key like `2026-04-19#11`). `fcm_token` is
+  intentionally not `UNIQUE`; collisions on token rotation or user switch
+  are resolved atomically by `registerDevice` in
+  [`src/notificationsService.js`](src/notificationsService.js). Indexed by
+  `user_id`, `summaries_enabled`, and `fcm_token`.
 
 ## Core Endpoints
 
@@ -57,9 +64,31 @@ Added:
 - `POST /api/companies` - add custom company
 - `GET /api/logs` - latest log entries for admin/dev viewer
 
+FCM device registration (push notifications):
+
+- `POST /api/devices` - register or upsert this device for the authenticated
+  user. Body: `{ device_id, platform: 'ios'|'android', fcm_token, locale, build_number }`.
+  Atomically prunes any other row holding the same `fcm_token` to avoid
+  duplicate sends across user/device transitions. Response includes the row
+  augmented with `fcm_summaries_active: boolean` — `true` iff the server
+  will actually deliver slot pushes to this device today (i.e.
+  `FCM_SUMMARIES_ENABLED && build_number >= MIN_FCM_CLIENT_BUILD &&
+  summaries_enabled = 1`). Clients persist this flag and use it to suppress
+  their own local notification firing so users never get double notifications
+  during/after the rollout.
+- `PUT /api/devices/:device_id` - update `fcm_token`, `locale`,
+  `summaries_enabled`, or `build_number`. Token rotation re-runs the dedup
+  step and preserves `last_sent_slot` so a refresh inside an active slot
+  never causes a re-send. Response also carries `fcm_summaries_active`.
+- `DELETE /api/devices/:device_id` - unregister.
+- `POST /api/devices/:device_id/test` - owner-only test push (uses latest
+  cached prices, ignores `last_sent_slot`). Powers the in-app "Send test
+  notification" button.
+
 Notes:
 
 - Member-scoped endpoints enforce ownership (data isolation per authenticated user).
+- `Devices` endpoints scope by `req.user.id`; cross-user access returns 404.
 
 ## Setup
 
@@ -83,6 +112,21 @@ cp .env.example .env
 - `BYPASS_AUTH=true` for local dev without Firebase setup
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_SERVICE_ACCOUNT_PATH` (optional but recommended in backend environments)
+- `FCM_SUMMARIES_ENABLED` (default `false`) — master kill switch for the
+  fixed-time push scheduler. Even when on, no device receives a push until
+  its installed app reports `build_number >= MIN_FCM_CLIENT_BUILD`.
+- `MIN_FCM_CLIENT_BUILD` (default `999999`) — per-device build gate. Set
+  this **above** any released build number until Phase 2 ships, then bump
+  it to the first release that includes the FCM push client.
+- `FCM_SWEEP_CRON` (default `*/5 * * * *`) — sweep tick frequency.
+- `FCM_TIMEZONE` (default `Africa/Cairo`) — timezone for fixed slots
+  (07:00, 11:00, 15:00, 19:00). DST is handled by luxon.
+- `FCM_SLOT_WINDOW_MINUTES` (default `30`) — how long a slot stays live
+  after its start.
+- `FCM_STALE_CACHE_MINUTES` (default `30`) — if the cached price is older
+  than this when a slot is live, the scheduler re-syncs once and skips the
+  tick if still stale (next 5-min tick will retry until the slot window
+  expires). We never deliver stale prices.
 
 4. Run:
 

@@ -13,6 +13,18 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}"/>
+        <!-- FCM defaults: when a notification payload arrives while the app is
+             killed, the system uses these values for the status-bar icon and
+             accent color so server-driven push matches in-app notifications. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_gold" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="price_updates" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -44,6 +56,21 @@
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
             tools:node="remove" />
+        <!-- InstaGold home-screen widget. The home_widget plugin's
+             es.antonborri.home_widget.action.BACKGROUND action lets the
+             Flutter side trigger an onUpdate via HomeWidget.updateWidget(...). -->
+        <receiver
+            android:name=".InstaGoldWidgetProvider"
+            android:exported="true"
+            android:label="@string/instagold_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/instagold_widget_info" />
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

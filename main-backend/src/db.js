@@ -144,6 +144,34 @@ async function initDb() {
     )
   `);
 
+  // Devices: one row per (user_id, device_id). fcm_token is intentionally NOT
+  // UNIQUE — when a user logs out/in on the same physical device the token
+  // can briefly be associated with two user_ids, and when an app reinstall
+  // generates a new device_id the old row may still hold the now-rotated
+  // token. registerDevice() resolves these collisions atomically.
+  // last_sent_slot is the Cairo slot key (e.g. '2026-04-19#11') that was
+  // last delivered to this device, used to make the sweep idempotent and to
+  // survive token-rotation without re-sending the same slot.
+  await run(`
+    CREATE TABLE IF NOT EXISTS Devices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      device_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      fcm_token TEXT NOT NULL,
+      build_number INTEGER,
+      locale TEXT NOT NULL DEFAULT 'en',
+      summaries_enabled INTEGER NOT NULL DEFAULT 1,
+      last_sent_slot TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, device_id)
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_devices_user ON Devices(user_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_devices_enabled ON Devices(summaries_enabled)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_devices_fcm_token ON Devices(fcm_token)`);
+
   await ensureColumn("Users", "firebase_uid", "TEXT");
   await ensureColumn("FamilyMembers", "user_id", "INTEGER");
   await ensureColumn("Assets", "member_id", "INTEGER");

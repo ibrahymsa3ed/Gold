@@ -2,4 +2,7 @@
 <resources>
     <color name="ic_launcher_background">#0B0B0D</color>
     <color name="splash_bg">#161415</color>
+    <!-- Tint applied to the monochrome status-bar notification icon
+         (ic_stat_notification) and used as the FCM default accent color. -->
+    <color name="notification_gold">#FFD4AF37</color>
 </resources>

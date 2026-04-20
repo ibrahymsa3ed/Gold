@@ -32,15 +32,15 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBioWOL4h6RgLUiXyC1Smgiwpqahm_g7tY',
-    appId: '1:190629243449:android:73ad8df5886d2ea4e6bbe8',
+    appId: '1:190629243449:android:8ac3acfec1971309e6bbe8',
     messagingSenderId: '190629243449',
     projectId: 'goldcalculate',
     storageBucket: 'goldcalculate.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBioWOL4h6RgLUiXyC1Smgiwpqahm_g7tY',
-    appId: '1:190629243449:ios:73ad8df5886d2ea4e6bbe8',
+    apiKey: 'AIzaSyCmigA4tjd9evErOTlGRKMd1ZAgSwH3Ut8',
+    appId: '1:190629243449:ios:0b446d85fa3ae43be6bbe8',
     messagingSenderId: '190629243449',
     projectId: 'goldcalculate',
     storageBucket: 'goldcalculate.firebasestorage.app',
@@ -48,8 +48,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBioWOL4h6RgLUiXyC1Smgiwpqahm_g7tY',
-    appId: '1:190629243449:ios:73ad8df5886d2ea4e6bbe8',
+    apiKey: 'AIzaSyCmigA4tjd9evErOTlGRKMd1ZAgSwH3Ut8',
+    appId: '1:190629243449:ios:0b446d85fa3ae43be6bbe8',
     messagingSenderId: '190629243449',
     projectId: 'goldcalculate',
     storageBucket: 'goldcalculate.firebasestorage.app',

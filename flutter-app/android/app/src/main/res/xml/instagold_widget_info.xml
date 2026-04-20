@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AppWidget metadata for the InstaGold widget. updatePeriodMillis=0 because
+  we drive refresh from Flutter via HomeWidget.updateWidget(...) — the
+  Android system minimum is 30 minutes anyway and our prices are pushed on
+  every dashboard load and every background watcher tick.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/instagold_widget"
+    android:previewImage="@mipmap/ic_launcher"
+    android:description="@string/instagold_widget_description" />

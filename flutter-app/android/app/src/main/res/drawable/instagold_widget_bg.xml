@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded dark canvas for the widget body. Matches the iOS widget bg
+     (#0B0B0D) so users with both platforms see the same surface. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#0B0B0D" />
+    <corners android:radius="16dp" />
+</shape>

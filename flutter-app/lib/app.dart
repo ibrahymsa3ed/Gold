@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n.dart';
@@ -11,6 +13,7 @@ import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/notifications_service.dart';
+import 'services/push_notifications_service.dart';
 
 class GoldFamilyApp extends StatefulWidget {
   const GoldFamilyApp({super.key});
@@ -22,6 +25,9 @@ class GoldFamilyApp extends StatefulWidget {
 class _GoldFamilyAppState extends State<GoldFamilyApp> {
   final AuthService _authService = AuthService();
   final NotificationsService _notificationsService = NotificationsService();
+  late final PushNotificationsService _pushService =
+      PushNotificationsService(_notificationsService);
+  bool _pushInitStarted = false;
 
   ThemeMode _themeMode = ThemeMode.light;
   Locale _locale = const Locale('en');
@@ -55,6 +61,11 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
           _settingsLoaded = true;
         });
       }
+      // Seed the App Group locale so the iOS widget renders in the correct
+      // language on its very first frame after a fresh install / cold launch.
+      if (!kIsWeb) {
+        HomeWidget.saveWidgetData<String>('locale', _locale.languageCode);
+      }
     } catch (_) {
       if (mounted) setState(() => _settingsLoaded = true);
     }
@@ -72,6 +83,35 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(_kLocaleKey, locale.languageCode);
     });
+    // Push the new locale into the App Group so the iOS widget can render
+    // karat labels in the correct language on its next refresh.
+    if (!kIsWeb) {
+      HomeWidget.saveWidgetData<String>('locale', locale.languageCode);
+      HomeWidget.updateWidget(
+        name: 'InstaGoldWidgetProvider',
+        iOSName: 'InstaGoldWidget',
+        qualifiedAndroidName:
+            'com.ibrahym.instagold.InstaGoldWidgetProvider',
+      );
+    }
+    // Tell the backend so summary push bodies switch language for this device.
+    if (_pushInitStarted) {
+      final api = _guestMode ? ApiService.devBypass() : ApiService(_authService);
+      _pushService.syncLocale(api, locale.languageCode);
+    }
+  }
+
+  // Lazily initialise the FCM push service the first time the dashboard
+  // builds with a known auth state. Done here (vs main.dart) so the auth
+  // bearer token is available for /api/devices, and so we know the locale.
+  void _ensurePushInitialized() {
+    if (_pushInitStarted) return;
+    _pushInitStarted = true;
+    final api = _guestMode ? ApiService.devBypass() : ApiService(_authService);
+    _pushService.initialize(
+      apiService: api,
+      localeCode: _locale.languageCode,
+    );
   }
 
   @override
@@ -106,12 +146,18 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
                 },
               );
             }
+            // Defer push init until first dashboard build so auth + locale
+            // are both settled. Schedule it post-frame to avoid jank.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _ensurePushInitialized();
+            });
             return DashboardScreen(
               authService: _authService,
               apiService: _guestMode ? ApiService.devBypass() : ApiService(_authService),
               locale: _locale,
               themeMode: _themeMode,
               notificationsService: _notificationsService,
+              pushNotificationsService: _pushService,
               onLocaleChanged: _handleLocaleChanged,
               onThemeChanged: _handleThemeChanged,
               onLogout: () {

@@ -16,6 +16,11 @@ class AppStrings {
       'reset_password_sent': 'Password reset link sent to your email.',
       'email_already_exists': 'This email is already registered. Try logging in or reset your password.',
       'live_prices': 'Live Prices',
+      'price_summaries': 'Price summaries',
+      'price_summaries_hint': 'Get a push notification at 7am, 11am, 3pm, 7pm (Cairo) with the latest sell prices.',
+      'send_test_notification': 'Send test notification',
+      'test_notification_sent': 'Test notification sent.',
+      'test_notification_failed': 'Failed to send test notification.',
       'members': 'Family Members',
       'goals': 'Goals',
       'zakat': 'Zakat',
@@ -72,6 +77,7 @@ class AppStrings {
       'ingot_size': 'Ingot size',
       'manual': 'Manual',
       'karat': 'Karat',
+      'karat_default_hint': 'default',
       'weight_g': 'Weight (g)',
       'purchase_price': 'Purchase price (EGP)',
       'purchase_date': 'Purchase date',
@@ -141,7 +147,12 @@ class AppStrings {
       'reset_password': 'إعادة تعيين كلمة المرور',
       'reset_password_sent': 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.',
       'email_already_exists': 'هذا البريد مسجل مسبقاً. جرّب تسجيل الدخول أو إعادة تعيين كلمة المرور.',
-      'live_prices': 'أسعار الذهب الحية',
+      'live_prices': 'أسعار الذهب',
+      'price_summaries': 'ملخصات الأسعار',
+      'price_summaries_hint': 'استلم إشعاراً بأسعار البيع في 7 ص و11 ص و3 م و7 م (توقيت القاهرة).',
+      'send_test_notification': 'إرسال إشعار تجريبي',
+      'test_notification_sent': 'تم إرسال إشعار تجريبي.',
+      'test_notification_failed': 'فشل إرسال الإشعار التجريبي.',
       'members': 'أفراد العائلة',
       'goals': 'الأهداف',
       'zakat': 'الزكاة',
@@ -198,6 +209,7 @@ class AppStrings {
       'ingot_size': 'حجم السبيكة',
       'manual': 'يدوي',
       'karat': 'العيار',
+      'karat_default_hint': 'افتراضي',
       'weight_g': 'الوزن (جرام)',
       'purchase_price': 'سعر الشراء (جنيه)',
       'purchase_date': 'تاريخ الشراء',
@@ -231,7 +243,7 @@ class AppStrings {
       'pound': 'جنيه',
       'half_pound': 'نصف جنيه',
       'quarter_pound': 'ربع جنيه',
-      'ounce': 'أوقية',
+      'ounce': 'أونصه',
       'gold_pound': 'الجنيه الذهب',
       'global_ounce': 'الأونصة العالمية',
       'jeweller_dollar': 'دولار الصاغة',
@@ -261,5 +273,24 @@ class AppStrings {
   static String t(BuildContext context, String key) {
     final code = Localizations.localeOf(context).languageCode;
     return _values[code]?[key] ?? _values['en']![key] ?? key;
+  }
+
+  /// Context-free lookup for code paths that don't have a [BuildContext]
+  /// (background isolates, push handlers, …).
+  static String tFor(String localeCode, String key) {
+    final code = (localeCode == 'ar') ? 'ar' : 'en';
+    return _values[code]?[key] ?? _values['en']![key] ?? key;
+  }
+
+  static bool isAr(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar';
+
+  /// Renders a karat label per locale convention:
+  ///   en -> "21K"
+  ///   ar -> "عيار 21"
+  /// Numbers stay in Western digits in both modes (product decision).
+  static String formatKarat(String localeCode, int karat) {
+    final isArabic = localeCode == 'ar';
+    return isArabic ? 'عيار $karat' : '${karat}K';
   }
 }
