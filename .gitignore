@@ -15,9 +15,12 @@ flutter-app/android/*.keystore
 # Generic
 .DS_Store
 
-# Old APK builds (keep InstaGold.apk explicit add)
+# Old APK builds
 FamilyGold.apk
 GoldFamily.apk
 # Local dev flavor artifact (rebuild with ./scripts/build-dev-apk.sh)
 InstaGold-dev.apk
+# Current prod release artifacts (build to repo root locally; do not commit)
+InstaGold.apk
+InstaGold.aab
 flutter-app/android/.kotlin/

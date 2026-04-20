@@ -39,6 +39,7 @@ cp build/ios/ipa/gold_family_app.ipa ../InstaGold.ipa
 ```
 
 ## 3. Git
+`InstaGold.apk` / `InstaGold.aab` at repo root are **gitignored** (large binaries). Commit and push **code** only:
 ```bash
 git add -A && git commit -m "<message>" && git push
 ```
