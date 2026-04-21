@@ -1,0 +1,11 @@
+---
+description: Never assume — verify before planning or executing; only touch files that must be touched
+alwaysApply: true
+---
+
+# No Assumptions Rule
+
+- Before planning or executing any change, **read the relevant files** to confirm the current state. Never assume what a file contains, what an API looks like, or what already exists.
+- **Only touch files that are directly required** for the task at hand. Do not edit, create, or delete any file the user has not mentioned unless it is a strict technical dependency of the requested change (e.g. a manifest that must be updated for new code to compile, or a schema that a new table requires).
+- If in doubt whether a file needs to change, **leave it untouched** and explain why it might need changing — let the user decide.
+- Do not refactor, rename, reformat, or "clean up" files while performing an unrelated task.

@@ -22,17 +22,16 @@
         android:gravity="center_vertical"
         android:paddingBottom="8dp">
 
-        <TextView
+        <ImageView
             android:id="@+id/widget_brand_mark"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="iG"
-            android:textColor="#D4AF37"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:fontFamily="sans-serif-black"
-            android:paddingEnd="6dp"
-            android:paddingRight="6dp" />
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ig_logo_mark"
+            android:scaleType="fitCenter"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp" />
 
         <TextView
             android:id="@+id/widget_brand"

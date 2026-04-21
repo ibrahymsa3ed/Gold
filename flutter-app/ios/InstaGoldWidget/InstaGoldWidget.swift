@@ -193,8 +193,11 @@ struct InstaGoldWidgetEntryView: View {
     // could read.
     private var header: some View {
         HStack(alignment: .center, spacing: 6) {
-            Text("iG")
-                .font(.system(size: 14, weight: .heavy, design: .rounded))
+            Image("ig_logo_mark")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
                 .foregroundStyle(Tokens.brandGradient)
             Text("InstaGold")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))

@@ -97,6 +97,10 @@ alwaysApply: true
 - L10n: `flutter-app/lib/l10n.dart`
 - Design variant: `flutter-app/lib/theme/ui_design_variant.dart`
 - IG logo asset: `flutter-app/assets/icons/ig_logo.png`
+- iOS widget: `flutter-app/ios/InstaGoldWidget/InstaGoldWidget.swift`
+- iOS widget asset catalog: `flutter-app/ios/InstaGoldWidget/Assets.xcassets/`
+- Android widget layout: `flutter-app/android/app/src/main/res/layout/instagold_widget.xml`
+- Android widget provider: `flutter-app/android/app/src/main/kotlin/com/ibrahym/instagold/InstaGoldWidgetProvider.kt`
 
 ## Workflow After Each Edit (MANDATORY)
 ### Android
