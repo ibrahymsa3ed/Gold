@@ -971,8 +971,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     String goalIngotSize = '10g';
     String goalKarat = '21k';
     final targetWeight = TextEditingController();
-    final savedAmount =
-        TextEditingController(text: _totalSaved.toStringAsFixed(2));
     int? companyId;
     bool goalWeightLocked = false;
 
@@ -1115,13 +1113,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: savedAmount,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                        labelText: AppStrings.t(context, 'saved_amount')),
-                  ),
-                  const SizedBox(height: 8),
                   DropdownButtonFormField<int?>(
                     value: companyId,
                     decoration: InputDecoration(
@@ -1158,41 +1149,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         memberId: _selectedMemberId!,
         karat: goalKarat,
         targetWeightG: double.tryParse(targetWeight.text) ?? 0,
-        savedAmount: double.tryParse(savedAmount.text) ?? 0,
+        savedAmount: 0,
         companyId: companyId,
-      );
-      await _load();
-    });
-  }
-
-  Future<void> _updateGoalSavedDialog(Map<String, dynamic> goal) async {
-    final savedAmount =
-        TextEditingController(text: goal['saved_amount'].toString());
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.t(ctx, 'update_saving')),
-        content: TextField(
-          controller: savedAmount,
-          keyboardType: TextInputType.number,
-          decoration:
-              InputDecoration(labelText: AppStrings.t(ctx, 'saved_amount')),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(AppStrings.t(ctx, 'cancel'))),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(AppStrings.t(ctx, 'save'))),
-        ],
-      ),
-    );
-    if (saved != true) return;
-    await _safeAction(() async {
-      await widget.apiService.updateGoalSaved(
-        goalId: goal['id'] as int,
-        savedAmount: double.tryParse(savedAmount.text) ?? 0,
       );
       await _load();
     });
@@ -1202,8 +1160,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     var goalKarat = goal['karat']?.toString() ?? '21k';
     final targetWeight = TextEditingController(
         text: (goal['target_weight_g'] as num?)?.toString() ?? '');
-    final savedAmount = TextEditingController(
-        text: (goal['saved_amount'] as num?)?.toString() ?? '0');
 
     final saved = await showDialog<bool>(
       context: context,
@@ -1233,13 +1189,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   decoration: InputDecoration(
                       labelText: AppStrings.t(ctx, 'target_weight')),
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: savedAmount,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                      labelText: AppStrings.t(ctx, 'saved_amount')),
-                ),
               ],
             ),
           ),
@@ -1260,7 +1209,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         goalId: goal['id'] as int,
         karat: goalKarat,
         targetWeightG: double.tryParse(targetWeight.text) ?? 0,
-        savedAmount: double.tryParse(savedAmount.text) ?? 0,
+        savedAmount: (goal['saved_amount'] as num?)?.toDouble() ?? 0,
       );
       await _load();
     });
@@ -2585,7 +2534,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           color: goldAccent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(Icons.savings_rounded,
+                        child: Icon(Icons.account_balance_wallet,
                             size: 20, color: goldAccent),
                       ),
                       const SizedBox(width: 12),
@@ -2685,8 +2634,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   children: _goals.map((goal) {
                     final target =
                         (goal['target_price'] as num?)?.toDouble() ?? 0;
-                    final saved =
-                        (goal['saved_amount'] as num?)?.toDouble() ?? 0;
+                    final saved = _totalSaved;
+                    final remaining =
+                        (target - saved).clamp(0.0, double.infinity);
                     final progress =
                         target > 0 ? (saved / target).clamp(0, 1) : 0.0;
                     final pct = (progress * 100).toStringAsFixed(0);
@@ -2733,35 +2683,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => _updateGoalSavedDialog(
-                                    goal as Map<String, dynamic>),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        progressColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add,
-                                          size: 14, color: progressColor),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        AppStrings.t(context, 'save'),
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: progressColor),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              GestureDetector(
                                 onTap: () => _editGoalDialog(
                                     goal as Map<String, dynamic>),
                                 child: Container(
@@ -2796,7 +2717,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${AppStrings.t(context, 'remaining')}: ${_currency.format(goal['remaining_amount'])} EGP',
+                                  '${AppStrings.t(context, 'remaining')}: ${_currency.format(remaining)} EGP',
                                   style: TextStyle(
                                       fontSize: 12, color: cs.onSurfaceVariant),
                                 ),
@@ -3771,8 +3692,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           selectedIcon: const Icon(Icons.workspace_premium),
                           label: AppStrings.t(context, 'my_gold')),
                       NavigationDestination(
-                          icon: const Icon(Icons.savings_outlined),
-                          selectedIcon: const Icon(Icons.savings),
+                          icon: const Icon(Icons.account_balance_wallet_outlined),
+                          selectedIcon: const Icon(Icons.account_balance_wallet),
                           label: AppStrings.t(context, 'savings_goals')),
                       NavigationDestination(
                           icon: const Icon(Icons.settings_outlined),
