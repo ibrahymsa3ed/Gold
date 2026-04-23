@@ -340,6 +340,66 @@ async function sendTest({ userId, deviceId, pricesMap }) {
   return result;
 }
 
+const ALERT_CHANNEL_ID = "price_alerts";
+
+function buildAlertMessage({ device, title, body }) {
+  return {
+    token: device.fcm_token,
+    notification: { title, body },
+    data: { kind: "price_alert" },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: ALERT_CHANNEL_ID,
+        icon: "ic_stat_notification",
+        color: "#D4AF37"
+      }
+    },
+    apns: {
+      headers: { "apns-priority": "10", "apns-push-type": "alert" },
+      payload: { aps: { alert: { title, body }, sound: "default" } }
+    }
+  };
+}
+
+// Sends a price threshold alert to all registered devices for a user.
+async function sendPriceAlert({ userId, karat, targetPrice, direction, currentPrice }) {
+  const devices = await all(
+    `SELECT * FROM Devices WHERE user_id = ?`,
+    [userId]
+  );
+  if (!devices.length) return;
+
+  const karatLabel = karat === "ounce" ? "Ounce" : karat.toUpperCase();
+  const karatLabelAr = karat === "ounce" ? "الأونصه" : `عيار ${karat.replace("k", "")}`;
+  const dirEn = direction === "above" ? "above" : "below";
+  const dirAr = direction === "above" ? "تجاوز" : "انخفض عن";
+
+  for (const device of devices) {
+    const isAr = device.locale === "ar";
+    const title = isAr ? "تنبيه سعر الذهب" : "Gold Price Alert";
+    const price = Math.round(currentPrice);
+    const currency = karat === "ounce" ? "$" : (isAr ? "جنيه" : "EGP");
+    const body = isAr
+      ? `${karatLabelAr} ${dirAr} ${Math.round(targetPrice)} جنيه — الآن: ${price} ${currency}`
+      : `${karatLabel} ${dirEn} ${Math.round(targetPrice)} EGP — Now: ${price} ${currency}`;
+
+    const message = buildAlertMessage({ device, title, body });
+    try {
+      await admin.messaging().send(message);
+    } catch (error) {
+      const code = error && error.code ? error.code : "unknown";
+      const invalid =
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-registration-token" ||
+        code === "messaging/invalid-argument";
+      if (invalid) await pruneInvalidToken(device.fcm_token);
+      await logEntry({ level: "WARN", action: "FCM_ALERT_FAILED", details: `user_id=${userId} code=${code}` });
+    }
+  }
+  await logEntry({ action: "FCM_ALERT_SENT", details: `user_id=${userId} karat=${karat} direction=${direction} target=${targetPrice} current=${currentPrice}` });
+}
+
 module.exports = {
   registerDevice,
   updateDevice,
@@ -348,6 +408,7 @@ module.exports = {
   buildSummary,
   sendSummary,
   sendTest,
+  sendPriceAlert,
   listDevicesNeedingSlot,
   markSlotDelivered
 };

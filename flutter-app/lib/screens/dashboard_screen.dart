@@ -15,6 +15,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../l10n.dart';
+import '../screens/price_alerts_screen.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/backup_service.dart';
@@ -3687,6 +3688,21 @@ class _DashboardScreenState extends State<DashboardScreen>
                 icon: const Icon(Icons.person_add_outlined),
                 tooltip: AppStrings.t(context, 'add_member'),
               ),
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PriceAlertsScreen(
+                    apiService: widget.apiService,
+                    locale: widget.locale,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.notifications_outlined, size: 22),
+              tooltip: widget.locale.languageCode == 'ar'
+                  ? 'تنبيهات الأسعار'
+                  : 'Price Alerts',
+            ),
             IconButton(
               onPressed: () {
                 widget.authService.logout();

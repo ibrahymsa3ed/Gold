@@ -12,7 +12,8 @@ const {
   registerDevice,
   updateDevice,
   removeDevice,
-  sendTest
+  sendTest,
+  sendPriceAlert
 } = require("./notificationsService");
 const { startNotificationsScheduler } = require("./notificationsScheduler");
 
@@ -57,10 +58,82 @@ app.get("/api/prices/current", requireAuth, async (_, res) => {
 app.post("/api/prices/sync", async (_, res) => {
   try {
     const payload = await syncFromScraper({ force: true });
+    // Fire any price threshold alerts after a fresh scrape (best-effort).
+    checkPriceAlerts().catch((e) =>
+      logEntry({ level: "WARN", action: "ALERT_CHECK_ERROR", details: e.message })
+    );
     return res.json({ message: "Price cache updated.", payload });
   } catch (error) {
     return res.status(500).json({ message: "Sync failed", error: error.message });
   }
+});
+
+// ── Price alerts CRUD ──────────────────────────────────────────────────────
+
+app.get("/api/alerts", requireAuth, async (req, res) => {
+  const rows = await all(
+    `SELECT * FROM PriceAlerts WHERE user_id = ? ORDER BY created_at DESC`,
+    [req.user.id]
+  );
+  return res.json(rows);
+});
+
+app.post("/api/alerts", requireAuth, async (req, res) => {
+  const { karat, target_price, direction } = req.body;
+  if (!karat || target_price == null || !direction) {
+    return res.status(400).json({ message: "karat, target_price and direction are required." });
+  }
+  if (!["21k", "24k", "ounce"].includes(karat)) {
+    return res.status(400).json({ message: "karat must be 21k, 24k, or ounce." });
+  }
+  if (!["above", "below"].includes(direction)) {
+    return res.status(400).json({ message: "direction must be above or below." });
+  }
+  const now = new Date().toISOString();
+  const result = await run(
+    `INSERT INTO PriceAlerts (user_id, karat, target_price, direction, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 1, ?, ?)`,
+    [req.user.id, karat, Number(target_price), direction, now, now]
+  );
+  const row = await get(`SELECT * FROM PriceAlerts WHERE id = ?`, [result.lastID]);
+  await logEntry({ action: "ALERT_CREATED", details: `id=${result.lastID} karat=${karat}` });
+  return res.json(row);
+});
+
+app.put("/api/alerts/:alertId", requireAuth, async (req, res) => {
+  const row = await get(
+    `SELECT * FROM PriceAlerts WHERE id = ? AND user_id = ?`,
+    [req.params.alertId, req.user.id]
+  );
+  if (!row) return res.status(404).json({ message: "Alert not found." });
+  const { target_price, direction, active } = req.body;
+  const now = new Date().toISOString();
+  await run(
+    `UPDATE PriceAlerts SET
+       target_price = COALESCE(?, target_price),
+       direction    = COALESCE(?, direction),
+       active       = COALESCE(?, active),
+       updated_at   = ?
+     WHERE id = ?`,
+    [
+      target_price != null ? Number(target_price) : null,
+      direction ?? null,
+      active != null ? (active ? 1 : 0) : null,
+      now,
+      req.params.alertId
+    ]
+  );
+  return res.json(await get(`SELECT * FROM PriceAlerts WHERE id = ?`, [req.params.alertId]));
+});
+
+app.delete("/api/alerts/:alertId", requireAuth, async (req, res) => {
+  const row = await get(
+    `SELECT id FROM PriceAlerts WHERE id = ? AND user_id = ?`,
+    [req.params.alertId, req.user.id]
+  );
+  if (!row) return res.status(404).json({ message: "Alert not found." });
+  await run(`DELETE FROM PriceAlerts WHERE id = ?`, [req.params.alertId]);
+  return res.json({ success: true });
 });
 
 app.post("/api/auth/session", requireAuth, async (req, res) => {
@@ -543,6 +616,42 @@ app.delete("/api/savings/:savingId", requireAuth, async (req, res) => {
   await logEntry({ action: "SAVING_DELETED", details: `saving_id=${req.params.savingId}` });
   return res.json({ success: true });
 });
+
+// Checks all active price alerts against the latest cached prices.
+// Fires FCM and deactivates the alert on a match so it fires only once.
+async function checkPriceAlerts() {
+  const pricesMap = await getLatestCachedPrices();
+  if (!pricesMap) return;
+
+  const alerts = await all(`SELECT * FROM PriceAlerts WHERE active = 1`);
+  const now = new Date().toISOString();
+
+  for (const alert of alerts) {
+    const row = pricesMap[alert.karat];
+    const current = row && (row.sell_price ?? row.buy_price);
+    if (current == null) continue;
+
+    const crossed =
+      (alert.direction === "above" && current >= alert.target_price) ||
+      (alert.direction === "below" && current <= alert.target_price);
+
+    if (!crossed) continue;
+
+    // Deactivate first to avoid double-firing if FCM is slow.
+    await run(
+      `UPDATE PriceAlerts SET active = 0, last_triggered_at = ?, updated_at = ? WHERE id = ?`,
+      [now, now, alert.id]
+    );
+
+    await sendPriceAlert({
+      userId: alert.user_id,
+      karat: alert.karat,
+      targetPrice: alert.target_price,
+      direction: alert.direction,
+      currentPrice: current
+    });
+  }
+}
 
 async function bootstrap() {
   await initDb();

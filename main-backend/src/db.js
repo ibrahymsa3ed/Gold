@@ -172,6 +172,21 @@ async function initDb() {
   await run(`CREATE INDEX IF NOT EXISTS idx_devices_enabled ON Devices(summaries_enabled)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_devices_fcm_token ON Devices(fcm_token)`);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS PriceAlerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      karat TEXT NOT NULL,
+      target_price REAL NOT NULL,
+      direction TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      last_triggered_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_alerts_user ON PriceAlerts(user_id)`);
+
   await ensureColumn("Users", "firebase_uid", "TEXT");
   await ensureColumn("FamilyMembers", "user_id", "INTEGER");
   await ensureColumn("Assets", "member_id", "INTEGER");

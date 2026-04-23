@@ -764,6 +764,55 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════════════════════
+  //  Price Alerts
+  // ════════════════════════════════════════════════════════════
+
+  Future<List<Map<String, dynamic>>> getPriceAlerts() async {
+    try {
+      final body = await _httpGet('/api/alerts');
+      return (body as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> createPriceAlert({
+    required String karat,
+    required double targetPrice,
+    required String direction,
+  }) async {
+    try {
+      final body = await _httpPost('/api/alerts', {
+        'karat': karat,
+        'target_price': targetPrice,
+        'direction': direction,
+      });
+      return Map<String, dynamic>.from(body as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> updatePriceAlert(
+      int alertId, Map<String, dynamic> fields) async {
+    try {
+      final body = await _httpPut('/api/alerts/$alertId', fields);
+      return Map<String, dynamic>.from(body as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> deletePriceAlert(int alertId) async {
+    try {
+      await _httpDelete('/api/alerts/$alertId');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
   //  Default Member
   // ════════════════════════════════════════════════════════════
 
