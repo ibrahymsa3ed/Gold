@@ -24,3 +24,9 @@ InstaGold-dev.apk
 InstaGold.apk
 InstaGold.aab
 flutter-app/android/.kotlin/
+
+# Firebase Hosting deploy cache (local only)
+flutter-app/.firebase/
+
+# Claude Code worktrees
+.claude/worktrees/

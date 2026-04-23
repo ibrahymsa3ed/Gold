@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 
@@ -9,6 +10,11 @@ class DatabaseHelper {
   Database? _db;
 
   Future<Database> get database async {
+    if (kIsWeb) {
+      throw Exception(
+        'Local storage is not available on web. Please use the InstaGold mobile app.',
+      );
+    }
     _db ??= await _initDb();
     return _db!;
   }
