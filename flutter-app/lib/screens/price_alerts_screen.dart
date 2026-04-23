@@ -120,13 +120,24 @@ class _PriceAlertsScreenState extends State<PriceAlertsScreen> {
               onPressed: () async {
                 final price = double.tryParse(controller.text.trim());
                 if (price == null || price <= 0) return;
-                Navigator.pop(ctx);
-                await widget.apiService.createPriceAlert(
-                  karat: karat,
-                  targetPrice: price,
-                  direction: direction,
-                );
-                _load();
+                try {
+                  await widget.apiService.createPriceAlert(
+                    karat: karat,
+                    targetPrice: price,
+                    direction: direction,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _load();
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                      content: Text(_isAr
+                          ? 'تعذّر الحفظ: $e'
+                          : 'Save failed: $e'),
+                      backgroundColor: Colors.red,
+                    ));
+                  }
+                }
               },
               child: Text(_isAr ? 'إضافة' : 'Add'),
             ),

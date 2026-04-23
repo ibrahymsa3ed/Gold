@@ -776,21 +776,17 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> createPriceAlert({
+  Future<Map<String, dynamic>> createPriceAlert({
     required String karat,
     required double targetPrice,
     required String direction,
   }) async {
-    try {
-      final body = await _httpPost('/api/alerts', {
-        'karat': karat,
-        'target_price': targetPrice,
-        'direction': direction,
-      });
-      return Map<String, dynamic>.from(body as Map);
-    } catch (_) {
-      return null;
-    }
+    final body = await _httpPost('/api/alerts', {
+      'karat': karat,
+      'target_price': targetPrice,
+      'direction': direction,
+    });
+    return Map<String, dynamic>.from(body as Map);
   }
 
   Future<Map<String, dynamic>?> updatePriceAlert(
