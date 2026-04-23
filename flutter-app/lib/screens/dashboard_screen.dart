@@ -148,6 +148,14 @@ class _DashboardScreenState extends State<DashboardScreen>
         return;
       }
 
+      // Skip local notification when FCM is active — server push covers it.
+      final fcmActive = await PushNotificationsService.isFcmActive();
+      if (fcmActive) {
+        await prefs.setString(slotKey, currentSlot);
+        debugPrint('InstaGold: FCM active, skipping foreground notif for $currentSlot');
+        return;
+      }
+
       final body = NotificationsService.buildPriceBody(
         price21k: p21,
         price24k: p24,

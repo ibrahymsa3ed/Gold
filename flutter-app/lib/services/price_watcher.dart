@@ -11,6 +11,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'api_service.dart';
 import 'notifications_service.dart';
+import 'push_notifications_service.dart';
 
 const _backgroundTaskName = 'instagold_price_watcher';
 const _backgroundTaskUniqueName = 'instagold_price_watcher_unique';
@@ -118,6 +119,14 @@ void priceWatcherCallback() {
 
       if (p21 == null && p24 == null && pOunce == null) {
         debugPrint('PriceWatcher: no prices available — skipping notif');
+        return Future.value(true);
+      }
+
+      // Skip local notification when FCM is active — server push covers it.
+      final fcmActive = await PushNotificationsService.isFcmActive();
+      if (fcmActive) {
+        await prefs.setString(_kLastSlotKey, slot);
+        debugPrint('PriceWatcher: FCM active, skipping local notif for $slot');
         return Future.value(true);
       }
 
