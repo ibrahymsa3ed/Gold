@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:open_filex/open_filex.dart';
@@ -78,7 +81,71 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _load().then((_) => _afterPricesLoaded());
+    _load().then((_) {
+      _afterPricesLoaded();
+      _maybShowMiuiBatteryPrompt();
+    });
+    _loadCardOrder();
+  }
+
+  Future<void> _loadCardOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    const _kCardOrderKey = 'price_card_order';
+    final stored = prefs.getStringList(_kCardOrderKey);
+    if (stored != null && stored.isNotEmpty) {
+      setState(() => _priceCardOrder = stored);
+    }
+  }
+
+  Future<void> _saveCardOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('price_card_order', _priceCardOrder);
+  }
+
+  Future<void> _maybShowMiuiBatteryPrompt() async {
+    if (!Platform.isAndroid) return;
+    final prefs = await SharedPreferences.getInstance();
+    const _kMiuiPromptShown = 'miui_battery_prompt_shown';
+    if (prefs.getBool(_kMiuiPromptShown) == true) return;
+
+    try {
+      final info = DeviceInfoPlugin();
+      final android = await info.androidInfo;
+      final manufacturer = android.manufacturer.toLowerCase();
+      if (!manufacturer.contains('xiaomi') && !manufacturer.contains('redmi')) return;
+    } catch (_) {
+      return;
+    }
+
+    await prefs.setBool(_kMiuiPromptShown, true);
+
+    if (!mounted) return;
+    final ar = AppStrings.isAr(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ar ? 'تحسين البطارية' : 'Battery Optimization'),
+        content: Text(
+          ar
+              ? 'لضمان وصول الإشعارات في الوقت المحدد، يُرجى إضافة InstaGold إلى قائمة التطبيقات غير المقيّدة في إعدادات البطارية.'
+              : 'To ensure notifications arrive on time, please allow InstaGold to run without battery restrictions.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ar ? 'لاحقاً' : 'Later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              const channel = MethodChannel('com.ibrahym.instagold/settings');
+              channel.invokeMethod('openBatterySettings').catchError((_) {});
+            },
+            child: Text(ar ? 'الإعدادات' : 'Open Settings'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1813,6 +1880,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               final item = _priceCardOrder.removeAt(oldIndex);
               _priceCardOrder.insert(newIndex, item);
             });
+            _saveCardOrder();
           },
           proxyDecorator: (child, index, animation) {
             return AnimatedBuilder(

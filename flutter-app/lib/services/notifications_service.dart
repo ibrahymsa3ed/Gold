@@ -15,6 +15,9 @@ class NotificationsService {
   static const _priceChannelId = 'price_updates';
   static const _priceChannelName = 'Price Updates';
 
+  static const _alertChannelId = 'price_alerts';
+  static const _alertChannelName = 'Price Alerts';
+
   /// Completer that resolves once [init] finishes. Every public method
   /// awaits this so callers never race against plugin initialization.
   final Completer<void> _ready = Completer<void>();
@@ -46,6 +49,14 @@ class NotificationsService {
               _priceChannelName,
               description: 'Gold price update notifications',
               importance: Importance.high,
+            ),
+          );
+          await android.createNotificationChannel(
+            const AndroidNotificationChannel(
+              _alertChannelId,
+              _alertChannelName,
+              description: 'Gold price threshold alerts',
+              importance: Importance.max,
             ),
           );
         }
@@ -147,6 +158,35 @@ class NotificationsService {
     await _ready.future;
     await _plugin.show(2, title, body, _priceNotifDetails);
     debugPrint('InstaGold: notification shown — $title | $body');
+  }
+
+  static const _alertNotifDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _alertChannelId,
+      _alertChannelName,
+      importance: Importance.max,
+      priority: Priority.max,
+      icon: '@drawable/ic_stat_notification',
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      color: Color(0xFFD4AF37),
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
+
+  /// Stub for future price threshold alerts (e.g. "Gold hit 6000 EGP!").
+  /// Fires on the high-priority [_alertChannelId] channel so users cannot
+  /// mute it alongside regular daily summaries.
+  Future<void> showPriceAlertNotification({
+    required String title,
+    required String body,
+  }) async {
+    await _ready.future;
+    await _plugin.show(3, title, body, _alertNotifDetails);
+    debugPrint('InstaGold: price alert shown — $title | $body');
   }
 
   Future<void> cancelAll() async {
