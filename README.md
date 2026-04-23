@@ -219,6 +219,10 @@ Requires `rclone` with a `gdrive:` remote configured. APK is uploaded to `gdrive
 - Flutter dashboard (**InstaGold**) supports member selection, asset CRUD (optional invoice attachment on mobile), savings add/edit/delete, goals with progress, zakat view, and company management.
 - **Local notifications:** Fixed-slot price summaries at 07:00/11:00/15:00/19:00 Cairo are active on-device with no backend dependency. See `ARCHITECTURE.md` for the full slot/dedup logic.
 - **FCM push (dormant):** The Firebase Messaging SDK is initialized and the registration client code exists in `push_notifications_service.dart`, but no backend is hosted so device registrations silently fail. FCM can be activated later by hosting `main-backend` and setting `API_BASE_URL` + two env flags — no Flutter code changes required.
+- **Notification channels (Android):** Two channels are registered — `price_updates` (daily slot summaries, can be muted) and `price_alerts` (future threshold alerts at max priority). See `notifications_service.dart`.
+- **FCM double-notification guard:** When FCM is active, both `price_watcher.dart` and `dashboard_screen.dart` skip firing local notifications for the current slot to prevent double delivery.
+- **MIUI battery prompt:** First launch on a Xiaomi/Redmi device shows a one-time dialog that opens `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` directly — the primary fix for WorkManager being killed on Xiaomi phones.
+- **Price card order:** Dragging the price cards on the home dashboard now persists the order across app restarts via `SharedPreferences`.
 - **Backup/restore:** Mobile exports a `.zip` (`instagold_backup.json` plus `invoices/` files). Import the same file on any device (Android ↔ iOS works; JSON schema is platform-neutral). Web can export JSON-only zip via the share sheet; full restore from file is mobile-only. **Google Drive upload** available as a one-tap option in the backup section (stores in "InstaGold Backups" folder).
 - UI is polished into tabbed sections for better navigation and readability.
 - Flutter codebase is split into `app.dart`, `screens/`, and `services/` for easier maintenance.
