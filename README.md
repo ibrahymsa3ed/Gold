@@ -1,231 +1,135 @@
-# Gold Platform / InstaGold (Egypt Market + Family Assets)
+# InstaGold — Gold Price Tracker & Family Assets (Egypt)
 
-The Flutter client is branded **InstaGold** (launcher name and in-app title). This repository is structured as two backend-facing apps plus Flutter client:
+> **For AI agents (Claude, Cursor, etc.):** Read `ARCHITECTURE.md` first. It has the full system design, what is live, what is dormant, and how notifications work.
 
-- `scraper-service/` - scrapes public local gold pages every 10 minutes and serves authenticated prices API
-- `main-backend/` - consumes scraper API, caches prices, computes assets/goals/zakat, serves app APIs
-- `flutter-app/` - mobile UI for families to track gold assets and goals
+## What This Is
+
+A Flutter mobile app for Egyptian families to track live gold prices, manage gold assets, set savings goals, and receive price notifications. The backend runs on Railway and delivers FCM push notifications.
 
 ## Repository Structure
 
-```text
+```
 Gold/
-  ARCHITECTURE.md
-  README.md
-  .cursor/rules/docs-and-readme-sync.mdc
-  scripts/deploy.sh
-  scripts/dev-up.sh
-  scraper-service/
-  main-backend/
-  flutter-app/
+  ARCHITECTURE.md          # FULL system design — read this first
+  README.md                # This file — quick start + current status
+  .cursor/rules/           # Cursor rules (build steps, no-assumptions, memory)
+  scripts/                 # Build, deploy, and utility scripts
+  scraper-service/         # Node.js price scraper (dormant — mobile scrapes directly)
+  main-backend/            # Node.js API + FCM (LIVE on Railway)
+  flutter-app/             # Flutter mobile app (Android + iOS)
 ```
 
-## High-Level Flow
+## Current Production Status (Apr 2026)
 
-1. `scraper-service` fetches and parses prices from eDahab-like pages.
-2. Scraper stores snapshots in `ScrapedPrices` and logs in `LogEntries` + `scraper.log`.
-3. `main-backend` syncs prices hourly (or on-demand) from scraper `/api/gold-prices`.
-4. Main backend stores `GoldPriceCache` and uses it for all calculations.
-5. Flutter reads only from `main-backend`.
-
-### Price Source Cascade (Mobile)
-
-On mobile, `GoldScraper` tries sources in order:
-1. **eDahab website** (`edahabapp.com`) — full buy/sell per karat
-2. **Telegram channel** (`t.me/s/eDahabApp`) — public web preview, single price per karat
-
-The `source` field in the response indicates which was used.
-
-## Security Model
-
-- Scraper API protected with `x-api-key`.
-- Main backend sends `x-api-key` using the same `SCRAPER_API_KEY` value from environment.
-- Keep services private behind reverse proxy/VPN in production.
-- Firebase service/account files are kept out of git via `.gitignore`.
-
-## Suggested Production Stack
-
-- Runtime: Docker containers for scraper + main backend
-- DB: PostgreSQL (replace sqlite for production)
-- Jobs: in-app cron or external scheduler (GitHub Actions/CronJob)
-- Logs: structured logging + central sink (Loki/ELK/CloudWatch)
+| What | Status | Details |
+|---|---|---|
+| **Backend** | LIVE on Railway | `https://backend-production-c042.up.railway.app` |
+| **FCM push notifications** | ACTIVE | Four daily slots (07:00, 11:00, 15:00, 19:00 Cairo) |
+| **Price threshold alerts** | ACTIVE | Create via bell icon in app; backend fires FCM when threshold crossed |
+| **Local notifications** | FALLBACK | Auto-activate if backend is unreachable |
+| **Android app** | Sideloaded | Build + `adb install` |
+| **iOS app** | Sideloaded | Build + `devicectl install` (dev signed, 7-day expiry) |
+| **Play Store / App Store** | Not yet | Prep docs in `PLAY_STORE_PREP.md` |
 
 ## Quick Start
 
-### 1) Scraper service
-
-```bash
-cd scraper-service
-npm install
-npm start
-```
-
-### 2) Main backend
-
-```bash
-cd main-backend
-npm install
-npm start
-```
-
-### 3) Flutter app
-
+### Flutter app (mobile)
 ```bash
 cd flutter-app
 flutter pub get
-flutter run
+flutter run --flavor dev --dart-define=INSTAGOLD_FLAVOR=dev
 ```
 
-### Local backend stack (both services)
-
+### Backend (local development)
 ```bash
-./scripts/dev-up.sh
+cd main-backend
+npm install
+npm start        # runs on port 4200
 ```
 
-### Firebase files helper
-
-After creating Flutter platform folders, copy Firebase files from repo root to Flutter targets:
-
+### Deploy backend to Railway
 ```bash
-cd flutter-app
-flutter create .
-cd ..
-./scripts/setup-firebase-files.sh
+cd main-backend
+railway login    # if not authenticated
+railway up
 ```
 
-## GitHub Repository
-
-Target repository: [ibrahymsa3ed/Gold](https://github.com/ibrahymsa3ed/Gold)
-
-This link currently shows an empty repository, so push your local code after setup.
-
-### Deployment script (single repo)
-
-Monorepo push to one GitHub repository:
-
-```bash
-GITHUB_REPO=git@github.com:ibrahymsa3ed/Gold.git \
-./scripts/deploy.sh "feat: bootstrap gold architecture"
-```
-
-## Documentation Sync Policy
-
-- `ARCHITECTURE.md` and relevant README files are updated with every substantive code/config change.
-
-## UI (InstaGold)
-
-### Current design
-
-Premium luxury dark-first design. Dark mode uses layered near-black base (`#0B0B0D`) with subtle gradient transitions, wave patterns, and radial glow highlights — never flat. Gold accent palette: `#D4AF37` primary, `#C9A227` deep, `#B8962E` muted.
-
-- **IG Logo:** Uses the provided IG image as a cleaned transparent asset (`assets/icons/ig_logo_mark.png`) so the mark sits directly on the page background without a visible square. In light mode the mark is toned to a deeper gold for contrast.
-- **Launcher icons:** Generated from two master PNGs (`ig_icon_master.png` + `ig_notification_master.png`) via `scripts/generate_insta_app_icon.py` (masters) and `flutter-app/scripts/generate_app_icons.py` (platform assets). iOS uses a pre-composited icon; Android uses a cropped adaptive foreground with zero inset. Android notifications use a dedicated white silhouette `@drawable/ic_stat_notification` so the status bar icon renders correctly.
-- **Background:** `PremiumBackground` widget adds wave patterns and radial gold highlights behind key content areas.
-- **Brand Header:** App bar uses a reusable `InstaGoldWordmark` lockup beside the IG mark; tapping the brand returns to the Home tab while the member chip stays as the member-switch action.
-- **Price Cards:** 150px hero cards with 4-stop gold gradient, glow shadows, Buy/Sell chips; drag-reorderable.
-- **Navigation:** Floating glassmorphism pill-shaped bottom bar with backdrop blur, dark glass surface, gold border.
-- **Cards:** Premium dark surface (`#1A1816`), `borderRadius: 20-22`, gold accent gradient bars, soft glow shadows, `w800` typography.
-- **Assets:** Karat badge chips, inner financial detail cards, gold gradient circle icons.
-- **Jeweler's Dollar Gap:** Full-width tinted card (green/red) with EGP gap value centred; tapping opens explanation dialog.
-- **Notifications:** Price summary alerts at four fixed Cairo times — see details below. Android uses a white silhouette notification icon with gold tint; expanded view shows the full-color app icon. iOS notification banners auto-derive their icon from the app icon set. **Banners and the home-screen widget show sell prices only** (21K, 24K, ounce); the in-app dashboard still renders both buy and sell columns. See `MIUI_NOTIFICATIONS.md` for Xiaomi/Redmi notification whitelist steps.
-- **Local fixed-slot notifications (active — no server required):** Price summaries fire at **07:00, 11:00, 15:00, 19:00 Africa/Cairo** (DST-safe, 30-minute acceptance window, quiet hours 23:00–07:00). Each slot is deduplicated via a `SharedPreferences` key so it fires exactly once per slot window. **Android** fires from two paths: WorkManager background task (`price_watcher.dart`) and a foreground path in `dashboard_screen.dart` when the app is open. **iOS** fires best-effort from `ios_background_fetch.dart` depending on iOS background-refresh budget. No backend or internet connection beyond price scraping is required.
-- **Firebase Cloud Messaging — SDK wired, server-push dormant:** The Firebase Messaging SDK is initialized on both platforms (Android via `google-services.json` / Gradle; iOS via `GoogleService-Info.plist`; project `goldcalculate`). `lib/services/push_notifications_service.dart` attempts `POST /api/devices` registration on first launch, but the call silently fails because no backend is currently hosted. The backend scheduler (`main-backend/src/notificationsScheduler.js`) is kill-switched (`FCM_SUMMARIES_ENABLED=false`, `MIN_FCM_CLIENT_BUILD=999999`). **To activate FCM in the future:** (1) host `main-backend` on a public server, (2) set `API_BASE_URL` at Flutter build time (`--dart-define=API_BASE_URL=https://your-server`), (3) flip both env flags in `main-backend/.env`. iOS additionally requires an APNs auth key uploaded to Firebase Console and the Push Notifications capability in Xcode. See [`main-backend/README.md`](main-backend/README.md) for the full env reference.
-- **Background price watcher (Android):** `lib/services/price_watcher.dart` — a `workmanager` periodic task that fetches live sell prices via `GoldScraper`, writes them to `home_widget` shared storage (feeds both Android and iOS widgets), and fires a local notification if the current time falls in a valid Cairo slot window. Slot-deduplication via `pw_last_slot` in `SharedPreferences`.
-- **iOS Home Widget:** WidgetKit extension `ios/InstaGoldWidget/` shows live 21K/24K/ounce prices on the iOS home screen via App Group `group.com.ibrahym.goldtracker`. The Flutter app writes prices through the `home_widget` package on dashboard load and from the background watcher. Both small and medium families show all three karat rows (21K, 24K, Ounce) with light/dark theme support, theme-aware gold tones (AAA dark / AA light), tabular-digit prices with thousand separators, RTL mirroring in Arabic, and a compact updated-time pill in the header. The header brand mark is the actual IG logo image (`Image("ig_logo_mark")` with gold gradient applied via template rendering), sourced from `ios/InstaGoldWidget/Assets.xcassets/ig_logo_mark.imageset/`.
-- **Android Home Widget:** `InstaGoldWidgetProvider` (Kotlin `AppWidgetProvider`) renders the same three sell prices in a single resizable RemoteViews layout (default 4x2 cells, resizes horizontally and vertically). The receiver is registered in `AndroidManifest.xml` with the `home_widget` plugin's BACKGROUND action so Flutter's `HomeWidget.updateWidget(...)` triggers refreshes without going through `requestPinAppWidget`. Minimal scope: dark theme only, locale-aware karat labels (`21K` vs `عيار 21`), RTL layout in Arabic, tap anywhere opens the app. The header brand mark is the IG logo image (`ImageView` with `@drawable/ig_logo_mark` — pre-tinted gold `#D4AF37` PNGs at 5 densities). Add it via long-press on the home screen → **Widgets** → **InstaGold Prices**.
-- **Cold-start auth restore:** On native launches, the app first checks Firebase's persisted session, then silently restores Google Sign-In and rehydrates Firebase when needed so Google login and Drive access survive full app restarts.
-- **Android branding assets:** Launcher icons are regenerated from the master PNGs, and native splash `launch_image` bitmaps are intentionally larger so the logo reads clearly on startup without a boxed background.
-
-### Rollback
-
-- **To roll back** without Git: set `kUiDesignVariant` to `UiDesignVariant.classic` in `flutter-app/lib/theme/ui_design_variant.dart` — this restores the old amber Material 2 look. See `ROLLBACK_UI.md` in the repo root.
-- Theme code: `flutter-app/lib/theme/app_themes.dart`
-- Dashboard: `flutter-app/lib/screens/dashboard_screen.dart`
-
-### Android-first preview
-
-```bash
-cd flutter-app && flutter run -d android --flavor dev --dart-define=INSTAGOLD_FLAVOR=dev
-```
-
-### Android builds (flavors)
-
-InstaGold uses Gradle flavors **`dev`** and **`prod`** (same package id `com.ibrahym.goldfamily` so Firebase stays valid).
-
-| Output at repo root | Command |
-|---------------------|---------|
-| **`InstaGold-dev.apk`** | `./scripts/build-dev-apk.sh` — internal/testing; launcher label **InstaGold Dev**; AdMob **test** IDs (not committed to git; build locally) |
-| **`InstaGold.apk`** | `./scripts/build-and-upload.sh` (or manual prod build below) — **InstaGold**; production AdMob IDs when configured |
-
-Manual prod APK:
-
+### Build for production
+See `.cursor/rules/build-after-every-edit.mdc` for the full mandatory sequence. Summary:
 ```bash
 cd flutter-app
+
+# Android APK + AAB
 flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
-cp build/app/outputs/flutter-apk/app-prod-release.apk ../InstaGold.apk
+flutter build appbundle --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
+
+# iOS
+flutter build ios --release
 ```
 
-### Before you have a Play Developer account
+## How Notifications Work
 
-You can still prepare signing, AAB builds, AdMob IDs, screenshots, privacy policy text, and Firebase release SHA keys.
+**Primary path (active):** Railway backend sends FCM push at Cairo slots 07:00/11:00/15:00/19:00. The backend scheduler runs every 5 min, checks the clock, and sends sell prices (21K, 24K, Ounce) to all registered devices.
 
-- **What you must do yourself (commands + Firebase / AdMob):** **[YOUR_ACTIONS_BEFORE_PLAY.md](YOUR_ACTIONS_BEFORE_PLAY.md)** — includes steps **7–8** (store graphics + privacy policy) after signing is done
-- **Privacy policy (live):** **https://ibrahymsa3ed.github.io/instagold-privacy/** (source in public repo `instagold-privacy`)
-- **Privacy policy draft (editable):** **[docs/PRIVACY_POLICY_TEMPLATE.md](docs/PRIVACY_POLICY_TEMPLATE.md)** — review, host on HTTPS, then use the URL in Play Console
-- **Phased overview:** **[PLAY_STORE_PREP.md](PLAY_STORE_PREP.md)**
-- **Helper:** `./scripts/print-release-signing-fingerprints.sh` — prints SHA-1/SHA-256 from your upload keystore for Firebase
+**Fallback path:** If the backend is down, the app's `isFcmActive()` flag returns false, and local notifications fire from the on-device WorkManager (Android) or background_fetch (iOS).
 
-### Google Play (AAB)
+**Price alerts:** Users create threshold alerts ("21K above 5000 EGP") via the bell icon. Backend checks on every price sync and sends FCM push when crossed.
 
-Upload an **Android App Bundle** to Play Console (not required for sideload APK):
+**Two Android notification channels:**
+- `price_updates` — daily summaries (can be muted)
+- `price_alerts` — threshold alerts (max priority, breaks DND)
 
-```bash
-./scripts/build-play-aab.sh
-```
+## Price Source
 
-Artifact: `flutter-app/build/app/outputs/bundle/prodRelease/app-prod-release.aab`
+On mobile, the app scrapes prices directly from eDahab (no backend needed for display):
+1. Primary: `edahabapp.com` — full buy/sell per karat
+2. Fallback: `t.me/s/eDahabApp` — Telegram web preview
 
-### Release signing (Play Store)
+The backend independently syncs prices for FCM delivery and alert checking.
 
-1. Create an upload keystore (once), e.g. `flutter-app/android/upload-keystore.jks` (keep private; gitignored).
-2. Copy `flutter-app/android/key.properties.example` → `key.properties` and fill passwords/paths.
-3. Release builds use that keystore when `key.properties` exists; otherwise they fall back to **debug** signing (fine for local tests only).
+## Key Configuration
 
-### AdMob (production)
+| Config | Location | Value |
+|---|---|---|
+| Backend URL | `flutter-app/lib/config.dart` | `https://backend-production-c042.up.railway.app` |
+| Firebase project | `firebase_options.dart` | `goldcalculate` |
+| FCM enabled | `main-backend/.env` (Railway) | `FCM_SUMMARIES_ENABLED=true` |
+| FCM min build | `main-backend/.env` (Railway) | `MIN_FCM_CLIENT_BUILD=2` |
+| Android package | `build.gradle.kts` | `com.ibrahym.goldfamily` |
+| iOS bundle | Xcode | `com.ibrahym.goldtracker` |
 
-- **App ID** placeholders live in `flutter-app/android/app/build.gradle.kts` per flavor (`admobAppId`). Replace the **prod** value with your real AdMob App ID before a public Play release.
-- **Banner unit:** pass at build time, e.g.  
-  `--dart-define=ADMOB_BANNER_PROD=ca-app-pub-xxx/yyy`  
-  or edit defaults in `flutter-app/lib/config/ad_config.dart`.
-- Declare ads and related data collection in Play **Data safety** and your privacy policy.
+## Features
 
-### Build + Upload APK to Google Drive
+- Live gold prices (21K, 24K, 18K, 14K, Pound, Ounce) with buy/sell
+- FCM push price summaries at 4 daily Cairo slots
+- Price threshold alerts via FCM
+- Family member management
+- Gold asset tracking with optional invoice attachment
+- Savings with shared-pool goal tracking
+- Zakat calculator
+- iOS + Android home-screen widgets (sell prices, locale-aware)
+- Drag-reorderable price cards (order persists)
+- MIUI battery optimization prompt for Xiaomi devices
+- Backup/restore (ZIP with optional Google Drive upload)
+- Arabic + English with RTL support
+- Dark + Light theme
 
-```bash
-./scripts/build-and-upload.sh
-```
+## Documentation
 
-Or upload an existing **`InstaGold.apk`**:
+| File | What |
+|---|---|
+| `ARCHITECTURE.md` | Full system design, notification flow, deployment |
+| `.cursor/rules/memory.mdc` | Project memory for AI agents |
+| `.cursor/rules/build-after-every-edit.mdc` | Mandatory build steps |
+| `.cursor/rules/no-assumptions.mdc` | Rule: verify before acting |
+| `PLAY_STORE_PREP.md` | Play Store readiness checklist |
+| `YOUR_ACTIONS_BEFORE_PLAY.md` | Owner-only manual steps |
+| `MIUI_NOTIFICATIONS.md` | Xiaomi notification whitelist guide |
+| `docs/PRIVACY_POLICY_TEMPLATE.md` | Privacy policy draft |
 
-```bash
-python3 scripts/upload_apk.py
-```
+## Git
 
-Requires `rclone` with a `gdrive:` remote configured. APK is uploaded to `gdrive:InstaGold Releases/InstaGold.apk` with a shareable link.
-
-## Current Status
-
-- Firebase login + backend token verification are wired.
-- Flutter dashboard (**InstaGold**) supports member selection, asset CRUD (optional invoice attachment on mobile), savings add/edit/delete, goals with progress, zakat view, and company management.
-- **Local notifications:** Fixed-slot price summaries at 07:00/11:00/15:00/19:00 Cairo are active on-device with no backend dependency. See `ARCHITECTURE.md` for the full slot/dedup logic.
-- **FCM push (dormant):** The Firebase Messaging SDK is initialized and the registration client code exists in `push_notifications_service.dart`, but no backend is hosted so device registrations silently fail. FCM can be activated later by hosting `main-backend` and setting `API_BASE_URL` + two env flags — no Flutter code changes required.
-- **Notification channels (Android):** Two channels are registered — `price_updates` (daily slot summaries, can be muted) and `price_alerts` (future threshold alerts at max priority). See `notifications_service.dart`.
-- **FCM double-notification guard:** When FCM is active, both `price_watcher.dart` and `dashboard_screen.dart` skip firing local notifications for the current slot to prevent double delivery.
-- **MIUI battery prompt:** First launch on a Xiaomi/Redmi device shows a one-time dialog that opens `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` directly — the primary fix for WorkManager being killed on Xiaomi phones.
-- **Price card order:** Dragging the price cards on the home dashboard now persists the order across app restarts via `SharedPreferences`.
-- **Backup/restore:** Mobile exports a `.zip` (`instagold_backup.json` plus `invoices/` files). Import the same file on any device (Android ↔ iOS works; JSON schema is platform-neutral). Web can export JSON-only zip via the share sheet; full restore from file is mobile-only. **Google Drive upload** available as a one-tap option in the backup section (stores in "InstaGold Backups" folder).
-- UI is polished into tabbed sections for better navigation and readability.
-- Flutter codebase is split into `app.dart`, `screens/`, and `services/` for easier maintenance.
-- Firebase initialization uses `flutter-app/lib/firebase_options.dart` so web/native startup works reliably.
-- Web Google sign-in uses Firebase popup flow with clearer error messages for Firebase config issues.
-- Web auth includes popup-to-redirect fallback to handle popup auto-close/browser policy issues.
+- Remote: `github.com/ibrahymsa3ed/Gold`
+- Branch: `main`
+- `InstaGold.apk` / `InstaGold.aab` at repo root are **gitignored**
+- Always update `ARCHITECTURE.md` and `README.md` with code changes
