@@ -1,6 +1,6 @@
 class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:4200',
+    defaultValue: 'https://backend-production-c042.up.railway.app',
   );
 }
