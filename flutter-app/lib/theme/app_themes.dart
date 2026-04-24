@@ -162,6 +162,20 @@ ThemeData _buildTheme(ColorScheme cs) {
       fillColor: isDark ? kDarkElevated : const Color(0xFFF5F0E5),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       isDense: false,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      floatingLabelStyle: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: isDark
+            ? cs.onSurface.withValues(alpha: 0.7)
+            : cs.onSurface.withValues(alpha: 0.6),
+      ),
+      labelStyle: TextStyle(
+        fontSize: 14,
+        color: isDark
+            ? cs.onSurface.withValues(alpha: 0.5)
+            : cs.onSurface.withValues(alpha: 0.45),
+      ),
     ),
 
     filledButtonTheme: FilledButtonThemeData(

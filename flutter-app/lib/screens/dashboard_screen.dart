@@ -2185,9 +2185,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                             value: _calcKarat,
                             decoration: InputDecoration(
                               labelText: AppStrings.t(context, 'karat'),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
                             ),
                             items: _karatOptions
                                 .map((k) => DropdownMenuItem(
@@ -2212,16 +2209,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     decimal: true),
                             decoration: InputDecoration(
                               labelText: AppStrings.t(context, 'weight_g'),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
                             ),
                             onChanged: (_) => recalc(),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     // Row 2: Manufacturing + Tax
                     Row(
                       children: [
@@ -2234,9 +2228,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                             decoration: InputDecoration(
                               labelText:
                                   AppStrings.t(context, 'manufacturing_price'),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
                             ),
                             onChanged: (_) => recalc(),
                           ),
@@ -2251,9 +2242,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                             decoration: InputDecoration(
                               labelText:
                                   AppStrings.t(context, 'tax_tariff_pct'),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
                               suffixText: 'EGP',
                             ),
                             onChanged: (_) => recalc(),
@@ -2396,18 +2384,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: color,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: color,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           '${_currency.format(value)} EGP',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             color: color,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
           ),
