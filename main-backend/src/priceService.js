@@ -76,9 +76,16 @@ async function getLatestCachedPrices() {
   return result;
 }
 
-function startPriceScheduler() {
+function startPriceScheduler({ afterSync } = {}) {
   schedule.scheduleJob(config.priceSyncCron, () => {
-    syncFromScraper().catch(() => {});
+    syncFromScraper()
+      .then((payload) => {
+        if (typeof afterSync === "function") {
+          return afterSync(payload);
+        }
+        return null;
+      })
+      .catch(() => {});
   });
 }
 

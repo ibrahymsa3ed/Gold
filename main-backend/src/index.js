@@ -620,8 +620,9 @@ app.delete("/api/savings/:savingId", requireAuth, async (req, res) => {
 // Checks all active price alerts against the latest cached prices.
 // Fires FCM and deactivates the alert on a match so it fires only once.
 async function checkPriceAlerts() {
-  const pricesMap = await getLatestCachedPrices();
-  if (!pricesMap) return;
+  const latest = await getLatestCachedPrices();
+  if (!latest) return;
+  const pricesMap = latest.prices || {};
 
   const alerts = await all(`SELECT * FROM PriceAlerts WHERE active = 1`);
   const now = new Date().toISOString();
@@ -660,7 +661,9 @@ async function bootstrap() {
     await upsertUserFromClaims({ uid: "dev-user", email: "dev@local" });
   }
   await logEntry({ action: "SERVICE_START", details: `port=${config.port}` });
-  startPriceScheduler();
+  startPriceScheduler({
+    afterSync: () => checkPriceAlerts()
+  });
   // Behind config.fcmSummariesEnabled (default false). Even when on, the
   // per-device build_number gate (config.minFcmClientBuild, default 999999)
   // prevents any send until clients ship with a high enough build number.

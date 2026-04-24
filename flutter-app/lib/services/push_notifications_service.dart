@@ -46,7 +46,9 @@ const _kFcmActiveKey = 'instagold_fcm_summaries_active';
 /// `data`-only payload don't get dropped if we ever switch to silent push.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('InstaGold: FCM bg msg ${message.messageId}');
+  if (kDebugMode) {
+    debugPrint('InstaGold: FCM bg msg ${message.messageId}');
+  }
 }
 
 class PushNotificationsService {
@@ -124,7 +126,7 @@ class PushNotificationsService {
         badge: true,
         sound: true,
       );
-      debugPrint(
+      _debugLog(
           'InstaGold: FCM permission status=${settings.authorizationStatus}');
 
       // iOS APNs token is required before we can fetch the FCM token. On
@@ -138,14 +140,15 @@ class PushNotificationsService {
       try {
         token = await messaging.getToken();
       } catch (e) {
-        debugPrint('InstaGold: FCM getToken failed: $e');
+        _debugLog('InstaGold: FCM getToken failed: $e');
       }
 
       if (token == null || token.isEmpty) {
-        debugPrint('InstaGold: no FCM token yet — registration skipped');
+        _debugLog('InstaGold: no FCM token yet — registration skipped');
         _initialized = true;
         return;
       }
+      _debugLog('InstaGold: FCM token obtained: ${_tokenPrefix(token)}...');
 
       _lastToken = token;
       _lastLocale = localeCode;
@@ -158,6 +161,11 @@ class PushNotificationsService {
       final deviceIdValue = await deviceId();
       final buildNumber = await _readBuildNumber();
       final platform = Platform.isIOS ? 'ios' : 'android';
+      _debugLog(
+        'InstaGold: push registration context '
+        'platform=$platform locale=$localeCode build=$buildNumber '
+        'summariesEnabled=$summariesEnabled deviceId=$deviceIdValue',
+      );
 
       final result = await apiService.registerDevice(
         deviceId: deviceIdValue!,
@@ -166,6 +174,17 @@ class PushNotificationsService {
         locale: localeCode,
         buildNumber: buildNumber,
       );
+      _debugLog(
+          'InstaGold: registerDevice result=${_redactDeviceResult(result)}');
+      if (result == null) {
+        _debugLog(
+            'InstaGold: registerDevice returned null — registration failed');
+      } else {
+        _debugLog(
+          'InstaGold: FCM active flag will be='
+          '${result['fcm_summaries_active']}',
+        );
+      }
 
       // Persist the backend's confirmation that pushes will actually arrive.
       // This is what the local notification fallbacks check to avoid double
@@ -190,7 +209,7 @@ class PushNotificationsService {
       messaging.onTokenRefresh.listen((newToken) async {
         if (newToken == _lastToken) return;
         _lastToken = newToken;
-        debugPrint('InstaGold: FCM token rotated');
+        _debugLog('InstaGold: FCM token rotated');
         final updated = await apiService.updateDevice(
           deviceId: deviceIdValue,
           fcmToken: newToken,
@@ -212,15 +231,15 @@ class PushNotificationsService {
             body: n.body ?? '',
           );
         } catch (e) {
-          debugPrint('InstaGold: FCM foreground render failed: $e');
+          _debugLog('InstaGold: FCM foreground render failed: $e');
         }
       });
 
       _initialized = true;
-      debugPrint(
+      _debugLog(
           'InstaGold: PushNotificationsService initialized (active=$_fcmActive)');
     } catch (e) {
-      debugPrint('InstaGold: PushNotificationsService init failed: $e');
+      _debugLog('InstaGold: PushNotificationsService init failed: $e');
       _initialized = true;
     }
   }
@@ -282,6 +301,26 @@ class PushNotificationsService {
     } catch (_) {
       // Best-effort persistence; in-memory copy is still correct.
     }
+    _debugLog('InstaGold: persisted FCM active flag=$active');
+  }
+
+  void _debugLog(String message) {
+    if (kDebugMode) debugPrint(message);
+  }
+
+  String _tokenPrefix(String token) {
+    if (token.length <= 20) return token;
+    return token.substring(0, 20);
+  }
+
+  Map<String, dynamic>? _redactDeviceResult(Map<String, dynamic>? result) {
+    if (result == null) return null;
+    final copy = Map<String, dynamic>.from(result);
+    final token = copy['fcm_token'];
+    if (token is String && token.isNotEmpty) {
+      copy['fcm_token'] = '${_tokenPrefix(token)}...';
+    }
+    return copy;
   }
 
   /// Generates a 32-char hex id; persisted in SharedPreferences. We keep
@@ -290,8 +329,6 @@ class PushNotificationsService {
   String _generateDeviceId() {
     final r = Random.secure();
     final bytes = List<int>.generate(16, (_) => r.nextInt(256));
-    return bytes
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 }

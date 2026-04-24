@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:home_widget/home_widget.dart';
@@ -90,13 +90,13 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
       HomeWidget.updateWidget(
         name: 'InstaGoldWidgetProvider',
         iOSName: 'InstaGoldWidget',
-        qualifiedAndroidName:
-            'com.ibrahym.instagold.InstaGoldWidgetProvider',
+        qualifiedAndroidName: 'com.ibrahym.instagold.InstaGoldWidgetProvider',
       );
     }
     // Tell the backend so summary push bodies switch language for this device.
     if (_pushInitStarted) {
-      final api = _guestMode ? ApiService.devBypass() : ApiService(_authService);
+      final api =
+          _guestMode ? ApiService.devBypass() : ApiService(_authService);
       _pushService.syncLocale(api, locale.languageCode);
     }
   }
@@ -107,6 +107,13 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
   void _ensurePushInitialized() {
     if (_pushInitStarted) return;
     _pushInitStarted = true;
+    if (kDebugMode) {
+      debugPrint(
+        'InstaGold: _ensurePushInitialized '
+        'guestMode=$_guestMode locale=${_locale.languageCode} '
+        'api=${_guestMode ? 'devBypass' : 'authenticated'}',
+      );
+    }
     final api = _guestMode ? ApiService.devBypass() : ApiService(_authService);
     _pushService.initialize(
       apiService: api,
@@ -134,15 +141,18 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
           stream: _authService.authState,
           initialData: _authService.currentUser,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting || !_settingsLoaded) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            if (snapshot.connectionState == ConnectionState.waiting ||
+                !_settingsLoaded) {
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
             }
             if (!snapshot.hasData && !_guestMode) {
               return LoginScreen(
                 authService: _authService,
                 onGuestLogin: () {
                   setState(() => _guestMode = true);
-                  SharedPreferences.getInstance().then((p) => p.setBool(_kGuestKey, true));
+                  SharedPreferences.getInstance()
+                      .then((p) => p.setBool(_kGuestKey, true));
                 },
               );
             }
@@ -153,7 +163,9 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
             });
             return DashboardScreen(
               authService: _authService,
-              apiService: _guestMode ? ApiService.devBypass() : ApiService(_authService),
+              apiService: _guestMode
+                  ? ApiService.devBypass()
+                  : ApiService(_authService),
               locale: _locale,
               themeMode: _themeMode,
               notificationsService: _notificationsService,
@@ -162,7 +174,8 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
               onThemeChanged: _handleThemeChanged,
               onLogout: () {
                 setState(() => _guestMode = false);
-                SharedPreferences.getInstance().then((p) => p.setBool(_kGuestKey, false));
+                SharedPreferences.getInstance()
+                    .then((p) => p.setBool(_kGuestKey, false));
               },
             );
           },

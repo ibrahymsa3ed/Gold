@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 
@@ -712,6 +712,13 @@ class ApiService {
     int? buildNumber,
   }) async {
     try {
+      if (kDebugMode) {
+        debugPrint(
+          'InstaGold: registerDevice posting /api/devices '
+          'url=${AppConfig.apiBaseUrl}/api/devices '
+          'deviceId=$deviceId platform=$platform build=$buildNumber',
+        );
+      }
       final body = await _httpPost('/api/devices', {
         'device_id': deviceId,
         'platform': platform,
@@ -720,7 +727,16 @@ class ApiService {
         if (buildNumber != null) 'build_number': buildNumber,
       });
       return Map<String, dynamic>.from(body as Map);
-    } catch (_) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+          'InstaGold: registerDevice failed '
+          'url=${AppConfig.apiBaseUrl}/api/devices '
+          'deviceId=$deviceId platform=$platform build=$buildNumber '
+          'error=$e',
+        );
+        debugPrint('InstaGold: registerDevice stack=$st');
+      }
       return null;
     }
   }
@@ -770,7 +786,9 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getPriceAlerts() async {
     try {
       final body = await _httpGet('/api/alerts');
-      return (body as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      return (body as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
     } catch (_) {
       return [];
     }
