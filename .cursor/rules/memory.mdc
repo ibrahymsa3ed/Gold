@@ -75,6 +75,15 @@ alwaysApply: true
 - L10n: `flutter-app/lib/l10n.dart`
 - Theme: `flutter-app/lib/theme/app_themes.dart`
 
+## Savings/Goals Features (Apr 2026)
+- Weight inputs use `numberWithOptions(decimal: true)` — decimal grams work on all keyboards
+- `PurchaseGoals` DB has `manufacturing_price_g REAL DEFAULT 0` column (DB version 4, migrated from v3)
+- Goal add/edit forms: optional manufacturing price field (مصنعية, EGP/g)
+- Gold Calculator `ExpansionTile` between savings and goals sections:
+  - Inputs: karat, weight (g), manufacturing EGP/g, taxes % (default 10)
+  - Live outputs: price without adds, total adds (mfg + tax), price with adds
+  - "Add to Goals" button → choose with/without adds price → `createGoal(overrideTargetPrice: ...)`
+
 ## Workflow After Each Edit (MANDATORY)
 See `.cursor/rules/build-after-every-edit.mdc` for full steps.
 1. Build prod APK + AAB

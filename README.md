@@ -57,13 +57,12 @@ railway up
 ### Build for production
 See `.cursor/rules/build-after-every-edit.mdc` for the full mandatory sequence. Summary:
 ```bash
-cd flutter-app
-
-# Android APK + AAB
-flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
-flutter build appbundle --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
+# Android APK + AAB.
+# This always refreshes repo-root InstaGold.apk and InstaGold.aab.
+./scripts/build-prod-release.sh
 
 # iOS
+cd flutter-app
 flutter build ios --release
 ```
 
@@ -106,6 +105,7 @@ The backend independently syncs prices for FCM delivery and alert checking.
 - Family member management
 - Gold asset tracking with optional invoice attachment
 - Savings with shared-pool goal tracking
+- Gold calculator (manufacturing price, taxes/tariff, with/without adds) with "Add to Goals" shortcut
 - Zakat calculator
 - iOS + Android home-screen widgets (sell prices, locale-aware)
 - Drag-reorderable price cards (order persists)
@@ -132,4 +132,5 @@ The backend independently syncs prices for FCM delivery and alert checking.
 - Remote: `github.com/ibrahymsa3ed/Gold`
 - Branch: `main`
 - `InstaGold.apk` / `InstaGold.aab` at repo root are **gitignored**
+- Always build Android releases with `./scripts/build-prod-release.sh` so the latest APK is copied to repo root
 - Always update `ARCHITECTURE.md` and `README.md` with code changes

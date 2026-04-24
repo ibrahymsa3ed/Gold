@@ -78,6 +78,14 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   List<String> _priceCardOrder = ['21k', '24k', '14k_18k', 'pound_ounce'];
 
+  // Calculator panel state
+  String _calcKarat = '21k';
+  final TextEditingController _calcWeightCtrl = TextEditingController();
+  final TextEditingController _calcMfgCtrl = TextEditingController();
+  final TextEditingController _calcTaxCtrl =
+      TextEditingController(text: '10');
+  bool _calcExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -152,6 +160,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _calcWeightCtrl.dispose();
+    _calcMfgCtrl.dispose();
+    _calcTaxCtrl.dispose();
     super.dispose();
   }
 
@@ -746,7 +757,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: weight,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
                     readOnly: weightLocked,
                     decoration: InputDecoration(
                       labelText: AppStrings.t(context, 'weight_g'),
@@ -758,7 +770,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: purchasePrice,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
                     decoration: InputDecoration(
                         labelText: AppStrings.t(context, 'purchase_price')),
                   ),
@@ -1047,6 +1060,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     String goalIngotSize = '10g';
     String goalKarat = '21k';
     final targetWeight = TextEditingController();
+    final manufacturingPriceCtrl = TextEditingController();
     int? companyId;
     bool goalWeightLocked = false;
 
@@ -1179,7 +1193,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: targetWeight,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
                     readOnly: goalWeightLocked,
                     decoration: InputDecoration(
                       labelText: AppStrings.t(context, 'target_weight'),
@@ -1204,6 +1219,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                     onChanged: (value) => companyId = value,
                   ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: manufacturingPriceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    decoration: InputDecoration(
+                      labelText: AppStrings.t(context, 'manufacturing_price'),
+                      hintText: '0.00',
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1227,6 +1252,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         targetWeightG: double.tryParse(targetWeight.text) ?? 0,
         savedAmount: 0,
         companyId: companyId,
+        manufacturingPriceG:
+            double.tryParse(manufacturingPriceCtrl.text) ?? 0,
       );
       await _load();
     });
@@ -1236,6 +1263,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     var goalKarat = goal['karat']?.toString() ?? '21k';
     final targetWeight = TextEditingController(
         text: (goal['target_weight_g'] as num?)?.toString() ?? '');
+    final manufacturingPriceCtrl = TextEditingController(
+        text: (goal['manufacturing_price_g'] as num?) != null &&
+                (goal['manufacturing_price_g'] as num) > 0
+            ? (goal['manufacturing_price_g'] as num).toString()
+            : '');
 
     final saved = await showDialog<bool>(
       context: context,
@@ -1261,9 +1293,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const SizedBox(height: 8),
                 TextField(
                   controller: targetWeight,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
                   decoration: InputDecoration(
                       labelText: AppStrings.t(ctx, 'target_weight')),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: manufacturingPriceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  decoration: InputDecoration(
+                    labelText: AppStrings.t(ctx, 'manufacturing_price'),
+                    hintText: '0.00',
+                  ),
                 ),
               ],
             ),
@@ -1286,6 +1329,29 @@ class _DashboardScreenState extends State<DashboardScreen>
         karat: goalKarat,
         targetWeightG: double.tryParse(targetWeight.text) ?? 0,
         savedAmount: (goal['saved_amount'] as num?)?.toDouble() ?? 0,
+        manufacturingPriceG:
+            double.tryParse(manufacturingPriceCtrl.text) ?? 0,
+      );
+      await _load();
+    });
+  }
+
+  /// Creates a goal directly with a fixed [targetPrice] from the calculator.
+  Future<void> _addGoalFromCalc({
+    required double targetPrice,
+    required String karat,
+    required double weightG,
+    required double manufacturingPriceG,
+  }) async {
+    if (_selectedMemberId == null) return;
+    await _safeAction(() async {
+      await widget.apiService.createGoal(
+        memberId: _selectedMemberId!,
+        karat: karat,
+        targetWeightG: weightG,
+        savedAmount: 0,
+        manufacturingPriceG: manufacturingPriceG,
+        overrideTargetPrice: targetPrice,
       );
       await _load();
     });
@@ -2024,6 +2090,332 @@ class _DashboardScreenState extends State<DashboardScreen>
     return buyPrice * weight;
   }
 
+  double _getBuyPriceForKarat(String karat) {
+    if (_prices == null) return 0;
+    final pricesMap = _prices!['prices'] as Map<String, dynamic>? ?? {};
+    final priceData = pricesMap[karat] as Map<String, dynamic>?;
+    if (priceData == null) return 0;
+    return (priceData['buy_price'] as num?)?.toDouble() ?? 0;
+  }
+
+  Map<String, double> _calcResults() {
+    final weight = double.tryParse(_calcWeightCtrl.text) ?? 0;
+    final mfg = double.tryParse(_calcMfgCtrl.text) ?? 0;
+    final taxRate = (double.tryParse(_calcTaxCtrl.text) ?? 10) / 100;
+    final pricePerGram = _getBuyPriceForKarat(_calcKarat);
+    final goldValue = pricePerGram * weight;
+    final mfgCost = mfg * weight;
+    final tax = (goldValue + mfgCost) * taxRate;
+    return {
+      'gold_value': goldValue,
+      'mfg_cost': mfgCost,
+      'tax': tax,
+      'without_adds': goldValue,
+      'total_adds': mfgCost + tax,
+      'with_adds': goldValue + mfgCost + tax,
+    };
+  }
+
+  Widget _goldCalculatorPanel() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        gradient: isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1C1916), Color(0xFF1A1816), Color(0xFF181614)],
+              )
+            : null,
+        color: isDark ? null : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: goldAccent.withValues(alpha: 0.18),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: goldAccent.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _calcExpanded,
+          onExpansionChanged: (v) => setState(() => _calcExpanded = v),
+          leading: Icon(Icons.calculate_outlined,
+              color: goldAccent, size: 22),
+          title: Text(
+            AppStrings.t(context, 'gold_calculator'),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: goldAccent,
+            ),
+          ),
+          childrenPadding:
+              const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          children: [
+            StatefulBuilder(
+              builder: (ctx, setCalcState) {
+                final results = _calcResults();
+                final weight =
+                    double.tryParse(_calcWeightCtrl.text) ?? 0;
+                final hasWeight = weight > 0;
+
+                void recalc() => setCalcState(() {});
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: Karat + Weight
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<String>(
+                            value: _calcKarat,
+                            decoration: InputDecoration(
+                              labelText: AppStrings.t(context, 'karat'),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                            items: _karatOptions
+                                .map((k) => DropdownMenuItem(
+                                    value: k,
+                                    child: Text(_karatLabelFromKey(k))))
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() => _calcKarat = v);
+                                recalc();
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: _calcWeightCtrl,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            decoration: InputDecoration(
+                              labelText: AppStrings.t(context, 'weight_g'),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                            onChanged: (_) => recalc(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // Row 2: Manufacturing + Tax
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _calcMfgCtrl,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            decoration: InputDecoration(
+                              labelText:
+                                  AppStrings.t(context, 'manufacturing_price'),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                            onChanged: (_) => recalc(),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _calcTaxCtrl,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            decoration: InputDecoration(
+                              labelText:
+                                  AppStrings.t(context, 'tax_tariff_pct'),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              suffixText: '%',
+                            ),
+                            onChanged: (_) => recalc(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (hasWeight) ...[
+                      const SizedBox(height: 14),
+                      // Results
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: goldAccent.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: goldAccent.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            _calcResultRow(
+                              label: AppStrings.t(
+                                  context, 'price_without_adds'),
+                              value: results['without_adds']!,
+                              color: cs.onSurface,
+                              bold: false,
+                            ),
+                            const Divider(height: 12),
+                            _calcResultRow(
+                              label: AppStrings.t(
+                                  context, 'total_adds'),
+                              value: results['total_adds']!,
+                              color: cs.onSurfaceVariant,
+                              bold: false,
+                            ),
+                            const Divider(height: 12),
+                            _calcResultRow(
+                              label: AppStrings.t(
+                                  context, 'price_with_adds'),
+                              value: results['with_adds']!,
+                              color: goldAccent,
+                              bold: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_selectedMemberId != null)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.flag_outlined, size: 18),
+                            label: Text(
+                                AppStrings.t(context, 'add_to_goals')),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: goldAccent,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: _busy
+                                ? null
+                                : () async {
+                                    final withoutAdds =
+                                        results['without_adds']!;
+                                    final withAdds = results['with_adds']!;
+                                    final chosen =
+                                        await showDialog<double>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text(AppStrings.t(
+                                            context, 'choose_goal_price')),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ListTile(
+                                              title: Text(AppStrings.t(
+                                                  context,
+                                                  'price_without_adds')),
+                                              subtitle: Text(
+                                                  '${_currency.format(withoutAdds)} EGP'),
+                                              onTap: () =>
+                                                  Navigator.pop(
+                                                      ctx, withoutAdds),
+                                            ),
+                                            ListTile(
+                                              title: Text(AppStrings.t(
+                                                  context,
+                                                  'price_with_adds')),
+                                              subtitle: Text(
+                                                  '${_currency.format(withAdds)} EGP'),
+                                              onTap: () =>
+                                                  Navigator.pop(
+                                                      ctx, withAdds),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx),
+                                            child: Text(AppStrings.t(
+                                                context, 'cancel')),
+                                          )
+                                        ],
+                                      ),
+                                    );
+                                    if (chosen == null) return;
+                                    await _addGoalFromCalc(
+                                      targetPrice: chosen,
+                                      karat: _calcKarat,
+                                      weightG: weight,
+                                      manufacturingPriceG:
+                                          double.tryParse(
+                                                  _calcMfgCtrl.text) ??
+                                              0,
+                                    );
+                                  },
+                          ),
+                        ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _calcResultRow({
+    required String label,
+    required double value,
+    required Color color,
+    required bool bold,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: color,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+        Text(
+          '${_currency.format(value)} EGP',
+          style: TextStyle(
+            fontSize: 13,
+            color: color,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _assetsTotalsCard() {
     if (_assets.isEmpty) return const SizedBox.shrink();
 
@@ -2688,6 +3080,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         const SizedBox(height: 12),
+        _goldCalculatorPanel(),
         _sectionCard(
           title: AppStrings.t(context, 'goals'),
           actions: [

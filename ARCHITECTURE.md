@@ -182,6 +182,7 @@ MIN_FCM_CLIENT_BUILD=2
 - Family members list + per-member page
 - Assets with invoice attachment
 - Savings + Goals (shared pool: total savings auto-subtract from all goals)
+- Gold Calculator panel (expansion tile between savings and goals; inputs: karat, weight, manufacturing/g, tax%; outputs: price without adds, total adds, price with adds; "Add to Goals" creates goal with chosen price)
 - Zakat calculator
 - Companies
 - Settings (theme, locale, notification toggle)
@@ -201,6 +202,18 @@ On first launch on Xiaomi/Redmi devices, a one-time dialog prompts the user to w
 
 ### Price Card Order
 Drag-reorderable cards persist order to `SharedPreferences` (`price_card_order` key). Default: `['21k', '24k', '14k_18k', 'pound_ounce']`.
+
+### Savings/Goals — Decimal Weight & Manufacturing Price
+- All weight fields (assets + goals) accept decimal input (`numberWithOptions(decimal:true)`).
+- `PurchaseGoals` table has `manufacturing_price_g REAL DEFAULT 0` column (added in DB migration v4).
+- Goal add/edit dialogs expose an optional manufacturing price field (مصنعية).
+- `createGoal` accepts `manufacturingPriceG` and `overrideTargetPrice` params; when `overrideTargetPrice` is set the standard weight×price formula is bypassed.
+
+### Gold Calculator Panel
+- `ExpansionTile` placed between savings and goals sections in the Savings/Goals tab.
+- Inputs: karat, weight (g), manufacturing EGP/g, taxes/tariff % (default 10).
+- Live output: price without adds, total adds (mfg + tax), price with adds.
+- "Add to Goals" button opens a dialog to choose which price to use as goal target; on confirm calls `createGoal` with `overrideTargetPrice`.
 
 ### Home Widgets
 - **iOS:** WidgetKit extension `ios/InstaGoldWidget/` — reads from App Group `group.com.ibrahym.goldtracker`
@@ -228,11 +241,13 @@ See `.cursor/rules/build-after-every-edit.mdc` for the full mandatory build sequ
 
 ```bash
 # Android
-cd flutter-app
-flutter build apk --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
-flutter build appbundle --release --flavor prod --dart-define=INSTAGOLD_FLAVOR=prod
+./scripts/build-prod-release.sh
+# Outputs are copied to repo root:
+#   InstaGold.apk
+#   InstaGold.aab
 
 # iOS
+cd flutter-app
 flutter build ios --release
 xcrun devicectl device install app --device <DEVICE_ID> build/ios/iphoneos/Runner.app
 ```
@@ -248,4 +263,5 @@ Each new device also needs **Developer Mode** enabled: Settings > Privacy & Secu
 - Monorepo: `scraper-service/`, `main-backend/`, `flutter-app/`
 - Git remote: `github.com/ibrahymsa3ed/Gold` (branch: `main`)
 - `InstaGold.apk` and `InstaGold.aab` at repo root are gitignored (large binaries)
+- Android prod releases must be built with `./scripts/build-prod-release.sh` so the latest APK is copied to repo root
 - Always update `ARCHITECTURE.md` and `README.md` with code changes

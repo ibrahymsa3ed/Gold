@@ -24,7 +24,7 @@ class DatabaseHelper {
     final path = p.join(dbPath, 'gold_family.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createTables,
       onUpgrade: _upgradeTables,
     );
@@ -75,6 +75,7 @@ class DatabaseHelper {
         target_price REAL NOT NULL,
         saved_amount REAL NOT NULL DEFAULT 0,
         remaining_amount REAL NOT NULL DEFAULT 0,
+        manufacturing_price_g REAL NOT NULL DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -126,6 +127,10 @@ class DatabaseHelper {
     }
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE Assets ADD COLUMN invoice_local_path TEXT');
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+          'ALTER TABLE PurchaseGoals ADD COLUMN manufacturing_price_g REAL NOT NULL DEFAULT 0');
     }
   }
 

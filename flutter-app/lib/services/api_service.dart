@@ -505,6 +505,8 @@ class ApiService {
     required double targetWeightG,
     required double savedAmount,
     int? companyId,
+    double manufacturingPriceG = 0,
+    double? overrideTargetPrice,
   }) async {
     if (kIsWeb) {
       return (await _httpPost('/api/goals/calculate', {
@@ -513,15 +515,29 @@ class ApiService {
         'target_weight_g': targetWeightG,
         'saved_amount': savedAmount,
         'company_id': companyId,
+        'manufacturing_price_g': manufacturingPriceG,
       })) as Map<String, dynamic>;
     }
     final priceData = await getCurrentPrices();
     final prices = priceData['prices'] as Map<String, dynamic>;
-    final calc = _calculateGoal(
-        targetWeightG: targetWeightG,
-        karat: karat,
-        savedAmount: savedAmount,
-        priceMap: prices);
+    final Map<String, dynamic> calc;
+    if (overrideTargetPrice != null) {
+      calc = {
+        'target_price': overrideTargetPrice,
+        'saved_amount': savedAmount,
+        'remaining_amount':
+            (overrideTargetPrice - savedAmount).clamp(0, double.infinity),
+        'progress_percent': overrideTargetPrice > 0
+            ? (savedAmount / overrideTargetPrice * 100).clamp(0, 100)
+            : 0,
+      };
+    } else {
+      calc = _calculateGoal(
+          targetWeightG: targetWeightG,
+          karat: karat,
+          savedAmount: savedAmount,
+          priceMap: prices);
+    }
     final db = await _db;
     await db.insert('PurchaseGoals', {
       'member_id': memberId,
@@ -531,6 +547,7 @@ class ApiService {
       'target_price': calc['target_price'],
       'saved_amount': calc['saved_amount'],
       'remaining_amount': calc['remaining_amount'],
+      'manufacturing_price_g': manufacturingPriceG,
       'created_at': DateTime.now().toIso8601String(),
     });
     return calc;
@@ -575,6 +592,7 @@ class ApiService {
     required double targetWeightG,
     required double savedAmount,
     int? companyId,
+    double manufacturingPriceG = 0,
   }) async {
     if (kIsWeb) {
       return (await _httpPut('/api/goals/$goalId/saved', {
@@ -582,6 +600,7 @@ class ApiService {
         'target_weight_g': targetWeightG,
         'saved_amount': savedAmount,
         'company_id': companyId,
+        'manufacturing_price_g': manufacturingPriceG,
       })) as Map<String, dynamic>;
     }
     final priceData = await getCurrentPrices();
@@ -601,6 +620,7 @@ class ApiService {
           'saved_amount': calc['saved_amount'],
           'remaining_amount': calc['remaining_amount'],
           'company_id': companyId,
+          'manufacturing_price_g': manufacturingPriceG,
         },
         where: 'id = ?',
         whereArgs: [goalId]);
