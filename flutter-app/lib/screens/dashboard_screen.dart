@@ -2101,11 +2101,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   Map<String, double> _calcResults() {
     final weight = double.tryParse(_calcWeightCtrl.text) ?? 0;
     final mfg = double.tryParse(_calcMfgCtrl.text) ?? 0;
-    final taxRate = (double.tryParse(_calcTaxCtrl.text) ?? 10) / 100;
+    final taxPerGram = double.tryParse(_calcTaxCtrl.text) ?? 10;
     final pricePerGram = _getBuyPriceForKarat(_calcKarat);
     final goldValue = pricePerGram * weight;
     final mfgCost = mfg * weight;
-    final tax = (goldValue + mfgCost) * taxRate;
+    final tax = taxPerGram * weight;
     return {
       'gold_value': goldValue,
       'mfg_cost': mfgCost,
@@ -2254,7 +2254,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               isDense: true,
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 10),
-                              suffixText: '%',
+                              suffixText: 'EGP',
                             ),
                             onChanged: (_) => recalc(),
                           ),
