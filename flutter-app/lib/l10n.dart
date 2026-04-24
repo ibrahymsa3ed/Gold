@@ -280,7 +280,7 @@ class AppStrings {
       'price_without_adds': 'السعر بدون الإضافات',
       'price_with_adds': 'السعر بالإضافات',
       'total_adds': 'إجمالي الإضافات',
-      'tax_tariff_pct': 'الضرائب/الجمارك (جنيه/جرام)',
+      'tax_tariff_pct': 'الضريبة والدمغة (جنيه/جرام)',
       'add_to_goals': 'إضافة للأهداف',
       'choose_goal_price': 'أي سعر تستخدم كهدف؟',
     },
