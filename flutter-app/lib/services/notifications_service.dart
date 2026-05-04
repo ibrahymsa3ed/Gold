@@ -66,13 +66,15 @@ class NotificationsService {
         await ios?.requestPermissions(alert: true, badge: true, sound: true);
       }
 
-      // Cancel any stale scheduled notifications from previous app versions.
-      // We delegate periodic notifications to the WorkManager-based PriceWatcher,
-      // so no foreground-scheduled notifications should remain.
-      try {
-        await _plugin.cancelAll();
-      } catch (e) {
-        debugPrint('InstaGold: stale notif cleanup failed: $e');
+      if (!kIsWeb && Platform.isAndroid) {
+        // Cancel stale Android scheduled notifications from previous versions.
+        // iOS keeps visible/pending local notifications because it still uses
+        // best-effort local fallback until APNs/FCM is available.
+        try {
+          await _plugin.cancelAll();
+        } catch (e) {
+          debugPrint('InstaGold: stale notif cleanup failed: $e');
+        }
       }
 
       debugPrint('InstaGold: NotificationsService initialized');
@@ -113,7 +115,9 @@ class NotificationsService {
       parts.add('$ounceLabel: \$${priceOunce.toStringAsFixed(0)}');
     }
     if (parts.isEmpty) {
-      return isAr ? 'تحقق من آخر أسعار الذهب!' : 'Check the latest gold prices!';
+      return isAr
+          ? 'تحقق من آخر أسعار الذهب!'
+          : 'Check the latest gold prices!';
     }
     return parts.join(' | ');
   }

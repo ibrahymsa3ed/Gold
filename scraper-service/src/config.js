@@ -12,5 +12,9 @@ module.exports = {
     path.join(__dirname, "..", "data", "scraper.db"),
   logFile:
     process.env.LOG_FILE ||
-    path.join(__dirname, "..", "logs", "scraper.log")
+    path.join(__dirname, "..", "logs", "scraper.log"),
+  // ExchangeRate-API.com key — set EXCHANGE_RATE_API_KEY in Railway env vars.
+  // Free tier: 1,500 req/month (well within the 10-min scrape schedule).
+  // Sign up at https://www.exchangerate-api.com/
+  exchangeRateApiKey: process.env.EXCHANGE_RATE_API_KEY || ""
 };

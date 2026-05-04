@@ -70,7 +70,9 @@ flutter build ios --release
 
 **Primary path (active):** Railway backend sends FCM push at Cairo slots 07:00/11:00/15:00/19:00. The backend scheduler runs every 5 min, checks the clock, and sends sell prices (21K, 24K, Ounce) to all registered devices.
 
-**Fallback path:** If the backend is down, the app's `isFcmActive()` flag returns false, and local notifications fire from the on-device WorkManager (Android) or background_fetch (iOS).
+**Fallback path:** Android uses WorkManager as a fixed-slot fallback when FCM is inactive. iOS has no APNs/FCM yet, so it uses `background_fetch` only: when iOS wakes the app, it refreshes prices/widget data and sends a local notification only if prices changed meaningfully.
+
+**iOS widget freshness:** the iOS widget is updated immediately when the app opens/resumes and whenever iOS grants a background-fetch wake. It is not guaranteed real-time while the app is closed because iOS controls background execution. Opening/resuming the app does not show an iOS notification banner.
 
 **Price alerts:** Users create threshold alerts ("21K above 5000 EGP") via the bell icon. Backend checks on every price sync and sends FCM push when crossed.
 
@@ -102,6 +104,7 @@ The backend independently syncs prices for FCM delivery and alert checking.
 - Live gold prices (21K, 24K, 18K, 14K, Pound, Ounce) with buy/sell
 - FCM push price summaries at 4 daily Cairo slots
 - Price threshold alerts via FCM
+- iOS best-effort background-fetch price-change alerts until Apple Developer/APNs is available
 - Family member management
 - Gold asset tracking with optional invoice attachment
 - Savings with shared-pool goal tracking

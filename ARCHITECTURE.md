@@ -69,10 +69,11 @@ FCM is **live and delivering** slot notifications via Railway. This is the PRIMA
 - `isFcmActive()` in `push_notifications_service.dart` reads a `SharedPreferences` flag set by the backend registration response
 
 ### Local Notifications (FALLBACK)
-When FCM is active, local notifications self-disable via the `isFcmActive()` guard. They exist as a safety net:
+When FCM is active, Android local notifications self-disable via the `isFcmActive()` guard. They exist as a safety net:
 - `price_watcher.dart` (Android WorkManager): checks `isFcmActive()` before firing — if true, marks slot and skips
-- `dashboard_screen.dart::_maybeFireForegroundNotification`: same guard
-- `ios_background_fetch.dart`: iOS best-effort (1-hour interval)
+- `dashboard_screen.dart::_maybeFireForegroundNotification`: Android uses the same fixed-slot guard
+- `dashboard_screen.dart::_maybeFireForegroundNotification`: iOS returns without showing foreground banners; app open/resume refreshes widget data only
+- `ios_background_fetch.dart`: iOS background wake + widget refresh is best-effort and OS-controlled; local notification fires only after meaningful price changes
 
 **If the Railway backend goes down**, `isFcmActive()` returns false (registration fails), and local notifications auto-activate as fallback. No code change needed.
 
@@ -219,6 +220,8 @@ Drag-reorderable cards persist order to `SharedPreferences` (`price_card_order` 
 - **iOS:** WidgetKit extension `ios/InstaGoldWidget/` — reads from App Group `group.com.ibrahym.goldtracker`
 - **Android:** `InstaGoldWidgetProvider` (Kotlin) — reads from `home_widget` SharedPreferences
 - Both show sell prices for 21K, 24K, Ounce with locale-aware labels and RTL support
+- iOS widget data refreshes immediately on app open/resume and on best-effort `background_fetch` wakes; it is not guaranteed real-time while the app is closed.
+- iOS notifications are background-fetch-only until APNs/FCM is available: no foreground banners on app open/resume.
 
 ### UI Design
 - Premium luxury dark-first. Base `#0B0B0D`, gold accent `#D4AF37`

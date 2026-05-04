@@ -6,6 +6,31 @@ const config = require("./config");
 
 const CARATS = ["24", "21", "18", "14"];
 
+// Fetches live USD/EGP exchange rate.
+// Primary: ExchangeRate-API.com (hourly updates, requires free API key).
+// Fallback: open.er-api.com (daily updates, no key required).
+async function fetchUsdEgpRate() {
+  if (config.exchangeRateApiKey) {
+    try {
+      const url = `https://v6.exchangerate-api.com/v6/${config.exchangeRateApiKey}/pair/USD/EGP`;
+      const res = await axios.get(url, { timeout: 10000 });
+      const rate = res.data?.conversion_rate;
+      if (rate && Number.isFinite(rate) && rate > 0) return rate;
+    } catch (e) {
+      await writeLog({ level: "WARN", action: "EXCHANGE_RATE_PRIMARY_FAILED", details: e.message });
+    }
+  }
+  // Fallback — no API key required, updates once per day.
+  try {
+    const res = await axios.get("https://open.er-api.com/v6/latest/USD", { timeout: 10000 });
+    const rate = res.data?.rates?.EGP;
+    if (rate && Number.isFinite(rate) && rate > 0) return rate;
+  } catch (e) {
+    await writeLog({ level: "WARN", action: "EXCHANGE_RATE_FALLBACK_FAILED", details: e.message });
+  }
+  return null;
+}
+
 function parseNumber(value) {
   if (!value) return null;
   const normalized = String(value).replace(/[^\d.,]/g, "").replace(/,/g, "");
@@ -113,19 +138,33 @@ async function persistSnapshot(snapshot) {
     );
   }
 
+  if (snapshot.usdEgpRate !== null && snapshot.usdEgpRate !== undefined) {
+    inserts.push(
+      run(
+        `INSERT INTO ScrapedPrices (snapshot_id, carat, buy_price, sell_price, currency, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [snapshotId, "usd_egp_rate", snapshot.usdEgpRate, snapshot.usdEgpRate, "EGP", now]
+      )
+    );
+  }
+
   await Promise.all(inserts);
 }
 
 async function scrapeGoldPrices() {
   const startedAt = Date.now();
   try {
-    const response = await axios.get(config.sourceUrl, {
-      timeout: 20000,
-      headers: {
-        "User-Agent": "GoldScraper/1.0 (+https://github.com/ibrahymsa3ed/Gold)"
-      }
-    });
+    const [response, usdEgpRate] = await Promise.all([
+      axios.get(config.sourceUrl, {
+        timeout: 20000,
+        headers: {
+          "User-Agent": "GoldScraper/1.0 (+https://github.com/ibrahymsa3ed/Gold)"
+        }
+      }),
+      fetchUsdEgpRate()
+    ]);
     const parsed = parsePrices(response.data);
+    parsed.usdEgpRate = usdEgpRate;
     await persistSnapshot(parsed);
 
     await writeLog({

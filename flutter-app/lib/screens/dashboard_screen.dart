@@ -82,8 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _calcKarat = '21k';
   final TextEditingController _calcWeightCtrl = TextEditingController();
   final TextEditingController _calcMfgCtrl = TextEditingController();
-  final TextEditingController _calcTaxCtrl =
-      TextEditingController(text: '10');
+  final TextEditingController _calcTaxCtrl = TextEditingController(text: '10');
   bool _calcExpanded = false;
 
   @override
@@ -121,7 +120,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       final info = DeviceInfoPlugin();
       final android = await info.androidInfo;
       final manufacturer = android.manufacturer.toLowerCase();
-      if (!manufacturer.contains('xiaomi') && !manufacturer.contains('redmi')) return;
+      if (!manufacturer.contains('xiaomi') && !manufacturer.contains('redmi')) {
+        return;
+      }
     } catch (_) {
       return;
     }
@@ -178,17 +179,18 @@ class _DashboardScreenState extends State<DashboardScreen>
     // dashboard UI renders its own buy/sell columns directly from `_prices`
     // and is unaffected by what we read here.
     final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
-    final p21 = (pricesMap['21k'] as Map<String, dynamic>?)?['sell_price'] as num?;
-    final p24 = (pricesMap['24k'] as Map<String, dynamic>?)?['sell_price'] as num?;
-    final ounce = (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
+    final p21 =
+        (pricesMap['21k'] as Map<String, dynamic>?)?['sell_price'] as num?;
+    final p24 =
+        (pricesMap['24k'] as Map<String, dynamic>?)?['sell_price'] as num?;
+    final ounce =
+        (pricesMap['ounce'] as Map<String, dynamic>?)?['sell_price'] as num?;
 
     // Push to home widget (iOS + Android)
     _updateHomeWidget(p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
 
-    // Foreground guarantee: fire a price notification if at least 1 hour has
-    // passed since the last one. This complements the background WorkManager
-    // task and ensures notifications work even when background execution is
-    // restricted (e.g., MIUI/Xiaomi or aggressive battery savers).
+    // Android stays fixed-slot + FCM guarded. iOS notifications are background
+    // fetch only until APNs/FCM is available; app open/resume refreshes widget.
     _maybeFireForegroundNotification(
         p21?.toDouble(), p24?.toDouble(), ounce?.toDouble());
   }
@@ -196,6 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _maybeFireForegroundNotification(
       double? p21, double? p24, double? ounce) async {
     if (kIsWeb) return;
+    if (Platform.isIOS) return;
     if (p21 == null && p24 == null && ounce == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -231,7 +234,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       final fcmActive = await PushNotificationsService.isFcmActive();
       if (fcmActive) {
         await prefs.setString(slotKey, currentSlot);
-        debugPrint('InstaGold: FCM active, skipping foreground notif for $currentSlot');
+        debugPrint(
+            'InstaGold: FCM active, skipping foreground notif for $currentSlot');
         return;
       }
 
@@ -246,7 +250,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         body: body,
       );
       await prefs.setString(slotKey, currentSlot);
-      debugPrint('InstaGold: foreground notification fired for slot $currentSlot');
+      debugPrint(
+          'InstaGold: foreground notification fired for slot $currentSlot');
     } catch (e) {
       debugPrint('InstaGold: foreground notif failed: $e');
     }
@@ -269,8 +274,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       await HomeWidget.updateWidget(
         name: 'InstaGoldWidgetProvider',
         iOSName: 'InstaGoldWidget',
-        qualifiedAndroidName:
-            'com.ibrahym.instagold.InstaGoldWidgetProvider',
+        qualifiedAndroidName: 'com.ibrahym.instagold.InstaGoldWidgetProvider',
       );
       debugPrint('InstaGold: widget updated p21=$p21 p24=$p24 oz=$ounce');
     } catch (e) {
@@ -320,8 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         try {
           prices = await widget.apiService.getCurrentPrices();
         } catch (_) {}
-        if (prices == null ||
-            (prices['prices'] as Map?)?.isEmpty == true) {
+        if (prices == null || (prices['prices'] as Map?)?.isEmpty == true) {
           errors.add('Prices: ${_cleanErrorMessage(e)}');
         }
       }
@@ -757,8 +760,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: weight,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     readOnly: weightLocked,
                     decoration: InputDecoration(
                       labelText: AppStrings.t(context, 'weight_g'),
@@ -770,8 +773,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: purchasePrice,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                         labelText: AppStrings.t(context, 'purchase_price')),
                   ),
@@ -1193,8 +1196,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: targetWeight,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     readOnly: goalWeightLocked,
                     decoration: InputDecoration(
                       labelText: AppStrings.t(context, 'target_weight'),
@@ -1222,8 +1225,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 8),
                   TextField(
                     controller: manufacturingPriceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: AppStrings.t(context, 'manufacturing_price'),
                       hintText: '0.00',
@@ -1252,8 +1255,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         targetWeightG: double.tryParse(targetWeight.text) ?? 0,
         savedAmount: 0,
         companyId: companyId,
-        manufacturingPriceG:
-            double.tryParse(manufacturingPriceCtrl.text) ?? 0,
+        manufacturingPriceG: double.tryParse(manufacturingPriceCtrl.text) ?? 0,
       );
       await _load();
     });
@@ -1293,16 +1295,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const SizedBox(height: 8),
                 TextField(
                   controller: targetWeight,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                       labelText: AppStrings.t(ctx, 'target_weight')),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: manufacturingPriceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     labelText: AppStrings.t(ctx, 'manufacturing_price'),
                     hintText: '0.00',
@@ -1329,8 +1331,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         karat: goalKarat,
         targetWeightG: double.tryParse(targetWeight.text) ?? 0,
         savedAmount: (goal['saved_amount'] as num?)?.toDouble() ?? 0,
-        manufacturingPriceG:
-            double.tryParse(manufacturingPriceCtrl.text) ?? 0,
+        manufacturingPriceG: double.tryParse(manufacturingPriceCtrl.text) ?? 0,
       );
       await _load();
     });
@@ -1903,12 +1904,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         return Row(
           children: [
             Expanded(
-                child: _priceCard(
-                    label: _karatLabelFromKey('14k'), karat: '14k')),
+                child:
+                    _priceCard(label: _karatLabelFromKey('14k'), karat: '14k')),
             const SizedBox(width: 8),
             Expanded(
-                child: _priceCard(
-                    label: _karatLabelFromKey('18k'), karat: '18k')),
+                child:
+                    _priceCard(label: _karatLabelFromKey('18k'), karat: '18k')),
           ],
         );
       case 'pound_ounce':
@@ -2129,7 +2130,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF1C1916), Color(0xFF1A1816), Color(0xFF181614)],
+                colors: [
+                  Color(0xFF1C1916),
+                  Color(0xFF1A1816),
+                  Color(0xFF181614)
+                ],
               )
             : null,
         color: isDark ? null : Colors.white,
@@ -2151,8 +2156,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: ExpansionTile(
           initiallyExpanded: _calcExpanded,
           onExpansionChanged: (v) => setState(() => _calcExpanded = v),
-          leading: Icon(Icons.calculate_outlined,
-              color: goldAccent, size: 22),
+          leading: Icon(Icons.calculate_outlined, color: goldAccent, size: 22),
           title: Text(
             AppStrings.t(context, 'gold_calculator'),
             style: TextStyle(
@@ -2161,14 +2165,12 @@ class _DashboardScreenState extends State<DashboardScreen>
               color: goldAccent,
             ),
           ),
-          childrenPadding:
-              const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
           children: [
             StatefulBuilder(
               builder: (ctx, setCalcState) {
                 final results = _calcResults();
-                final weight =
-                    double.tryParse(_calcWeightCtrl.text) ?? 0;
+                final weight = double.tryParse(_calcWeightCtrl.text) ?? 0;
                 final hasWeight = weight > 0;
 
                 void recalc() => setCalcState(() {});
@@ -2204,9 +2206,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           flex: 3,
                           child: TextField(
                             controller: _calcWeightCtrl,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
                             decoration: InputDecoration(
                               labelText: AppStrings.t(context, 'weight_g'),
                             ),
@@ -2222,9 +2223,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Expanded(
                           child: TextField(
                             controller: _calcMfgCtrl,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
                             decoration: InputDecoration(
                               labelText:
                                   AppStrings.t(context, 'manufacturing_price'),
@@ -2236,9 +2236,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Expanded(
                           child: TextField(
                             controller: _calcTaxCtrl,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
                             decoration: InputDecoration(
                               labelText:
                                   AppStrings.t(context, 'tax_tariff_pct'),
@@ -2264,24 +2263,22 @@ class _DashboardScreenState extends State<DashboardScreen>
                         child: Column(
                           children: [
                             _calcResultRow(
-                              label: AppStrings.t(
-                                  context, 'price_without_adds'),
+                              label:
+                                  AppStrings.t(context, 'price_without_adds'),
                               value: results['without_adds']!,
                               color: cs.onSurface,
                               bold: false,
                             ),
                             const Divider(height: 12),
                             _calcResultRow(
-                              label: AppStrings.t(
-                                  context, 'total_adds'),
+                              label: AppStrings.t(context, 'total_adds'),
                               value: results['total_adds']!,
                               color: cs.onSurfaceVariant,
                               bold: false,
                             ),
                             const Divider(height: 12),
                             _calcResultRow(
-                              label: AppStrings.t(
-                                  context, 'price_with_adds'),
+                              label: AppStrings.t(context, 'price_with_adds'),
                               value: results['with_adds']!,
                               color: goldAccent,
                               bold: true,
@@ -2295,8 +2292,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.flag_outlined, size: 18),
-                            label: Text(
-                                AppStrings.t(context, 'add_to_goals')),
+                            label: Text(AppStrings.t(context, 'add_to_goals')),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: goldAccent,
                               foregroundColor: Colors.black,
@@ -2310,8 +2306,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     final withoutAdds =
                                         results['without_adds']!;
                                     final withAdds = results['with_adds']!;
-                                    final chosen =
-                                        await showDialog<double>(
+                                    final chosen = await showDialog<double>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
                                         title: Text(AppStrings.t(
@@ -2320,31 +2315,26 @@ class _DashboardScreenState extends State<DashboardScreen>
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             ListTile(
-                                              title: Text(AppStrings.t(
-                                                  context,
+                                              title: Text(AppStrings.t(context,
                                                   'price_without_adds')),
                                               subtitle: Text(
                                                   '${_currency.format(withoutAdds)} EGP'),
-                                              onTap: () =>
-                                                  Navigator.pop(
-                                                      ctx, withoutAdds),
+                                              onTap: () => Navigator.pop(
+                                                  ctx, withoutAdds),
                                             ),
                                             ListTile(
                                               title: Text(AppStrings.t(
-                                                  context,
-                                                  'price_with_adds')),
+                                                  context, 'price_with_adds')),
                                               subtitle: Text(
                                                   '${_currency.format(withAdds)} EGP'),
                                               onTap: () =>
-                                                  Navigator.pop(
-                                                      ctx, withAdds),
+                                                  Navigator.pop(ctx, withAdds),
                                             ),
                                           ],
                                         ),
                                         actions: [
                                           TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx),
+                                            onPressed: () => Navigator.pop(ctx),
                                             child: Text(AppStrings.t(
                                                 context, 'cancel')),
                                           )
@@ -2357,8 +2347,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       karat: _calcKarat,
                                       weightG: weight,
                                       manufacturingPriceG:
-                                          double.tryParse(
-                                                  _calcMfgCtrl.text) ??
+                                          double.tryParse(_calcMfgCtrl.text) ??
                                               0,
                                     );
                                   },
@@ -3037,9 +3026,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               ..._savingEntries.map((entry) {
                 final targetType = entry['target_type']?.toString();
                 final targetKarat = entry['target_karat']?.toString();
-                final targetKaratLabel = (targetKarat == null || targetKarat.isEmpty)
-                    ? ''
-                    : _karatLabelFromKey(targetKarat);
+                final targetKaratLabel =
+                    (targetKarat == null || targetKarat.isEmpty)
+                        ? ''
+                        : _karatLabelFromKey(targetKarat);
                 final targetLabel = targetType != null
                     ? '${_assetTypeLabel(targetType)} $targetKaratLabel'.trim()
                     : '';
@@ -3301,7 +3291,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   apiService: widget.apiService,
                   buildSettingsRow: _settingsRow,
                 ),
-                
               ],
             ],
           ),
@@ -3427,23 +3416,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.create_new_folder_outlined,
-                        size: 20),
+                    icon:
+                        const Icon(Icons.create_new_folder_outlined, size: 20),
                     tooltip: isAr ? 'مجلد جديد' : 'New folder',
                     onPressed: () async {
                       final nameCtrl = TextEditingController();
                       final name = await showDialog<String>(
                         context: ctx,
                         builder: (c2) => AlertDialog(
-                          title: Text(
-                              isAr ? 'مجلد جديد' : 'New folder'),
+                          title: Text(isAr ? 'مجلد جديد' : 'New folder'),
                           content: TextField(
                             controller: nameCtrl,
                             autofocus: true,
                             decoration: InputDecoration(
-                              hintText: isAr
-                                  ? 'اسم المجلد'
-                                  : 'Folder name',
+                              hintText: isAr ? 'اسم المجلد' : 'Folder name',
                             ),
                           ),
                           actions: [
@@ -3461,8 +3447,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       );
                       if (name != null && name.isNotEmpty) {
                         setDlgState(() => folders = null);
-                        final created = await driveService.createFolder(
-                            name,
+                        final created = await driveService.createFolder(name,
                             parentId: currentId);
                         if (created != null) {
                           try {
@@ -3499,22 +3484,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                               final f = folders![i];
                               return ListTile(
                                 leading: Icon(Icons.folder,
-                                    color: Theme.of(ctx)
-                                        .colorScheme
-                                        .primary),
+                                    color: Theme.of(ctx).colorScheme.primary),
                                 title: Text(f.name),
-                                trailing: const Icon(
-                                    Icons.chevron_right,
-                                    size: 18),
+                                trailing:
+                                    const Icon(Icons.chevron_right, size: 18),
                                 onTap: () async {
                                   nav.add((f.id, f.name));
                                   setDlgState(() => folders = null);
                                   try {
-                                    final sub =
-                                        await driveService.listFolders(
-                                            parentId: f.id);
-                                    setDlgState(
-                                        () => folders = sub ?? []);
+                                    final sub = await driveService.listFolders(
+                                        parentId: f.id);
+                                    setDlgState(() => folders = sub ?? []);
                                   } catch (_) {
                                     setDlgState(() => folders = []);
                                   }
@@ -3531,8 +3511,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 FilledButton.icon(
                   icon: const Icon(Icons.cloud_upload, size: 18),
                   label: Text(isAr ? 'رفع هنا' : 'Upload here'),
-                  onPressed: () =>
-                      Navigator.pop(ctx, currentId ?? '__root__'),
+                  onPressed: () => Navigator.pop(ctx, currentId ?? '__root__'),
                 ),
               ],
             );
@@ -4000,102 +3979,104 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Directionality(
             textDirection: TextDirection.ltr,
             child: AppBar(
-          titleSpacing: 20,
-          title: Row(
-            children: [
-              SelectionContainer.disabled(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: () => _onTabChanged(0),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IgLogo(size: 66),
-                        InstaGoldWordmark(fontSize: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (_currentMemberName.isNotEmpty) ...[
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
+              titleSpacing: 20,
+              title: Row(
+                children: [
+                  SelectionContainer.disabled(
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: _showMemberMenu,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: gold.withValues(alpha: isDark ? 0.12 : 0.35),
-                          borderRadius: BorderRadius.circular(8),
-                          border: isDark
-                              ? Border.all(
-                                  color: gold.withValues(alpha: 0.15),
-                                  width: 0.5)
-                              : null,
-                        ),
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => _onTabChanged(0),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 2),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.person, size: 14, color: gold),
-                            const SizedBox(width: 4),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 116),
-                              child: Text(
-                                _currentMemberName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: gold,
-                                ),
-                              ),
-                            ),
+                            IgLogo(size: 66),
+                            InstaGoldWordmark(fontSize: 24),
                           ],
                         ),
                       ),
                     ),
                   ),
+                  if (_currentMemberName.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: _showMemberMenu,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color:
+                                  gold.withValues(alpha: isDark ? 0.12 : 0.35),
+                              borderRadius: BorderRadius.circular(8),
+                              border: isDark
+                                  ? Border.all(
+                                      color: gold.withValues(alpha: 0.15),
+                                      width: 0.5)
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.person, size: 14, color: gold),
+                                const SizedBox(width: 4),
+                                ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 116),
+                                  child: Text(
+                                    _currentMemberName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: gold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                if (_members.isEmpty)
+                  IconButton(
+                    onPressed: _busy ? null : () => _memberDialog(),
+                    icon: const Icon(Icons.person_add_outlined),
+                    tooltip: AppStrings.t(context, 'add_member'),
+                  ),
+                IconButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PriceAlertsScreen(
+                        apiService: widget.apiService,
+                        locale: widget.locale,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.notifications_outlined, size: 22),
+                  tooltip: widget.locale.languageCode == 'ar'
+                      ? 'تنبيهات الأسعار'
+                      : 'Price Alerts',
+                ),
+                IconButton(
+                  onPressed: () {
+                    widget.authService.logout();
+                    widget.onLogout?.call();
+                  },
+                  icon: const Icon(Icons.logout, size: 20),
+                  tooltip: AppStrings.t(context, 'logout'),
                 ),
               ],
-            ],
-          ),
-          actions: [
-            if (_members.isEmpty)
-              IconButton(
-                onPressed: _busy ? null : () => _memberDialog(),
-                icon: const Icon(Icons.person_add_outlined),
-                tooltip: AppStrings.t(context, 'add_member'),
-              ),
-            IconButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PriceAlertsScreen(
-                    apiService: widget.apiService,
-                    locale: widget.locale,
-                  ),
-                ),
-              ),
-              icon: const Icon(Icons.notifications_outlined, size: 22),
-              tooltip: widget.locale.languageCode == 'ar'
-                  ? 'تنبيهات الأسعار'
-                  : 'Price Alerts',
-            ),
-            IconButton(
-              onPressed: () {
-                widget.authService.logout();
-                widget.onLogout?.call();
-              },
-              icon: const Icon(Icons.logout, size: 20),
-              tooltip: AppStrings.t(context, 'logout'),
-            ),
-          ],
             ),
           ),
         ),
@@ -4168,8 +4149,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                           selectedIcon: const Icon(Icons.workspace_premium),
                           label: AppStrings.t(context, 'my_gold')),
                       NavigationDestination(
-                          icon: const Icon(Icons.account_balance_wallet_outlined),
-                          selectedIcon: const Icon(Icons.account_balance_wallet),
+                          icon:
+                              const Icon(Icons.account_balance_wallet_outlined),
+                          selectedIcon:
+                              const Icon(Icons.account_balance_wallet),
                           label: AppStrings.t(context, 'savings_goals')),
                       NavigationDestination(
                           icon: const Icon(Icons.settings_outlined),
@@ -4344,4 +4327,3 @@ class _PushSummariesRowState extends State<_PushSummariesRow> {
     );
   }
 }
-

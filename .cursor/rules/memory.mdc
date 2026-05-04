@@ -28,6 +28,8 @@ alwaysApply: true
 - `push_notifications_service.dart` registers devices with backend on first launch
 - `isFcmActive()` returns true when backend confirms — local notifications self-disable
 - **Local notifications are FALLBACK only** — they auto-activate if backend is unreachable
+- **iOS before Apple Developer/APNs:** do NOT show foreground notification banners on app open/resume. App open/resume only refreshes prices + widget data. iOS local notifications come from `ios_background_fetch.dart` only, and only when iOS wakes the app and prices changed meaningfully.
+- **iOS widget:** best-effort only while app is closed. It refreshes immediately on app open/resume and on iOS background-fetch wakes; do not promise real-time widget updates without APNs/FCM.
 - **Price threshold alerts** — user creates via bell icon, backend checks on price sync, sends FCM push
 - Two Android channels: `price_updates` (daily, mutable) and `price_alerts` (threshold, max priority)
 

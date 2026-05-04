@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Color;
 
 import 'package:background_fetch/background_fetch.dart';
 import 'package:flutter/foundation.dart';
@@ -6,14 +7,17 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
-import 'dart:ui' show Color;
 
 import 'api_service.dart';
 import 'notifications_service.dart';
 
-
 const _kLastNotifTimestamp = 'pw_last_notif_ts';
-const _notifIntervalMs = 60 * 60 * 1000;
+const _kLastSeen21k = 'ios_bg_last_seen_21k';
+const _kLastSeen24k = 'ios_bg_last_seen_24k';
+const _kLastSeenOunce = 'ios_bg_last_seen_ounce';
+const _changeCooldownMs = 30 * 60 * 1000;
+const _egpChangeThreshold = 10.0;
+const _ounceChangeThreshold = 5.0;
 
 const _priceChannelId = 'price_updates';
 const _priceChannelName = 'Price Updates';
@@ -75,8 +79,7 @@ Future<void> _runFetch() async {
     await HomeWidget.updateWidget(
       name: 'InstaGoldWidgetProvider',
       iOSName: 'InstaGoldWidget',
-      qualifiedAndroidName:
-          'com.ibrahym.instagold.InstaGoldWidgetProvider',
+      qualifiedAndroidName: 'com.ibrahym.instagold.InstaGoldWidgetProvider',
     );
   } catch (e) {
     debugPrint('IosBackgroundFetch: widget update failed: $e');
@@ -88,21 +91,36 @@ Future<void> _runFetch() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
-  final nowMs = DateTime.now().millisecondsSinceEpoch;
-  final lastNotifMs = prefs.getInt(_kLastNotifTimestamp) ?? 0;
-  if (nowMs - lastNotifMs < _notifIntervalMs) {
-    debugPrint(
-        'IosBackgroundFetch: skip notif (last=${(nowMs - lastNotifMs) ~/ 1000}s ago)');
+  final hasBaseline = _hasBaseline(prefs);
+  final priceChanged = _priceChanged(prefs, p21, p24, pOunce);
+  await _saveSeenPrices(prefs, p21, p24, pOunce);
+
+  if (!hasBaseline) {
+    debugPrint('IosBackgroundFetch: baseline prices saved — no notif');
     return;
   }
 
+  if (!priceChanged) {
+    debugPrint('IosBackgroundFetch: prices unchanged — no notif');
+    return;
+  }
+
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  final lastNotifMs = prefs.getInt(_kLastNotifTimestamp) ?? 0;
+  if (nowMs - lastNotifMs < _changeCooldownMs) {
+    debugPrint(
+        'IosBackgroundFetch: price changed but cooldown active (last=${(nowMs - lastNotifMs) ~/ 1000}s ago)');
+    return;
+  }
+
+  final localeCode = prefs.getString('instagold_locale') ?? 'en';
   final body = NotificationsService.buildPriceBody(
     price21k: p21,
     price24k: p24,
     priceOunce: pOunce,
     // Background isolate has no BuildContext; pull the user's last selected
     // locale from SharedPreferences (written by app.dart).
-    localeCode: prefs.getString('instagold_locale') ?? 'en',
+    localeCode: localeCode,
   );
 
   tz.initializeTimeZones();
@@ -132,20 +150,55 @@ Future<void> _runFetch() async {
 
   await plugin.show(
     DateTime.now().millisecondsSinceEpoch.remainder(100000),
-    'InstaGold',
+    localeCode == 'ar' ? 'تغير سعر الذهب' : 'Gold price changed',
     body,
     details,
   );
 
   await prefs.setInt(_kLastNotifTimestamp, nowMs);
-  debugPrint('IosBackgroundFetch: notification fired');
+  debugPrint('IosBackgroundFetch: price-change notification fired');
+}
+
+bool _hasBaseline(SharedPreferences prefs) {
+  return prefs.containsKey(_kLastSeen21k) ||
+      prefs.containsKey(_kLastSeen24k) ||
+      prefs.containsKey(_kLastSeenOunce);
+}
+
+bool _priceChanged(
+  SharedPreferences prefs,
+  double? p21,
+  double? p24,
+  double? pOunce,
+) {
+  return _changed(p21, prefs.getDouble(_kLastSeen21k), _egpChangeThreshold) ||
+      _changed(p24, prefs.getDouble(_kLastSeen24k), _egpChangeThreshold) ||
+      _changed(
+        pOunce,
+        prefs.getDouble(_kLastSeenOunce),
+        _ounceChangeThreshold,
+      );
+}
+
+bool _changed(double? current, double? previous, double threshold) {
+  if (current == null || previous == null) return false;
+  return (current - previous).abs() >= threshold;
+}
+
+Future<void> _saveSeenPrices(
+  SharedPreferences prefs,
+  double? p21,
+  double? p24,
+  double? pOunce,
+) async {
+  if (p21 != null) await prefs.setDouble(_kLastSeen21k, p21);
+  if (p24 != null) await prefs.setDouble(_kLastSeen24k, p24);
+  if (pOunce != null) await prefs.setDouble(_kLastSeenOunce, pOunce);
 }
 
 /// Best-effort iOS background notifications using BGAppRefreshTask via the
-/// `background_fetch` plugin. iOS decides when to wake the app — typical
-/// minimum is 15 minutes but Apple may delay or skip fires entirely. The
-/// foreground guarantee in the dashboard still ensures notifications fire on
-/// app open if 1h has passed.
+/// `background_fetch` plugin. iOS decides when to wake the app. When it does,
+/// we refresh the widget and notify only for meaningful price changes.
 class IosBackgroundFetch {
   static Future<void> initialize() async {
     if (kIsWeb) return;
