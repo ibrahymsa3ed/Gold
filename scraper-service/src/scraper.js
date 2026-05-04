@@ -6,29 +6,51 @@ const config = require("./config");
 
 const CARATS = ["24", "21", "18", "14"];
 
-// Fetches live USD/EGP exchange rate.
-// Primary: ExchangeRate-API.com (hourly updates, requires free API key).
-// Fallback: open.er-api.com (daily updates, no key required).
+// In-memory cache for the exchange rate — refreshed at most once per hour
+// so the free-tier quota (1,500 req/month) is never exceeded even when the
+// gold scraper fires every 10 minutes (~720 exchange-rate calls/month vs
+// 4,320 gold-price calls/month).
+const _rateCache = { value: null, fetchedAt: 0 };
+const _RATE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Fetches live USD/EGP exchange rate (cached, refreshed hourly).
+// Primary: ExchangeRate-API.com (set EXCHANGE_RATE_API_KEY in Railway env).
+// Fallback: open.er-api.com (no key, daily updates).
 async function fetchUsdEgpRate() {
+  const now = Date.now();
+  if (_rateCache.value !== null && now - _rateCache.fetchedAt < _RATE_TTL_MS) {
+    return _rateCache.value;
+  }
+
+  let rate = null;
+
   if (config.exchangeRateApiKey) {
     try {
       const url = `https://v6.exchangerate-api.com/v6/${config.exchangeRateApiKey}/pair/USD/EGP`;
       const res = await axios.get(url, { timeout: 10000 });
-      const rate = res.data?.conversion_rate;
-      if (rate && Number.isFinite(rate) && rate > 0) return rate;
+      const r = res.data?.conversion_rate;
+      if (r && Number.isFinite(r) && r > 0) rate = r;
     } catch (e) {
       await writeLog({ level: "WARN", action: "EXCHANGE_RATE_PRIMARY_FAILED", details: e.message });
     }
   }
+
   // Fallback — no API key required, updates once per day.
-  try {
-    const res = await axios.get("https://open.er-api.com/v6/latest/USD", { timeout: 10000 });
-    const rate = res.data?.rates?.EGP;
-    if (rate && Number.isFinite(rate) && rate > 0) return rate;
-  } catch (e) {
-    await writeLog({ level: "WARN", action: "EXCHANGE_RATE_FALLBACK_FAILED", details: e.message });
+  if (rate === null) {
+    try {
+      const res = await axios.get("https://open.er-api.com/v6/latest/USD", { timeout: 10000 });
+      const r = res.data?.rates?.EGP;
+      if (r && Number.isFinite(r) && r > 0) rate = r;
+    } catch (e) {
+      await writeLog({ level: "WARN", action: "EXCHANGE_RATE_FALLBACK_FAILED", details: e.message });
+    }
   }
-  return null;
+
+  if (rate !== null) {
+    _rateCache.value = rate;
+    _rateCache.fetchedAt = now;
+  }
+  return rate;
 }
 
 function parseNumber(value) {
