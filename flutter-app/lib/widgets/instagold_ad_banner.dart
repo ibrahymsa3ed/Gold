@@ -4,6 +4,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config/ad_config.dart';
 
+// When ads are disabled the widget collapses immediately with zero overhead.
+
 /// Bottom banner ad (AdMob). Hidden on web; no-op if load fails.
 class InstaGoldAdBanner extends StatefulWidget {
   const InstaGoldAdBanner({super.key});
@@ -19,7 +21,7 @@ class _InstaGoldAdBannerState extends State<InstaGoldAdBanner> {
   @override
   void initState() {
     super.initState();
-    if (kIsWeb) return;
+    if (kIsWeb || !kAdsEnabled) return;
     _load();
   }
 
@@ -49,7 +51,7 @@ class _InstaGoldAdBannerState extends State<InstaGoldAdBanner> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) return const SizedBox.shrink();
+    if (kIsWeb || !kAdsEnabled) return const SizedBox.shrink();
     final ad = _bannerAd;
     if (!_loaded || ad == null) {
       return const SizedBox(height: 0);

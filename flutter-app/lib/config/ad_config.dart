@@ -1,5 +1,10 @@
 import 'app_flavor.dart';
 
+/// Set to true when you are ready to monetise with AdMob.
+/// While false: MobileAds is never initialised, no ad requests are made,
+/// and the banner slot collapses to zero height — no SDK overhead at all.
+const bool kAdsEnabled = false;
+
 /// AdMob unit IDs. Use [Google test IDs](https://developers.google.com/admob/android/test-ads) for dev.
 /// For production Play release, set real IDs from AdMob console:
 /// `--dart-define=ADMOB_BANNER_PROD=ca-app-pub-xxx/yyy`
