@@ -117,6 +117,9 @@ See `.cursor/rules/build-after-every-edit.mdc` for full steps.
 - To reach Production: need 12 testers opted-in for 14+ days in closed testing first
 - Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
 
+## Pending Notes (implement only when user says "do the notes")
+- Add **2.5 gram** as an ingot weight option (gold ingots/bars weight selection)
+
 ## Pending Feature — First Launch Tutorial (TODO)
 - Create an onboarding/tutorial flow shown on first app launch
 - 4 slides, bilingual (Arabic right / English left), split-screen layout
