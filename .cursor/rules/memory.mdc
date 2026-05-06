@@ -105,3 +105,26 @@ See `.cursor/rules/build-after-every-edit.mdc` for full steps.
 - Remote: github.com/ibrahymsa3ed/Gold (branch: main)
 - `InstaGold.apk` / `InstaGold.aab` at repo root are gitignored
 - Always update `ARCHITECTURE.md` and `README.md` with code changes
+
+## Play Store Status (May 2026)
+- App is in **Closed Testing (Alpha)** — package `com.ibrahym.goldfamily`
+- Play Console: https://play.google.com/console/u/0/developers/6183037720371974289/app/4972005972149303949
+- Current live closed testing version: **v3 (1.0.1+3)**
+- Latest built version: **v6 (1.0.1+6)** — uploaded to closed testing, pending Google review
+- v6 fixes: Play App Signing SHA-1 in Firebase, adaptive icon round for MIUI, Add Member dialog loop bug
+- `play-store-assets/` folder contains all graphics (icon, feature graphic, 5 phone + 4 tablet screenshots)
+- Google Play signing SHA-1 (from App integrity page): `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` — already added to Firebase
+- To reach Production: need 12 testers opted-in for 14+ days in closed testing first
+- Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
+
+## Pending Feature — First Launch Tutorial (TODO)
+- Create an onboarding/tutorial flow shown on first app launch
+- 4 slides, bilingual (Arabic right / English left), split-screen layout
+- Final approved slide designs are in `docs/` folder:
+  - `docs/slide_1_intro.png` — Welcome / app intro
+  - `docs/slide_2_members.png` — How to add members
+  - `docs/slide_3_alerts.png` — How to add price alerts
+  - `docs/slide_4_tracking.png` — How to track gold / assets
+- Should be skippable, shown only once (persisted via SharedPreferences)
+- No "الحية" or "اللحظية" anywhere in any string
+- **Designs approved by user — implement when asked**
