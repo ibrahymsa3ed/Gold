@@ -119,6 +119,7 @@ See `.cursor/rules/build-after-every-edit.mdc` for full steps.
 
 ## Pending Notes (implement only when user says "do the notes")
 - Add **2.5 gram** as an ingot weight option (gold ingots/bars weight selection)
+- **USD/EGP rate is wrong** — app shows ~53.7 but actual rate is lower. Investigate ExchangeRate-API source and fix to show accurate live rate
 
 ## Pending Feature — First Launch Tutorial (TODO)
 - Create an onboarding/tutorial flow shown on first app launch
