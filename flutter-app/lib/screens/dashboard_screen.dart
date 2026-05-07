@@ -2195,6 +2195,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: ExpansionTile(
           initiallyExpanded: _calcExpanded,
           onExpansionChanged: (v) => setState(() => _calcExpanded = v),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
           leading: Icon(Icons.calculate_outlined, color: goldAccent, size: 22),
           title: Text(
             AppStrings.t(context, 'gold_calculator'),
@@ -2204,7 +2205,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               color: goldAccent,
             ),
           ),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           children: [
             StatefulBuilder(
               builder: (ctx, setCalcState) {
@@ -2217,7 +2218,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Row 1: Karat + Weight
                     Row(
                       children: [
                         Expanded(
@@ -2226,6 +2226,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                             value: _calcKarat,
                             decoration: InputDecoration(
                               labelText: AppStrings.t(context, 'karat'),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
                             ),
                             items: _karatOptions
                                 .map((k) => DropdownMenuItem(
@@ -2240,7 +2242,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             },
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           flex: 3,
                           child: TextField(
@@ -2255,8 +2257,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    // Row 2: Manufacturing + Tax
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -2271,7 +2272,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             onChanged: (_) => recalc(),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
                             controller: _calcTaxCtrl,

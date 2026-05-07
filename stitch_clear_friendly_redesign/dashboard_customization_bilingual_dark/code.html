@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+
+<html class="dark" dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Work+Sans:wght@600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#c0e7e4",
+                        "on-primary-container": "#554300",
+                        "inverse-surface": "#343027",
+                        "tertiary-fixed": "#dbe1ff",
+                        "primary-fixed-dim": "#e9c349",
+                        "on-error-container": "#93000a",
+                        "primary": "#735c00",
+                        "on-tertiary-fixed-variant": "#27438a",
+                        "on-secondary-fixed-variant": "#284d4b",
+                        "on-secondary-container": "#446967",
+                        "surface-dim": "#e1d9cc",
+                        "surface-tint": "#735c00",
+                        "secondary-fixed-dim": "#a7cecb",
+                        "on-tertiary-fixed": "#00174b",
+                        "on-primary-fixed": "#241a00",
+                        "error-container": "#ffdad6",
+                        "surface": "#1a1a1a",
+                        "on-surface": "#f5eddf",
+                        "surface-variant": "#4d4635",
+                        "surface-container-high": "#2d2a22",
+                        "outline-variant": "#4d4635",
+                        "on-primary-fixed-variant": "#574500",
+                        "on-primary": "#ffffff",
+                        "outline": "#7f7663",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#d4af37",
+                        "inverse-primary": "#e9c349",
+                        "tertiary": "#415ba4",
+                        "on-tertiary-container": "#254188",
+                        "background": "#1a1a1a",
+                        "surface-container-lowest": "#000000",
+                        "surface-container": "#242424",
+                        "secondary-fixed": "#c3eae7",
+                        "primary-fixed": "#ffe088",
+                        "on-surface-variant": "#d0c5af",
+                        "surface-container-highest": "#3d392e",
+                        "inverse-on-surface": "#1f1b13",
+                        "on-secondary-fixed": "#00201e",
+                        "surface-bright": "#343027",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#b4c5ff",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#97b0ff",
+                        "secondary": "#406562",
+                        "on-background": "#f5eddf"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-sm": "8px",
+                        "unit": "8px",
+                        "section-gap": "48px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "stack-md": "16px",
+                        "stack-lg": "32px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "label-caps": ["Work Sans"],
+                        "h2": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "price-display": ["Plus Jakarta Sans"],
+                        "h3": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-caps": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h2": ["28px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "price-display": ["42px", {"lineHeight": "1.1", "fontWeight": "700"}],
+                        "h3": ["22px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "h1": ["36px", {"lineHeight": "1.2", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .arabic-text {
+            font-family: "Plus Jakarta Sans", sans-serif;
+            direction: rtl;
+        }
+        body {
+            background-color: #1a1a1a;
+            background-image: radial-gradient(circle at 50% -20%, #735c0033 0%, transparent 50%);
+        }
+    </style>
+</head>
+<body class="text-on-background font-body-md selection:bg-primary-container min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex justify-between items-center px-container-margin py-stack-md w-full sticky top-0 z-50 bg-background/80 backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim" data-icon="auto_awesome">auto_awesome</span>
+<span class="font-h3 text-h3 text-primary-fixed-dim">Step 5 of 6</span>
+</div>
+<button class="font-label-caps text-label-caps text-primary-fixed-dim/70 hover:text-primary-fixed-dim transition-colors">Skip / تخطي</button>
+</header>
+<main class="flex-grow px-container-margin py-stack-lg max-w-lg mx-auto w-full">
+<!-- Bilingual Title Section -->
+<section class="text-center mb-stack-lg">
+<div class="flex flex-col gap-2">
+<h1 class="font-h1 text-h1 text-primary-container">Customize Your Dashboard</h1>
+<h2 class="font-h2 text-h2 text-primary-container arabic-text">خصص لوحة التحكم الخاصة بك</h2>
+</div>
+<div class="w-16 h-1 mx-auto bg-primary-container rounded-full mt-4 opacity-50"></div>
+</section>
+<!-- Illustration / Icon Centerpiece -->
+<section class="flex justify-center mb-section-gap">
+<div class="relative">
+<div class="absolute inset-0 bg-primary-container/20 blur-3xl rounded-full"></div>
+<div class="relative w-24 h-24 bg-surface-container-high border-2 border-primary-container rounded-3xl flex items-center justify-center shadow-2xl">
+<span class="material-symbols-outlined text-primary-container text-5xl" style="font-variation-settings: 'wght' 600;">drag_indicator</span>
+</div>
+</div>
+</section>
+<!-- Instructions Section -->
+<section class="space-y-stack-lg relative">
+<!-- Vertical Timeline Line -->
+<div class="absolute left-6 top-4 bottom-4 w-px bg-primary-container/20"></div>
+<!-- Step 1 -->
+<div class="relative pl-12">
+<div class="absolute left-4 -translate-x-1/2 w-4 h-4 rounded-full bg-primary-container border-4 border-background shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
+<div class="grid grid-cols-1 gap-2">
+<p class="font-h3 text-h3 text-primary-fixed-dim">Long-press any price card</p>
+<p class="font-h3 text-h3 text-on-surface-variant arabic-text">اضغط مطولاً على أي بطاقة سعر</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative pl-12">
+<div class="absolute left-4 -translate-x-1/2 w-4 h-4 rounded-full bg-primary-container/50 border-4 border-background"></div>
+<div class="grid grid-cols-1 gap-2">
+<p class="font-h3 text-h3 text-primary-fixed-dim">Drag to your preferred position</p>
+<p class="font-h3 text-h3 text-on-surface-variant arabic-text">اسحب إلى الموقع المفضل لديك</p>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative pl-12">
+<div class="absolute left-4 -translate-x-1/2 w-4 h-4 rounded-full bg-primary-container/50 border-4 border-background"></div>
+<div class="grid grid-cols-1 gap-2">
+<p class="font-h3 text-h3 text-primary-fixed-dim">Release to save the layout</p>
+<p class="font-h3 text-h3 text-on-surface-variant arabic-text">اترك البطاقة لحفظ الترتيب</p>
+</div>
+</div>
+</section>
+<!-- Visual References (Smaller Thumbnails) -->
+<section class="mt-section-gap grid grid-cols-2 gap-stack-md opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+<div class="aspect-[0.7] rounded-xl overflow-hidden border border-outline-variant shadow-lg">
+<img alt="Step Reference" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0ui6A71Pgv_WNhPcv1mT7KUN5cDd0y8_ngzNZpcJ1_B33x-IyTMXxkKdrYeeRq3dBACMNptxwEY1mVbAyHDqm27PAtKn77iU4zQQFYMMDG0er37oNDp4ErjsyFVzCRMJx5VP7zCvXbb1wY2hjZqE7KHDVWqj1wWJC8w2VQkcQlxtHXZWl5xZmGlI7_e2gB74lCS9eFbUpFwuojW9ZvSbT7d6mjb6AfHsN4J4tTZChs7S0Jnsf2kJoS2qGsk"/>
+</div>
+<div class="aspect-[0.7] rounded-xl overflow-hidden border border-outline-variant shadow-lg mt-stack-md">
+<img alt="UI Reference" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0ujS8cRiQZCGcAz8W-dspQmGMnev4YA1RKF3HyXQutYQE8ubcFpsbp09Q5anu--7pf6FZNa8dnUbYNULXUEw0jSqg-cXb1aaxG6vZjX8flN5VBcI2CDFn42Dr8Ix6rkO44Yu_iOvOk7gKnNJBvnq8iQriJx-QiY4rOsL-a1d4_7K6xWdb8_VkrfwKX2lGZGnshwdCpoDL4bFAKGaS1ghWoCfPo4Q5cmLIXsLgrVQJiH8SLdX66Pe3i25b3E"/>
+</div>
+</section>
+</main>
+<!-- Footer Action -->
+<footer class="p-container-margin sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-12">
+<div class="max-w-lg mx-auto w-full space-y-stack-md">
+<button class="w-full bg-primary-container text-on-primary-container py-stack-md rounded-2xl font-h2 text-h2 shadow-[0_8px_20px_rgba(212,175,55,0.3)] hover:brightness-110 active:scale-[0.98] transition-all flex flex-col items-center justify-center leading-tight">
+<span>Continue</span>
+<span class="arabic-text text-lg">استمرار</span>
+</button>
+<p class="text-center font-label-caps text-label-caps text-on-surface-variant/60">
+                You can change this anytime in Settings / يمكنك تغيير هذا في الإعدادات
+            </p>
+</div>
+</footer>
+</body></html>
