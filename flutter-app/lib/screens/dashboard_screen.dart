@@ -2130,19 +2130,19 @@ class _DashboardScreenState extends State<DashboardScreen>
     return buyPrice * weight;
   }
 
-  double _getBuyPriceForKarat(String karat) {
+  double _getSellPriceForKarat(String karat) {
     if (_prices == null) return 0;
     final pricesMap = _prices!['prices'] as Map<String, dynamic>? ?? {};
     final priceData = pricesMap[karat] as Map<String, dynamic>?;
     if (priceData == null) return 0;
-    return (priceData['buy_price'] as num?)?.toDouble() ?? 0;
+    return (priceData['sell_price'] as num?)?.toDouble() ?? 0;
   }
 
   Map<String, double> _calcResults() {
     final weight = double.tryParse(_calcWeightCtrl.text) ?? 0;
     final mfg = double.tryParse(_calcMfgCtrl.text) ?? 0;
     final taxPerGram = double.tryParse(_calcTaxCtrl.text) ?? 10;
-    final pricePerGram = _getBuyPriceForKarat(_calcKarat);
+    final pricePerGram = _getSellPriceForKarat(_calcKarat);
     final goldValue = pricePerGram * weight;
     final mfgCost = mfg * weight;
     final tax = taxPerGram * weight;
@@ -2247,6 +2247,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           flex: 3,
                           child: TextField(
                             controller: _calcWeightCtrl,
+                            scrollPadding: const EdgeInsets.only(bottom: 80),
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                             decoration: InputDecoration(
@@ -2263,6 +2264,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Expanded(
                           child: TextField(
                             controller: _calcMfgCtrl,
+                            scrollPadding: const EdgeInsets.only(bottom: 80),
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                             decoration: InputDecoration(
@@ -2276,6 +2278,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Expanded(
                           child: TextField(
                             controller: _calcTaxCtrl,
+                            scrollPadding: const EdgeInsets.only(bottom: 80),
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                             decoration: InputDecoration(

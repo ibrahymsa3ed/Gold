@@ -144,17 +144,19 @@ ThemeData _buildTheme(ColorScheme cs) {
     ),
 
     inputDecorationTheme: InputDecorationTheme(
-      border: UnderlineInputBorder(
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : gold.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
       ),
-      enabledBorder: UnderlineInputBorder(
+      focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: UnderlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: gold, width: 1.5),
       ),
       filled: true,
       fillColor: isDark ? kDarkElevated : const Color(0xFFF5F0E5),
@@ -162,16 +164,14 @@ ThemeData _buildTheme(ColorScheme cs) {
       isDense: false,
       floatingLabelBehavior: FloatingLabelBehavior.always,
       floatingLabelStyle: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
         color: isDark
             ? cs.onSurface.withValues(alpha: 0.7)
-            : cs.onSurface.withValues(alpha: 0.55),
+            : cs.onSurface.withValues(alpha: 0.6),
       ),
       labelStyle: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
+        fontSize: 14,
         color: isDark
             ? cs.onSurface.withValues(alpha: 0.5)
             : cs.onSurface.withValues(alpha: 0.45),
