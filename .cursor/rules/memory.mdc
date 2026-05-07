@@ -117,9 +117,13 @@ See `.cursor/rules/build-after-every-edit.mdc` for full steps.
 - To reach Production: need 12 testers opted-in for 14+ days in closed testing first
 - Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
 
+## General Rules (always apply)
+- For **every new change**: build a pre-release (debug) APK, test on emulator AND physical Android device, confirm working before finalizing or bumping the release version
+
 ## Pending Notes (implement only when user says "do the notes")
 - Add **2.5 gram** as an ingot weight option (gold ingots/bars weight selection)
 - **USD/EGP rate is wrong** — app shows ~53.7 but actual rate is lower. Investigate ExchangeRate-API source and fix to show accurate live rate
+- **Toggle to hide/show assets** — add a visibility toggle on the assets page so the user can hide/show their asset values
 
 ## Pending Feature — First Launch Tutorial (TODO)
 - Create an onboarding/tutorial flow shown on first app launch
