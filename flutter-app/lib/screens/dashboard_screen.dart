@@ -2485,12 +2485,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           const SizedBox(height: 4),
           ...gramsByKarat.entries.map(
             (e) => _totalRow(
-                _karatLabelFromKey(e.key), '${_currency.format(e.value)} g'),
+                _karatLabelFromKey(e.key), _mask('${_currency.format(e.value)} g')),
           ),
           _thinDivider(),
           _totalRow(
             AppStrings.t(context, 'total_all_21k'),
-            '${_currency.format(_totalIn21k())} g',
+            _mask('${_currency.format(_totalIn21k())} g'),
           ),
         ],
       ),
