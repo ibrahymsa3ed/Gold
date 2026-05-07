@@ -156,7 +156,10 @@ class ApiService {
       });
     }
 
-    final rate = await GoldScraper.fetchUsdEgpRate();
+    double? rate = (scraped['usdEgpRate'] as num?)?.toDouble();
+    if (rate == null || rate <= 0) {
+      rate = await GoldScraper.fetchUsdEgpRate();
+    }
     if (rate != null) {
       await db.insert('GoldPriceCache', {
         'carat': 'usd_egp_rate',

@@ -74,6 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _selectedTab = 0;
   bool _busy = false;
   bool _loading = true;
+  bool _assetsHidden = false;
   final NumberFormat _currency = NumberFormat('#,##0.##');
 
   List<String> _priceCardOrder = ['21k', '24k', '14k_18k', 'pound_ounce'];
@@ -94,6 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _maybShowMiuiBatteryPrompt();
     });
     _loadCardOrder();
+    _loadAssetsHidden();
   }
 
   Future<void> _loadCardOrder() async {
@@ -108,6 +110,21 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _saveCardOrder() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('price_card_order', _priceCardOrder);
+  }
+
+  Future<void> _loadAssetsHidden() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hidden = prefs.getBool('instagold_assets_hidden') ?? false;
+    if (mounted && hidden != _assetsHidden) {
+      setState(() => _assetsHidden = hidden);
+    }
+  }
+
+  Future<void> _toggleAssetsHidden() async {
+    final next = !_assetsHidden;
+    setState(() => _assetsHidden = next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('instagold_assets_hidden', next);
   }
 
   Future<void> _maybShowMiuiBatteryPrompt() async {
@@ -572,6 +589,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   static const _ingotSizes = {
     '1g': {'label': '1 G', 'grams': 1.0},
+    '2.5g': {'label': '2.5 G', 'grams': 2.5},
     '5g': {'label': '5 G', 'grams': 5.0},
     '10g': {'label': '10 G', 'grams': 10.0},
     '20g': {'label': '20 G', 'grams': 20.0},
@@ -2396,6 +2414,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  String _mask(String value) => _assetsHidden ? '••••••' : value;
+
   Widget _assetsTotalsCard() {
     if (_assets.isEmpty) return const SizedBox.shrink();
 
@@ -2416,19 +2436,19 @@ class _DashboardScreenState extends State<DashboardScreen>
         children: [
           if (isPricesAvailable) ...[
             _totalRow(AppStrings.t(context, 'current_value'),
-                '${_currency.format(totalCurrentValue)} EGP'),
+                _mask('${_currency.format(totalCurrentValue)} EGP')),
             _totalRow(AppStrings.t(context, 'purchase_cost'),
-                '${_currency.format(totalPurchaseCost)} EGP'),
+                _mask('${_currency.format(totalPurchaseCost)} EGP')),
             _totalRow(
               AppStrings.t(context, 'profit_loss'),
-              '${profitLoss >= 0 ? '+' : ''}${_currency.format(profitLoss)} EGP',
-              valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
+              _mask('${profitLoss >= 0 ? '+' : ''}${_currency.format(profitLoss)} EGP'),
+              valueColor: _assetsHidden ? null : (profitLoss >= 0 ? Colors.green : Colors.red),
             ),
             if (totalPurchaseCost > 0)
               _totalRow(
                 AppStrings.t(context, 'return_pct'),
-                '${(profitLoss / totalPurchaseCost * 100).toStringAsFixed(1)}%',
-                valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
+                _mask('${(profitLoss / totalPurchaseCost * 100).toStringAsFixed(1)}%'),
+                valueColor: _assetsHidden ? null : (profitLoss >= 0 ? Colors.green : Colors.red),
               ),
           ] else
             Text(AppStrings.t(context, 'prices_unavailable')),
@@ -2795,13 +2815,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                   children: [
                     _assetDetailRow(
                       AppStrings.t(context, 'purchased'),
-                      '${_currency.format(purchaseVal)} EGP',
+                      _mask('${_currency.format(purchaseVal)} EGP'),
                     ),
                     const SizedBox(height: 8),
                     _assetDetailRow(
                       AppStrings.t(context, 'now'),
-                      '${_currency.format(currentVal)} EGP',
-                      valueColor: const Color(0xFF388E3C),
+                      _mask('${_currency.format(currentVal)} EGP'),
+                      valueColor: _assetsHidden ? null : const Color(0xFF388E3C),
                     ),
                     const SizedBox(height: 10),
                     Divider(
@@ -2830,22 +2850,22 @@ class _DashboardScreenState extends State<DashboardScreen>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${assetPL >= 0 ? '+' : ''}${plPct.toStringAsFixed(1)}%',
+                                _mask('${assetPL >= 0 ? '+' : ''}${plPct.toStringAsFixed(1)}%'),
                                 style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: plColor),
+                                    color: _assetsHidden ? null : plColor),
                               ),
                             ],
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          '${assetPL >= 0 ? '+' : ''}${_currency.format(assetPL)} EGP',
+                          _mask('${assetPL >= 0 ? '+' : ''}${_currency.format(assetPL)} EGP'),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: plColor,
+                            color: _assetsHidden ? null : plColor,
                             letterSpacing: -0.2,
                           ),
                         ),
@@ -2907,6 +2927,26 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const Spacer(),
+              Container(
+                decoration: BoxDecoration(
+                  color: goldAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: IconButton(
+                  onPressed: _toggleAssetsHidden,
+                  icon: Icon(
+                    _assetsHidden
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    size: 20,
+                    color: goldAccent,
+                  ),
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
+                  tooltip: _assetsHidden ? 'Show values' : 'Hide values',
+                ),
+              ),
+              const SizedBox(width: 6),
               Container(
                 decoration: BoxDecoration(
                   color: goldAccent.withValues(alpha: 0.1),

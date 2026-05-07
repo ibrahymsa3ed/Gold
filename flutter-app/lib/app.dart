@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/tutorial_screen.dart';
 import 'theme/app_themes.dart';
 import 'theme/ui_design_variant.dart';
 import 'screens/login_screen.dart';
@@ -33,10 +34,12 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
   Locale _locale = const Locale('en');
   bool _guestMode = false;
   bool _settingsLoaded = false;
+  bool _tutorialSeen = true;
 
   static const _kThemeKey = 'instagold_theme';
   static const _kLocaleKey = 'instagold_locale';
   static const _kGuestKey = 'instagold_guest';
+  static const _kTutorialKey = 'instagold_tutorial_seen';
 
   @override
   void initState() {
@@ -53,11 +56,13 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
       final theme = prefs.getString(_kThemeKey);
       final locale = prefs.getString(_kLocaleKey);
       final guest = prefs.getBool(_kGuestKey) ?? false;
+      final tutorialSeen = prefs.getBool(_kTutorialKey) ?? false;
       if (mounted) {
         setState(() {
           _themeMode = theme == 'dark' ? ThemeMode.dark : ThemeMode.light;
           _locale = locale == 'ar' ? const Locale('ar') : const Locale('en');
           _guestMode = guest;
+          _tutorialSeen = tutorialSeen;
           _settingsLoaded = true;
         });
       }
@@ -121,6 +126,12 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
     );
   }
 
+  void _completeTutorial() {
+    setState(() => _tutorialSeen = true);
+    SharedPreferences.getInstance()
+        .then((p) => p.setBool(_kTutorialKey, true));
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -145,6 +156,9 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
                 !_settingsLoaded) {
               return const Scaffold(
                   body: Center(child: CircularProgressIndicator()));
+            }
+            if (!_tutorialSeen) {
+              return TutorialScreen(onComplete: _completeTutorial);
             }
             if (!snapshot.hasData && !_guestMode) {
               return LoginScreen(

@@ -112,6 +112,7 @@ class GoldScraper {
     final carats = <String, dynamic>{};
     double? goldPoundPrice;
     double? ouncePrice;
+    double? usdEgpRate;
 
     final priceItems = document.querySelectorAll('.price-item');
     for (final el in priceItems) {
@@ -149,6 +150,29 @@ class GoldScraper {
             numberFonts.isNotEmpty ? _parseNumber(numberFonts.first.text) : null;
         if (val != null) ouncePrice = val;
       }
+
+      if (label.contains('الدولار الأمريكي')) {
+        final val =
+            numberFonts.isNotEmpty ? _parseNumber(numberFonts.first.text) : null;
+        if (val != null) usdEgpRate = val;
+      }
+    }
+
+    if (usdEgpRate == null) {
+      final ldJsonEl =
+          document.querySelector('script[type="application/ld+json"]');
+      if (ldJsonEl != null) {
+        try {
+          final data = jsonDecode(ldJsonEl.text);
+          final props = data['additionalProperty'] as List? ?? [];
+          for (final prop in props) {
+            if (prop['name']?.toString().contains('سعر الدولار') == true) {
+              usdEgpRate = _parseNumber(prop['value']?.toString());
+              break;
+            }
+          }
+        } catch (_) {}
+      }
     }
 
     if (carats.isEmpty) {
@@ -178,18 +202,26 @@ class GoldScraper {
       'carats': carats,
       'goldPoundPrice': goldPoundPrice,
       'ouncePrice': ouncePrice,
+      'usdEgpRate': usdEgpRate,
       'updatedAt': DateTime.now().toIso8601String(),
       'currency': 'EGP',
     };
   }
 
   /// Fetch the official USD/EGP exchange rate for دولار الصاغه comparison.
+  /// Primary: scraped from eDahab alongside gold prices.
+  /// Fallback: open.er-api.com (daily mid-market rate).
   static Future<double?> fetchUsdEgpRate() async {
+    try {
+      final scraped = await scrapeGoldPrices();
+      final rate = (scraped['usdEgpRate'] as num?)?.toDouble();
+      if (rate != null && rate > 0) return rate;
+    } catch (_) {}
+
     try {
       final response = await http
           .get(Uri.parse(_exchangeRateUrl))
           .timeout(const Duration(seconds: 10));
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return (data['rates']?['EGP'] as num?)?.toDouble();
