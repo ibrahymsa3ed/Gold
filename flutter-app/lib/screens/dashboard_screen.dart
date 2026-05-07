@@ -1893,6 +1893,26 @@ class _DashboardScreenState extends State<DashboardScreen>
               borderRadius: BorderRadius.circular(10),
             ),
             child: IconButton(
+              onPressed: _toggleAssetsHidden,
+              icon: Icon(
+                _assetsHidden
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                size: 18,
+                color: goldAccent,
+              ),
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(),
+              tooltip: _assetsHidden ? 'Show values' : 'Hide values',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: goldAccent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconButton(
               onPressed: _busy
                   ? null
                   : () => _safeAction(() async {
@@ -2011,25 +2031,26 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Column(
                 children: [
                   _totalRow(AppStrings.t(context, 'current_value'),
-                      '${_currency.format(_summary!['summary']['current_value'])} EGP'),
+                      _mask('${_currency.format(_summary!['summary']['current_value'])} EGP')),
                   const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'purchase_cost'),
-                      '${_currency.format(_summary!['summary']['purchase_cost'])} EGP'),
+                      _mask('${_currency.format(_summary!['summary']['purchase_cost'])} EGP')),
                   const SizedBox(height: 4),
                   _totalRow(
                     AppStrings.t(context, 'profit_loss'),
-                    '${(_summary!['summary']['profit_loss'] as num) >= 0 ? '+' : ''}${_currency.format(_summary!['summary']['profit_loss'])} EGP',
-                    valueColor:
-                        (_summary!['summary']['profit_loss'] as num) >= 0
+                    _mask('${(_summary!['summary']['profit_loss'] as num) >= 0 ? '+' : ''}${_currency.format(_summary!['summary']['profit_loss'])} EGP'),
+                    valueColor: _assetsHidden
+                        ? null
+                        : ((_summary!['summary']['profit_loss'] as num) >= 0
                             ? const Color(0xFF388E3C)
-                            : const Color(0xFFD32F2F),
+                            : const Color(0xFFD32F2F)),
                   ),
                   const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'equivalent_21k'),
-                      '${_currency.format(_summary!['summary']['total_weight_21k_equivalent'] ?? 0)} g'),
+                      _mask('${_currency.format(_summary!['summary']['total_weight_21k_equivalent'] ?? 0)} g')),
                   const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'equivalent_24k'),
-                      '${_currency.format(_summary!['summary']['total_weight_24k_equivalent'])} g'),
+                      _mask('${_currency.format(_summary!['summary']['total_weight_24k_equivalent'])} g')),
                 ],
               ),
             ),
@@ -2048,12 +2069,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                           : AppStrings.t(context, 'no')),
                   const SizedBox(height: 4),
                   _totalRow(AppStrings.t(context, 'zakat_due'),
-                      '${_currency.format(_zakat!['zakat']['zakat_due'])} EGP'),
+                      _mask('${_currency.format(_zakat!['zakat']['zakat_due'])} EGP')),
                   const SizedBox(height: 4),
                   _totalRow(
                     AppStrings.t(context, 'threshold_current'),
-                    '${_zakat!['zakat']['threshold_weight_24k']}g / '
-                    '${_currency.format(_zakat!['total_weight_24k_equivalent'])}g',
+                    _mask('${_zakat!['zakat']['threshold_weight_24k']}g / '
+                    '${_currency.format(_zakat!['total_weight_24k_equivalent'])}g'),
                   ),
                 ],
               ),
