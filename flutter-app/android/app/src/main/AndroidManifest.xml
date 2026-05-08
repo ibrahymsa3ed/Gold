@@ -9,7 +9,8 @@
     <application
         android:label="${appName}"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <!-- AdMob app ID (set per flavor in build.gradle.kts). Replace prod placeholder before Play release. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
