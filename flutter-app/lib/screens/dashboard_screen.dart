@@ -389,14 +389,21 @@ class _DashboardScreenState extends State<DashboardScreen>
             _selectedMemberId = defaultId;
           }
         } catch (_) {}
-        selectedId = _selectedMemberId ?? members.first['id'] as int;
+        final currentValid = _selectedMemberId != null &&
+            members.any((m) => (m as Map)['id'] == _selectedMemberId);
+        selectedId = currentValid
+            ? _selectedMemberId!
+            : (_defaultMemberId != null &&
+                    members.any((m) => (m as Map)['id'] == _defaultMemberId)
+                ? _defaultMemberId!
+                : members.first['id'] as int);
         try {
           final results = await Future.wait([
-            widget.apiService.getMemberSummary(selectedId),
-            widget.apiService.getMemberZakat(selectedId),
-            widget.apiService.getMemberAssets(selectedId),
-            widget.apiService.getGoals(selectedId),
-            widget.apiService.getSavings(selectedId),
+            widget.apiService.getMemberSummary(selectedId!),
+            widget.apiService.getMemberZakat(selectedId!),
+            widget.apiService.getMemberAssets(selectedId!),
+            widget.apiService.getGoals(selectedId!),
+            widget.apiService.getSavings(selectedId!),
           ]);
           summary = results[0] as Map<String, dynamic>;
           zakat = results[1] as Map<String, dynamic>;
@@ -567,7 +574,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           await widget.apiService
               .updateMember(existing['id'] as int, name.text.trim());
         } else {
-          await widget.apiService.addMember(name.text.trim());
+          final member = await widget.apiService.addMember(name.text.trim());
+          final newId = member['id'] as int;
+          if (_members.isEmpty) {
+            await widget.apiService.setDefaultMemberId(newId);
+          }
+          _selectedMemberId = newId;
         }
         await _load();
       });
@@ -4063,61 +4075,112 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                   ),
-                  if (_currentMemberName.isNotEmpty) ...[
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: _showMemberMenu,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color:
-                                  gold.withValues(alpha: isDark ? 0.12 : 0.35),
-                              borderRadius: BorderRadius.circular(8),
-                              border: isDark
-                                  ? Border.all(
-                                      color: gold.withValues(alpha: 0.15),
-                                      width: 0.5)
-                                  : null,
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: _currentMemberName.isNotEmpty
+                            ? _showMemberMenu
+                            : () => _memberDialog(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _currentMemberName.isNotEmpty
+                                ? gold.withValues(alpha: isDark ? 0.12 : 0.35)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _currentMemberName.isNotEmpty
+                                  ? gold.withValues(
+                                      alpha: isDark ? 0.15 : 0.25)
+                                  : gold.withValues(alpha: 0.3),
+                              width: _currentMemberName.isNotEmpty ? 0.5 : 1,
+                              strokeAlign: BorderSide.strokeAlignInside,
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.person, size: 14, color: gold),
-                                const SizedBox(width: 4),
-                                ConstrainedBox(
-                                  constraints:
-                                      const BoxConstraints(maxWidth: 116),
-                                  child: Text(
-                                    _currentMemberName,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: gold,
-                                    ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _currentMemberName.isNotEmpty
+                                    ? Icons.person_rounded
+                                    : Icons.person_add_rounded,
+                                size: 15,
+                                color: _currentMemberName.isNotEmpty
+                                    ? gold
+                                    : gold.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(width: 5),
+                              ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 100),
+                                child: Text(
+                                  _currentMemberName.isNotEmpty
+                                      ? _currentMemberName
+                                      : AppStrings.t(
+                                          context, 'add_member'),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _currentMemberName.isNotEmpty
+                                        ? gold
+                                        : gold.withValues(alpha: 0.5),
+                                    fontStyle:
+                                        _currentMemberName.isEmpty
+                                            ? FontStyle.italic
+                                            : null,
                                   ),
                                 ),
+                              ),
+                              if (_currentMemberName.isNotEmpty) ...[
+                                const SizedBox(width: 2),
+                                Icon(Icons.expand_more_rounded,
+                                    size: 16, color: gold),
                               ],
-                            ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
               actions: [
-                if (_members.isEmpty)
-                  IconButton(
-                    onPressed: _busy ? null : () => _memberDialog(),
-                    icon: const Icon(Icons.person_add_outlined),
-                    tooltip: AppStrings.t(context, 'add_member'),
-                  ),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      onPressed: _busy ? null : () => _memberDialog(),
+                      icon: Icon(Icons.person_add_outlined,
+                          size: 21, color: gold.withValues(alpha: 0.7)),
+                      tooltip: AppStrings.t(context, 'add_member'),
+                    ),
+                    if (_members.length > 1)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: gold,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${_members.length}',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? kDarkBase : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 IconButton(
                   onPressed: () => Navigator.push(
                     context,

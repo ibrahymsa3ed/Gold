@@ -46,12 +46,28 @@ Version bumped to `v1.0.1+4` on develop.
 - Increased inner content padding (16 to 20px) and field column gaps (10 to 12px)
 - Added explicit `contentPadding` on the karat dropdown for visual alignment
 
+### Member Name Not Showing in Gold Chip
+- Fixed race condition where `_selectedMemberId` could reference a deleted/non-existent member
+- `_load()` now validates `_selectedMemberId` against the actual members list before using it
+- Falls back to default member, then first member if current selection is invalid
+- `_memberDialog` (add mode) now auto-selects the newly created member and sets it as default when it's the first member
+
+## UI Improvements
+
+### Member Selector Redesign (Option 3)
+- Gold chip is now **always visible** in the AppBar (no more disappearing)
+- When a member is selected: shows name + person icon + dropdown chevron
+- When no member exists: shows dashed-border "Add member" placeholder with person_add icon
+- Add-member icon always visible in AppBar actions (not just when list is empty)
+- Member count badge (gold circle) appears on the add icon when 2+ members exist
+- Larger text (12px to 13px) for better readability
+
 ## Files Changed (vs main)
 
 | File | Change |
 |------|--------|
 | `flutter-app/lib/app.dart` | Tutorial integration (SharedPreferences flag, TutorialScreen routing) |
-| `flutter-app/lib/screens/dashboard_screen.dart` | 2.5g ingot, hide/show toggle, calculator sell rate, keyboard padding, UI spacing |
+| `flutter-app/lib/screens/dashboard_screen.dart` | 2.5g ingot, hide/show toggle, calculator sell rate, keyboard padding, UI spacing, member selector redesign, member selection bug fix |
 | `flutter-app/lib/screens/tutorial_screen.dart` | New file: tutorial PageView with 6 slides |
 | `flutter-app/lib/services/gold_scraper.dart` | USD/EGP rate scraping from eDahab |
 | `flutter-app/lib/services/api_service.dart` | Use scraped USD/EGP rate before fallback |
@@ -67,3 +83,4 @@ Version bumped to `v1.0.1+4` on develop.
 4. `9fd7cb9` — feat(tutorial): redesign slides 5-6 to match dark+gold style of 1-4
 5. `274485f` — fix(ui): clean input labels and calculator padding
 6. `0efdae7` — fix(calculator): use sell rate, reduce keyboard gap, revert labels
+7. `39df389` — fix(member): redesign selector chip, fix name not showing bug
