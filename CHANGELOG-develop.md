@@ -54,13 +54,12 @@ Version bumped to `v1.0.1+4` on develop.
 
 ## UI Improvements
 
-### Member Selector Redesign (Option 3)
-- Gold chip is now **always visible** in the AppBar (no more disappearing)
-- When a member is selected: shows name + person icon + dropdown chevron
-- When no member exists: shows dashed-border "Add member" placeholder with person_add icon
-- Add-member icon always visible in AppBar actions (not just when list is empty)
-- Member count badge (gold circle) appears on the add icon when 2+ members exist
-- Larger text (12px to 13px) for better readability
+### Member Selector Redesign
+- Moved member name from a separate chip to a **subtitle row under the InstaGold wordmark**
+- Always visible: shows person icon + name + dropdown chevron when member exists
+- Shows italic "Add member" placeholder when no member exists
+- Tapping opens the member bottom sheet (switch, edit, add)
+- AppBar actions (alerts, logout) now have proper breathing room
 
 ## Files Changed (vs main)
 
@@ -84,3 +83,4 @@ Version bumped to `v1.0.1+4` on develop.
 5. `274485f` — fix(ui): clean input labels and calculator padding
 6. `0efdae7` — fix(calculator): use sell rate, reduce keyboard gap, revert labels
 7. `39df389` — fix(member): redesign selector chip, fix name not showing bug
+8. `bd0917d` — refactor(member): move selector to subtitle under wordmark
