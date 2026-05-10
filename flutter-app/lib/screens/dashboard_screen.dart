@@ -4057,130 +4057,69 @@ class _DashboardScreenState extends State<DashboardScreen>
             textDirection: TextDirection.ltr,
             child: AppBar(
               titleSpacing: 20,
-              title: Row(
-                children: [
-                  SelectionContainer.disabled(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => _onTabChanged(0),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IgLogo(size: 66),
-                            InstaGoldWordmark(fontSize: 24),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: _currentMemberName.isNotEmpty
-                            ? _showMemberMenu
-                            : () => _memberDialog(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _currentMemberName.isNotEmpty
-                                ? gold.withValues(alpha: isDark ? 0.12 : 0.35)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _currentMemberName.isNotEmpty
-                                  ? gold.withValues(
-                                      alpha: isDark ? 0.15 : 0.25)
-                                  : gold.withValues(alpha: 0.3),
-                              width: _currentMemberName.isNotEmpty ? 0.5 : 1,
-                              strokeAlign: BorderSide.strokeAlignInside,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _currentMemberName.isNotEmpty
-                                    ? Icons.person_rounded
-                                    : Icons.person_add_rounded,
-                                size: 15,
-                                color: _currentMemberName.isNotEmpty
-                                    ? gold
-                                    : gold.withValues(alpha: 0.5),
-                              ),
-                              const SizedBox(width: 5),
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxWidth: 100),
-                                child: Text(
+              title: SelectionContainer.disabled(
+                child: Row(
+                  children: [
+                    const IgLogo(size: 66),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const InstaGoldWordmark(fontSize: 22),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: _currentMemberName.isNotEmpty
+                              ? _showMemberMenu
+                              : () => _memberDialog(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 1),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
                                   _currentMemberName.isNotEmpty
-                                      ? _currentMemberName
-                                      : AppStrings.t(
-                                          context, 'add_member'),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: _currentMemberName.isNotEmpty
-                                        ? gold
-                                        : gold.withValues(alpha: 0.5),
-                                    fontStyle:
-                                        _currentMemberName.isEmpty
-                                            ? FontStyle.italic
-                                            : null,
+                                      ? Icons.person_rounded
+                                      : Icons.person_add_rounded,
+                                  size: 12,
+                                  color: gold.withValues(alpha: 0.6),
+                                ),
+                                const SizedBox(width: 3),
+                                ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 130),
+                                  child: Text(
+                                    _currentMemberName.isNotEmpty
+                                        ? _currentMemberName
+                                        : AppStrings.t(
+                                            context, 'add_member'),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: gold.withValues(alpha: 0.6),
+                                      fontStyle:
+                                          _currentMemberName.isEmpty
+                                              ? FontStyle.italic
+                                              : null,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (_currentMemberName.isNotEmpty) ...[
-                                const SizedBox(width: 2),
-                                Icon(Icons.expand_more_rounded,
-                                    size: 16, color: gold),
+                                if (_currentMemberName.isNotEmpty) ...[
+                                  const SizedBox(width: 1),
+                                  Icon(Icons.expand_more_rounded,
+                                      size: 13,
+                                      color: gold.withValues(alpha: 0.4)),
+                                ],
                               ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      onPressed: _busy ? null : () => _memberDialog(),
-                      icon: Icon(Icons.person_add_outlined,
-                          size: 21, color: gold.withValues(alpha: 0.7)),
-                      tooltip: AppStrings.t(context, 'add_member'),
-                    ),
-                    if (_members.length > 1)
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: gold,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${_members.length}',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? kDarkBase : Colors.white,
                             ),
                           ),
                         ),
-                      ),
+                      ],
+                    ),
                   ],
                 ),
+              ),
+              actions: [
                 IconButton(
                   onPressed: () => Navigator.push(
                     context,
