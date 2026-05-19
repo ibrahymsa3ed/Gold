@@ -664,15 +664,21 @@ async function bootstrap() {
   startPriceScheduler({
     afterSync: () => checkPriceAlerts()
   });
-  // Behind config.fcmSummariesEnabled (default false). Even when on, the
-  // per-device build_number gate (config.minFcmClientBuild, default 999999)
-  // prevents any send until clients ship with a high enough build number.
   startNotificationsScheduler();
   await syncFromScraper().catch(() => {});
 
   app.listen(config.port, () => {
     // eslint-disable-next-line no-console
     console.log(`Main backend running on http://localhost:${config.port}`);
+
+    // Self-ping every 10 minutes to prevent Render free tier from sleeping.
+    if (process.env.RENDER_EXTERNAL_URL || process.env.SELF_PING_URL) {
+      const pingUrl = process.env.SELF_PING_URL ||
+        `${process.env.RENDER_EXTERNAL_URL}/health`;
+      setInterval(() => {
+        require("axios").get(pingUrl).catch(() => {});
+      }, 10 * 60 * 1000);
+    }
   });
 }
 

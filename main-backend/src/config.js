@@ -22,6 +22,8 @@ module.exports = {
   logFile:
     process.env.LOG_FILE ||
     path.join(__dirname, "..", "logs", "app.log"),
+  sourceUrl: process.env.SOURCE_URL || "https://edahabapp.com/",
+  exchangeRateApiKey: process.env.EXCHANGE_RATE_API_KEY || "",
   scraperApiUrl:
     process.env.SCRAPER_API_URL || "http://localhost:4100/api/gold-prices",
   scraperApiKey:
