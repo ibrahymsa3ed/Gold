@@ -1,6 +1,6 @@
 # InstaGold Architecture
 
-> **Last updated: Apr 2026**
+> **Last updated: May 2026**
 >
 > Read this file first. It is the single source of truth for how the system works.
 > If this file says something, trust it. If code disagrees, this file wins (and file a fix).
@@ -13,18 +13,47 @@ InstaGold is a gold price tracker and family asset manager for the Egyptian mark
 
 ```
 Gold/
-  scraper-service/     # Node.js — scrapes eDahab prices
-  main-backend/        # Node.js — API, FCM push, price alerts (LIVE on Railway)
+  scraper-service/     # Node.js — dormant (scraping merged into main-backend)
+  main-backend/        # Node.js — API, scraping, FCM push, price alerts (LIVE on Oracle Cloud)
   flutter-app/         # Flutter — mobile app (Android + iOS)
 ```
 
-**Current production state (Apr 2026):**
+**Current production state (May 2026):**
 
 | Component | Where it runs | Status |
 |---|---|---|
-| `scraper-service` | NOT deployed (mobile app scrapes directly) | Dormant |
-| `main-backend` | **Railway** (`https://backend-production-c042.up.railway.app`) | LIVE |
-| `flutter-app` | User devices (Android + iOS sideload) | LIVE |
+| `scraper-service` | NOT deployed (merged into main-backend) | Dormant |
+| `main-backend` | **Oracle Cloud** (`https://207.127.99.147.nip.io`) | LIVE |
+| `flutter-app` | Google Play (production) + iOS sideload | LIVE |
+
+---
+
+## Backend Hosting — Oracle Cloud
+
+| Detail | Value |
+|---|---|
+| **URL** | `https://207.127.99.147.nip.io` |
+| **VM** | VM.Standard.E2.1.Micro (Always Free) |
+| **Region** | Saudi Arabia West (Jeddah) — `me-jeddah-1` |
+| **IP** | `207.127.99.147` |
+| **OS** | Ubuntu 22.04 |
+| **HTTPS** | Caddy + Let's Encrypt (auto-renewing) |
+| **Process Manager** | PM2 (systemd auto-start) |
+| **SSH** | `ssh ubuntu@207.127.99.147` |
+| **Code path** | `/home/ubuntu/Gold/main-backend/` |
+| **Env file** | `/home/ubuntu/Gold/main-backend/.env` |
+
+### Ports
+- 22 (SSH), 80 (HTTP→HTTPS redirect), 443 (HTTPS)
+- Port 3000 closed externally — Express only via Caddy localhost
+
+### Deploying updates
+```bash
+ssh ubuntu@207.127.99.147 "cd /home/ubuntu/Gold && git pull origin develop && cd main-backend && npm install --production && pm2 restart instagold-backend"
+```
+
+### Previous hosting
+- Railway (`backend-production-c042.up.railway.app`) — trial expired May 2026, migrated to Oracle Cloud
 
 ---
 
@@ -38,12 +67,15 @@ The Flutter app scrapes prices directly from eDahab on the device itself:
 2. Falls back to Telegram channel `t.me/s/eDahabApp` if website fails
 3. Stores in local SQLite `GoldPriceCache`
 4. Dashboard reads from local SQLite — no backend needed
+5. Also scrapes USD/EGP rate from edahabapp.com (fallback: `open.er-api.com`)
 
 ### Pipeline 2: Backend price sync (used for FCM and alerts)
-The Railway backend syncs prices independently:
-1. Backend calls scraper API every 10 min (`PRICE_SYNC_CRON=*/10 * * * *`)
-2. Stores in its own `GoldPriceCache` (Railway SQLite)
-3. Used by the FCM slot scheduler and price alert checker
+The Oracle Cloud backend scrapes prices directly (merged scraper):
+1. `scraperClient.js` scrapes `edahabapp.com` directly using cheerio
+2. Runs every 10 min (`PRICE_SYNC_CRON=*/10 * * * *`)
+3. Stores in its own `GoldPriceCache` (SQLite on VM at `/data/main.db`)
+4. Used by the FCM slot scheduler and price alert checker
+5. Price validation: karats > 500 EGP, gold pound > 1000, ounce 500-15000 USD
 
 **Both pipelines scrape the same source but run independently.**
 
@@ -52,7 +84,7 @@ The Railway backend syncs prices independently:
 ## Notifications (CRITICAL — read carefully)
 
 ### FCM Push Notifications (ACTIVE)
-FCM is **live and delivering** slot notifications via Railway. This is the PRIMARY notification path.
+FCM is **live and delivering** slot notifications via Oracle Cloud. This is the PRIMARY notification path.
 
 **How it works:**
 1. On first app launch, `push_notifications_service.dart` registers the device with the backend (`POST /api/devices`) including FCM token, locale, and build number
@@ -60,38 +92,33 @@ FCM is **live and delivering** slot notifications via Railway. This is the PRIMA
 3. At each of the four Cairo slots (07:00, 11:00, 15:00, 19:00), the scheduler finds all eligible devices and sends FCM push with sell prices for 21K, 24K, Ounce
 4. Each device's `last_sent_slot` is tracked to prevent re-delivery
 
-**Backend env vars (Railway):**
+**Backend env vars:**
 - `FCM_SUMMARIES_ENABLED=true` (currently ON)
-- `MIN_FCM_CLIENT_BUILD=2` (devices with build >= 2 receive pushes)
+- `MIN_FCM_CLIENT_BUILD=3` (devices with build >= 3 receive pushes)
 
 **Flutter config:**
-- `apiBaseUrl` in `lib/config.dart` defaults to `https://backend-production-c042.up.railway.app`
-- `isFcmActive()` in `push_notifications_service.dart` reads a `SharedPreferences` flag set by the backend registration response
+- `apiBaseUrl` in `lib/config.dart` defaults to `https://207.127.99.147.nip.io`
+- `isFcmActive()` reads a `SharedPreferences` flag set by backend registration response
 
 ### Local Notifications (FALLBACK)
-When FCM is active, Android local notifications self-disable via the `isFcmActive()` guard. They exist as a safety net:
-- `price_watcher.dart` (Android WorkManager): checks `isFcmActive()` before firing — if true, marks slot and skips
-- `dashboard_screen.dart::_maybeFireForegroundNotification`: Android uses the same fixed-slot guard
-- `dashboard_screen.dart::_maybeFireForegroundNotification`: iOS returns without showing foreground banners; app open/resume refreshes widget data only
-- `ios_background_fetch.dart`: iOS background wake + widget refresh is best-effort and OS-controlled; local notification fires only after meaningful price changes
+When FCM is active, Android local notifications self-disable via `isFcmActive()` guard.
+- `price_watcher.dart` (Android WorkManager): checks `isFcmActive()` before firing
+- `dashboard_screen.dart::_maybeFireForegroundNotification`: uses same guard
+- iOS: background-fetch only, no foreground banners until Apple Developer account obtained
 
-**If the Railway backend goes down**, `isFcmActive()` returns false (registration fails), and local notifications auto-activate as fallback. No code change needed.
+**If the backend goes down**, `isFcmActive()` returns false, and local notifications auto-activate as fallback.
 
 ### Notification Channels (Android)
-Two channels registered in `notifications_service.dart`:
-- `price_updates` (Importance.high) — daily slot summaries, user can mute
+- `price_updates` (Importance.high) — daily slot summaries
 - `price_alerts` (Importance.max) — threshold alerts, breaks through DND
 
 ### Price Threshold Alerts (ACTIVE via backend)
-Users create alerts in `PriceAlertsScreen` (bell icon in dashboard AppBar):
-1. Flutter calls `POST /api/alerts` on Railway backend
+Users create alerts in `PriceAlertsScreen` (bell icon):
+1. Flutter calls `POST /api/alerts` on backend
 2. Alert stored in backend `PriceAlerts` table
-3. On every price sync (`POST /api/prices/sync`), backend runs `checkPriceAlerts()`
-4. If a threshold is crossed, backend sends FCM push on `price_alerts` channel
+3. On every price sync, backend runs `checkPriceAlerts()`
+4. If threshold crossed, backend sends FCM push on `price_alerts` channel
 5. Alert auto-deactivates after triggering (one-shot)
-
-**Alert CRUD is HTTP-only** — goes through Railway backend, NOT local SQLite.
-Files: `lib/screens/price_alerts_screen.dart`, `lib/services/api_service.dart` (getPriceAlerts, createPriceAlert, updatePriceAlert, deletePriceAlert)
 
 ---
 
@@ -99,172 +126,107 @@ Files: `lib/screens/price_alerts_screen.dart`, `lib/services/api_service.dart` (
 
 | Mode | Price source | CRUD (members, assets, savings, goals) | Price alerts | FCM registration |
 |---|---|---|---|---|
-| **Mobile** | Local `GoldScraper` + SQLite | Local SQLite | HTTP to Railway backend | HTTP to Railway backend |
+| **Mobile** | Local `GoldScraper` + SQLite | Local SQLite | HTTP to backend | HTTP to backend |
 | **Web** | HTTP to `main-backend` | HTTP to `main-backend` | HTTP to `main-backend` | N/A |
 
-**Key insight:** On mobile, most data is local SQLite. But price alerts and FCM device registration go through the Railway backend via HTTP. If the backend is down, alerts fail gracefully (empty list, save error shown in SnackBar), and FCM registration silently fails (local notifications take over).
-
 ---
 
-## 1) Scraper Service
-
-### Status: NOT deployed (dormant)
-The mobile app scrapes directly via `GoldScraper`. This service exists for the backend's use.
-
-- Node.js + Express, port 4100
-- Scrapes eDahab every 10 min, falls back to Telegram
-- API: `GET /api/gold-prices` (requires `x-api-key` header)
-- The Railway backend's `SCRAPER_API_URL` points to `http://localhost:4100` in `.env` but this is for local dev; Railway has its own scraping or the sync may fail silently (backend serves last cache)
-
----
-
-## 2) Main Backend (Railway)
-
-### Status: LIVE at `https://backend-production-c042.up.railway.app`
-Deploy via: `cd main-backend && railway up`
+## Main Backend (Oracle Cloud)
 
 ### Key Endpoints
 - `GET /health` — returns `{"ok":true,"service":"main-backend"}`
 - `GET /api/prices/current` — latest cached prices (auth required)
 - `POST /api/prices/sync` — trigger price sync + alert check
 - `POST /api/devices` — FCM device registration
-- `PUT /api/devices/:deviceId` — update device (locale, summaries toggle)
+- `PUT /api/devices/:deviceId` — update device
 - `GET /api/alerts` — list user's price alerts
-- `POST /api/alerts` — create alert (karat, target_price, direction)
-- `PUT /api/alerts/:id` — update alert (active toggle)
+- `POST /api/alerts` — create alert
+- `PUT /api/alerts/:id` — update alert
 - `DELETE /api/alerts/:id` — delete alert
 - All CRUD for members, assets, savings, goals, companies, zakat
 
-### Database Tables (SQLite on Railway)
-Users, FamilyMembers, Companies, Assets, Savings, PurchaseGoals, GoldPriceCache, LogEntries, UserSettings, **Devices**, **PriceAlerts**
+### Database Tables (SQLite)
+Users, FamilyMembers, Companies, Assets, Savings, PurchaseGoals, GoldPriceCache, LogEntries, UserSettings, Devices, PriceAlerts
 
-### FCM Scheduler
-- File: `src/notificationsScheduler.js`
-- Cron: `*/5 * * * *` (Africa/Cairo)
-- Slots: 07:00, 11:00, 15:00, 19:00 with 30-min window
-- Sends sell prices only (21K, 24K, Ounce) via `firebase-admin` FCM
-- Tracks `last_sent_slot` per device to prevent duplicate delivery
-
-### Price Alert Checker
-- File: `src/notificationsService.js` — `checkPriceAlerts()`
-- Hooked into `POST /api/prices/sync`
-- Compares active alerts against latest sell prices
-- Fires FCM on `price_alerts` channel when threshold crossed
-- Deactivates alert after trigger
-
-### Environment Variables (Railway)
+### Environment Variables
 ```
-PORT=4200
-SCRAPER_API_URL=http://localhost:4100/api/gold-prices
-SCRAPER_API_KEY=gold_app_secret_ibrahym_2026
-PRICE_SYNC_CRON=*/10 * * * *
-BYPASS_AUTH=true
+PORT=3000
 FIREBASE_PROJECT_ID=goldcalculate
-FIREBASE_SERVICE_ACCOUNT_PATH=../goldcalculate-firebase-adminsdk-fbsvc-178cde1243.json
 FCM_SUMMARIES_ENABLED=true
-MIN_FCM_CLIENT_BUILD=2
+MIN_FCM_CLIENT_BUILD=3
+RENDER_EXTERNAL_URL=https://207.127.99.147.nip.io
+FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 ```
 
 ---
 
-## 3) Flutter App
+## Flutter App
 
 ### App Identity
 - Name: **InstaGold**
 - Android package: `com.ibrahym.goldfamily`
-- Android namespace: `com.ibrahym.instagold`
 - iOS bundle: `com.ibrahym.goldtracker`
 - Firebase project: `goldcalculate`
+
+### Key Features
+- Real-time gold price tracking (eDahab scraping)
+- Family member management with gold asset tracking
+- Price alerts (FCM-powered)
+- Gold calculator with manufacturing costs and taxes
+- Savings goals with shared pool
+- First-launch tutorial (6 slides)
+- Hide/show assets toggle for privacy
+- 2.5g ingot weight option
+- Home screen widgets (iOS + Android)
+- Zakat calculator
+- Backup/restore with Google Drive
 
 ### Screen Map
 - Login/Auth (email/password + Google)
 - Home dashboard (tabbed: overview / assets / savings-goals / more)
 - Price alerts screen (bell icon in AppBar)
-- Family members list + per-member page
+- Member selector (subtitle under InstaGold wordmark)
 - Assets with invoice attachment
-- Savings + Goals (shared pool: total savings auto-subtract from all goals)
-- Gold Calculator panel (expansion tile between savings and goals; inputs: karat, weight, manufacturing/g, tax%; outputs: price without adds, total adds, price with adds; "Add to Goals" creates goal with chosen price)
+- Savings + Goals (shared pool model)
+- Gold Calculator panel (uses sell rate)
 - Zakat calculator
-- Companies
 - Settings (theme, locale, notification toggle)
-
-### Key Services
-| Service | File | Purpose |
-|---|---|---|
-| `ApiService` | `lib/services/api_service.dart` | Dual-mode: SQLite on mobile, HTTP on web. Price alerts always HTTP. |
-| `GoldScraper` | `lib/services/gold_scraper.dart` | On-device price scraping (eDahab + Telegram fallback) |
-| `PushNotificationsService` | `lib/services/push_notifications_service.dart` | FCM token management, device registration with backend |
-| `NotificationsService` | `lib/services/notifications_service.dart` | Local notification display, channel registration |
-| `PriceWatcher` | `lib/services/price_watcher.dart` | Android WorkManager background task |
-| `BackupService` | `lib/services/backup_service.dart` | ZIP backup/restore with optional Google Drive upload |
-
-### MIUI Battery Optimization
-On first launch on Xiaomi/Redmi devices, a one-time dialog prompts the user to whitelist InstaGold from battery restrictions. Uses `device_info_plus` for manufacturer detection, `MethodChannel` (`com.ibrahym.instagold/settings`) to `MainActivity.kt` which fires `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
-
-### Price Card Order
-Drag-reorderable cards persist order to `SharedPreferences` (`price_card_order` key). Default: `['21k', '24k', '14k_18k', 'pound_ounce']`.
-
-### Savings/Goals — Decimal Weight & Manufacturing Price
-- All weight fields (assets + goals) accept decimal input (`numberWithOptions(decimal:true)`).
-- `PurchaseGoals` table has `manufacturing_price_g REAL DEFAULT 0` column (added in DB migration v4).
-- Goal add/edit dialogs expose an optional manufacturing price field (مصنعية).
-- `createGoal` accepts `manufacturingPriceG` and `overrideTargetPrice` params; when `overrideTargetPrice` is set the standard weight×price formula is bypassed.
-
-### Gold Calculator Panel
-- `ExpansionTile` placed between savings and goals sections in the Savings/Goals tab.
-- Inputs: karat, weight (g), manufacturing EGP/g, taxes/tariff % (default 10).
-- Live output: price without adds, total adds (mfg + tax), price with adds.
-- "Add to Goals" button opens a dialog to choose which price to use as goal target; on confirm calls `createGoal` with `overrideTargetPrice`.
-
-### Home Widgets
-- **iOS:** WidgetKit extension `ios/InstaGoldWidget/` — reads from App Group `group.com.ibrahym.goldtracker`
-- **Android:** `InstaGoldWidgetProvider` (Kotlin) — reads from `home_widget` SharedPreferences
-- Both show sell prices for 21K, 24K, Ounce with locale-aware labels and RTL support
-- iOS widget data refreshes immediately on app open/resume and on best-effort `background_fetch` wakes; it is not guaranteed real-time while the app is closed.
-- iOS notifications are background-fetch-only until APNs/FCM is available: no foreground banners on app open/resume.
+- First-launch tutorial
 
 ### UI Design
 - Premium luxury dark-first. Base `#0B0B0D`, gold accent `#D4AF37`
 - `PremiumBackground` widget: wave patterns + radial glow
-- Glassmorphism bottom nav, gold gradient price cards, 150px heroes
+- Glassmorphism bottom nav, gold gradient price cards
 - Sell-only in notifications and widgets; buy+sell in dashboard
+- Never use "الحية" or "اللحظية" in any string
 
 ---
 
-## 4) Deployment
+## Play Store
 
-### Railway Backend
-```bash
-cd main-backend && railway login && railway up
-```
-Project: `instagold`, environment: `production`, service: `backend`
-
-### Flutter Builds
-See `.cursor/rules/build-after-every-edit.mdc` for the full mandatory build sequence.
-
-```bash
-# Android
-./scripts/build-prod-release.sh
-# Outputs are copied to repo root:
-#   InstaGold.apk
-#   InstaGold.aab
-
-# iOS
-cd flutter-app
-flutter build ios --release
-xcrun devicectl device install app --device <DEVICE_ID> build/ios/iphoneos/Runner.app
-```
-
-### iOS Device Install
-For new devices: build with `xcodebuild -destination 'id=<DEVICE_ID>' -allowProvisioningUpdates` first to register the device in the provisioning profile, then install with `devicectl`.
-
-Each new device also needs **Developer Mode** enabled: Settings > Privacy & Security > Developer Mode > ON (device restarts).
+- **Status**: Production access applied (May 21, 2026)
+- **Package**: `com.ibrahym.goldfamily`
+- **Latest version**: `1.0.2+7` (AAB: `instagold-1.0.2+7.aab`)
+- **Play Console**: https://play.google.com/console/u/0/developers/6183037720371974289/app/4972005972149303949
+- **Play signing SHA-1**: `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` (in Firebase)
+- **Ads**: disabled (`kAdsEnabled = false`)
+- **Store assets**: `play-store-assets/` folder
 
 ---
 
-## 5) Repository
+## Repository
 - Monorepo: `scraper-service/`, `main-backend/`, `flutter-app/`
-- Git remote: `github.com/ibrahymsa3ed/Gold` (branch: `main`)
-- `InstaGold.apk` and `InstaGold.aab` at repo root are gitignored (large binaries)
-- Android prod releases must be built with `./scripts/build-prod-release.sh` so the latest APK is copied to repo root
-- Always update `ARCHITECTURE.md` and `README.md` with code changes
+- Git remote: `github.com/ibrahymsa3ed/Gold`
+- Branches: `main` (production), `develop` (development) — currently in sync
+- `InstaGold.apk` and `InstaGold.aab` at repo root are gitignored
+
+---
+
+## Accounts & Services
+| Service | Details |
+|---|---|
+| Firebase | Project `goldcalculate` — Auth, FCM |
+| Google Play | Developer ID `6183037720371974289` |
+| Oracle Cloud | Tenancy `ibrahymsaaeed`, region `me-jeddah-1` |
+| GitHub | `ibrahymsa3ed/Gold` |
+| ExchangeRate-API | USD/EGP fallback (free tier, 1h cache) |

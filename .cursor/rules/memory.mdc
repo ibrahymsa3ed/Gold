@@ -15,16 +15,51 @@ alwaysApply: true
 - Firebase project: `goldcalculate`
 - **Build commands ALWAYS require `--flavor dev|prod`** for Android
 
-## Architecture (Apr 2026)
-- Monorepo: `scraper-service/` (dormant), `main-backend/` (LIVE on Railway), `flutter-app/`
-- **Backend is LIVE** at `https://backend-production-c042.up.railway.app` — deploy via `cd main-backend && railway up`
+## Architecture (May 2026)
+- Monorepo: `scraper-service/` (dormant), `main-backend/` (LIVE on Oracle Cloud), `flutter-app/`
+- **Backend is LIVE** at `https://207.127.99.147.nip.io` — Oracle Cloud Always Free VM (Jeddah region)
+- Scraper merged directly into `main-backend/src/scraperClient.js` — no separate scraper service needed
 - Mobile mode: local SQLite for most CRUD + direct eDahab scraping for prices
-- **Price alerts and FCM device registration go through the Railway backend via HTTP** — NOT local SQLite
+- **Price alerts and FCM device registration go through the backend via HTTP** — NOT local SQLite
 - Web mode: talks to main-backend HTTP APIs
 
+## Backend Hosting — Oracle Cloud (May 2026)
+- **VM**: `instagold-backend` — VM.Standard.E2.1.Micro (Always Free, AMD, 1 OCPU, 1GB RAM)
+- **IP**: `207.127.99.147`
+- **Region**: Saudi Arabia West (Jeddah) — `me-jeddah-1`
+- **OS**: Ubuntu 22.04
+- **HTTPS**: Caddy reverse proxy with auto-renewing Let's Encrypt cert via `nip.io`
+- **Process Manager**: PM2 (auto-starts on reboot via systemd)
+- **Domain**: `207.127.99.147.nip.io` (resolves to the VM IP)
+- **Ports open**: 22 (SSH), 80 (HTTP→HTTPS redirect), 443 (HTTPS)
+- **Port 3000**: Closed externally — Express only accessible via Caddy on localhost
+- **SSH access**: `ssh ubuntu@207.127.99.147` (key: `~/.ssh/id_rsa`)
+- **Code location on VM**: `/home/ubuntu/Gold/main-backend/` (branch: `develop`)
+- **Env file**: `/home/ubuntu/Gold/main-backend/.env`
+- **OCI CLI configured**: `~/.oci/config` with API key at `~/.oci/oci_api_key.pem`
+- **Tenancy OCID**: `ocid1.tenancy.oc1..aaaaaaaai4rgyo36efj25jplnir35kthxfasn7gbdcj2yxlvr3ocvawxp3tq`
+- **User OCID**: `ocid1.user.oc1..aaaaaaaaevrqlls54crj3m3sodokdi4pi7gky7vzzvp5hboh5za3mwqqljoa`
+- **Instance OCID**: `ocid1.instance.oc1.me-jeddah-1.anvgkljrvexgrnice7ljovvzo6dgl6fvw6k5wqi5wns7gcp5k7wyk7oymf4a`
+- **Previous host**: Railway (`backend-production-c042.up.railway.app`) — trial expired, migrated to Oracle Cloud
+
+### Deploying backend updates:
+```bash
+ssh ubuntu@207.127.99.147 "cd /home/ubuntu/Gold && git pull origin develop && cd main-backend && npm install --production && pm2 restart instagold-backend"
+```
+
+### Key env vars on VM (.env):
+```
+PORT=3000
+FIREBASE_PROJECT_ID=goldcalculate
+FCM_SUMMARIES_ENABLED=true
+MIN_FCM_CLIENT_BUILD=3
+RENDER_EXTERNAL_URL=https://207.127.99.147.nip.io
+FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
+```
+
 ## Notifications — How They Actually Work
-- **FCM is ACTIVE** — Railway backend sends push at Cairo 07:00/11:00/15:00/19:00 via `notificationsScheduler.js`
-- `FCM_SUMMARIES_ENABLED=true` and `MIN_FCM_CLIENT_BUILD=2` in Railway env
+- **FCM is ACTIVE** — Oracle Cloud backend sends push at Cairo 07:00/11:00/15:00/19:00 via `notificationsScheduler.js`
+- `FCM_SUMMARIES_ENABLED=true` and `MIN_FCM_CLIENT_BUILD=3` in backend env
 - `push_notifications_service.dart` registers devices with backend on first launch
 - `isFcmActive()` returns true when backend confirms — local notifications self-disable
 - **Local notifications are FALLBACK only** — they auto-activate if backend is unreachable
@@ -38,9 +73,9 @@ alwaysApply: true
 |---|---|---|
 | Prices for display | Local `GoldScraper` + SQLite | No |
 | Members, assets, savings, goals | Local SQLite | No |
-| Price alerts CRUD | HTTP to Railway backend | **Yes** |
-| FCM device registration | HTTP to Railway backend | **Yes** |
-| Slot notifications | FCM from Railway (primary) / local (fallback) | **Yes** |
+| Price alerts CRUD | HTTP to Oracle Cloud backend | **Yes** |
+| FCM device registration | HTTP to Oracle Cloud backend | **Yes** |
+| Slot notifications | FCM from Oracle Cloud (primary) / local (fallback) | **Yes** |
 
 ## STRICT Design Rules (MANDATORY)
 
@@ -58,9 +93,16 @@ alwaysApply: true
 - Primary: `#D4AF37`, deep `#C9A227`, light `#E8CD5A`, muted `#B8962E`
 - Always gradient gold, never flat
 
+### Language Rules
+- Never use "الحية" (live) or "اللحظية" (instant) anywhere in any string
+- Use "عيار" for karat (not "K")
+- Use "الأونصه" for ounce (not "الأوقية")
+- Use "أسعار الذهب" (not "أسعار الذهب الحية")
+
 ## Key Files
-- Config: `flutter-app/lib/config.dart` (apiBaseUrl → Railway)
+- Config: `flutter-app/lib/config.dart` (apiBaseUrl → Oracle Cloud HTTPS)
 - Dashboard: `flutter-app/lib/screens/dashboard_screen.dart`
+- Tutorial: `flutter-app/lib/screens/tutorial_screen.dart`
 - Price alerts: `flutter-app/lib/screens/price_alerts_screen.dart`
 - API: `flutter-app/lib/services/api_service.dart`
 - FCM: `flutter-app/lib/services/push_notifications_service.dart`
@@ -68,71 +110,84 @@ alwaysApply: true
 - Price watcher: `flutter-app/lib/services/price_watcher.dart`
 - iOS bg fetch: `flutter-app/lib/services/ios_background_fetch.dart`
 - Database: `flutter-app/lib/services/database_helper.dart` (version 3)
-- MainActivity: `flutter-app/android/app/src/main/kotlin/.../MainActivity.kt` (MethodChannel for battery settings)
-- Backend alerts: `main-backend/src/index.js`, `main-backend/src/notificationsService.js`
+- Scraper: `flutter-app/lib/services/gold_scraper.dart`
+- App entry: `flutter-app/lib/app.dart` (tutorial flow)
+- MainActivity: `flutter-app/android/app/src/main/kotlin/.../MainActivity.kt`
+- Backend entry: `main-backend/src/index.js`
+- Backend scraper: `main-backend/src/scraperClient.js` (merged, scrapes edahabapp.com directly)
+- Backend alerts: `main-backend/src/notificationsService.js`
 - Backend FCM: `main-backend/src/notificationsScheduler.js`
-- Backend DB: `main-backend/src/db.js` (PriceAlerts + Devices tables)
+- Backend DB: `main-backend/src/db.js`
+- Backend config: `main-backend/src/config.js`
 - iOS widget: `flutter-app/ios/InstaGoldWidget/InstaGoldWidget.swift`
 - Android widget: `flutter-app/android/app/src/main/kotlin/.../InstaGoldWidgetProvider.kt`
 - L10n: `flutter-app/lib/l10n.dart`
 - Theme: `flutter-app/lib/theme/app_themes.dart`
 
-## Savings/Goals Features (Apr 2026)
-- Weight inputs use `numberWithOptions(decimal: true)` — decimal grams work on all keyboards
-- `PurchaseGoals` DB has `manufacturing_price_g REAL DEFAULT 0` column (DB version 4, migrated from v3)
-- Goal add/edit forms: optional manufacturing price field (مصنعية, EGP/g)
-- Gold Calculator `ExpansionTile` between savings and goals sections:
-  - Inputs: karat, weight (g), manufacturing EGP/g, taxes % (default 10)
-  - Live outputs: price without adds, total adds (mfg + tax), price with adds
-  - "Add to Goals" button → choose with/without adds price → `createGoal(overrideTargetPrice: ...)`
+## Features Implemented (May 2026)
+- First-launch tutorial (6 slides, skippable, shown once via SharedPreferences)
+- Hide/show assets toggle (masks monetary values + total grams across Assets tab and Home tab)
+- 2.5g ingot weight option
+- Improved USD/EGP rate (scraped from edahabapp.com, fallback to open.er-api.com)
+- Member selector as subtitle under InstaGold wordmark
+- Gold calculator uses sell rate (goals section only)
+- Reduced keyboard spacing in calculator inputs
+- Adaptive icon XML for Android (proper rendering on MIUI/Samsung)
+- Price parsing validation (>500 EGP for karats, >1000 for gold pound, 500-15000 for ounce)
+- Telegram fallback regex fix (skip karat digit, require 3+ char numbers)
 
-## Workflow After Each Edit (MANDATORY)
-See `.cursor/rules/build-after-every-edit.mdc` for full steps.
-1. Build prod APK + AAB
-2. Copy to repo root
-3. Install APK on Android device
-4. Build iOS release
-5. Install on iOS device(s) via `devicectl`
-6. Git commit & push
-
-## iOS Device Install Notes
-- New devices need `xcodebuild -destination 'id=<ID>' -allowProvisioningUpdates` first to register in provisioning profile
-- Each new device needs Developer Mode enabled (Settings > Privacy & Security)
-- Use `xcrun devicectl list devices` to find device IDs
-- Your iPhone: `620092AA-C957-55BC-B0BD-A62D6D05AD8F`
-
-## Git
-- Remote: github.com/ibrahymsa3ed/Gold (branch: main)
-- `InstaGold.apk` / `InstaGold.aab` at repo root are gitignored
-- Always update `ARCHITECTURE.md` and `README.md` with code changes
+## Savings/Goals Features
+- Weight inputs use `numberWithOptions(decimal: true)` — decimal grams work
+- `PurchaseGoals` DB has `manufacturing_price_g REAL DEFAULT 0` column (DB version 4)
+- Gold Calculator `ExpansionTile` between savings and goals sections
+- Calculator uses SELL rate (not buy rate) for goals section
+- Taxes/tariff: fixed 10 EGP/gram (not percentage)
+- Arabic label for adds: "الضريبة/الدمغة والمصنعية"
 
 ## Play Store Status (May 2026)
-- App is in **Closed Testing (Alpha)** — package `com.ibrahym.goldfamily`
+- App is **applying for Production access** — application submitted May 21, 2026
+- Package: `com.ibrahym.goldfamily`
 - Play Console: https://play.google.com/console/u/0/developers/6183037720371974289/app/4972005972149303949
-- Current live closed testing version: **v3 (1.0.1+3)**
-- Latest built version: **v6 (1.0.1+6)** — uploaded to closed testing, pending Google review
-- v6 fixes: Play App Signing SHA-1 in Firebase, adaptive icon round for MIUI, Add Member dialog loop bug
+- Closed testing completed: 12 testers, 14+ days
+- **Latest version ready for production**: `1.0.2+7` — AAB built at `instagold-1.0.2+7.aab` in repo root
+- Google Play signing SHA-1: `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` — already in Firebase
 - `play-store-assets/` folder contains all graphics (icon, feature graphic, 5 phone + 4 tablet screenshots)
-- Google Play signing SHA-1 (from App integrity page): `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` — already added to Firebase
-- To reach Production: need 12 testers opted-in for 14+ days in closed testing first
 - Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
 
+## Version History
+| Version | Code | Status | Notes |
+|---|---|---|---|
+| 1.0.1+3 | v3 | Was in closed testing | Stable baseline used by testers |
+| 1.0.1+4 | v4 | develop branch | Added tutorial, pending notes |
+| 1.0.1+5 | v5 | skipped | — |
+| 1.0.1+6 | v6 | uploaded to testing | Icon fix, member dialog fix |
+| 1.0.2+7 | v7 | **Production release** | Full develop merge: HTTPS, tutorial, all fixes |
+
+## Git
+- Remote: github.com/ibrahymsa3ed/Gold
+- Branches: `main` (production), `develop` (development)
+- `main` and `develop` are now in sync (merged May 21, 2026)
+- `InstaGold.apk` / `InstaGold.aab` at repo root are gitignored
+
 ## General Rules (always apply)
-- For **every new change**: build a pre-release (debug) APK, test on emulator AND physical Android device, confirm working before finalizing or bumping the release version
+- For **every new change**: build a pre-release (debug) APK, test on emulator AND physical Android device, confirm working before finalizing
+- Never use "الحية" or "اللحظية" in any string
+- Keep `main` clean and stable — develop on `develop` branch
 
-## Pending Notes (implement only when user says "do the notes")
-- Add **2.5 gram** as an ingot weight option (gold ingots/bars weight selection)
-- **USD/EGP rate is wrong** — app shows ~53.7 but actual rate is lower. Investigate ExchangeRate-API source and fix to show accurate live rate
-- **Toggle to hide/show assets** — add a visibility toggle on the assets page so the user can hide/show their asset values
+## iOS Device Install Notes
+- No paid Apple Developer account yet — can only install via USB + Xcode
+- New devices need `xcodebuild -destination 'id=<ID>' -allowProvisioningUpdates` first
+- Each new device needs Developer Mode enabled (Settings > Privacy & Security)
+- Use `xcrun devicectl list devices` to find device IDs
+- Your iPhone 16 Pro Max: `620092AA-C957-55BC-B0BD-A62D6D05AD8F` (iOS 26.5)
+- Eman's iPhone 13: `DFCFAB94-8A50-50BF-A870-A6CA511347C7`
+- iPad: `4EB3A29C-784D-5FB5-8C40-E1F735F709D0`
 
-## Pending Feature — First Launch Tutorial (TODO)
-- Create an onboarding/tutorial flow shown on first app launch
-- 4 slides, bilingual (Arabic right / English left), split-screen layout
-- Final approved slide designs are in `docs/` folder:
-  - `docs/slide_1_intro.png` — Welcome / app intro
-  - `docs/slide_2_members.png` — How to add members
-  - `docs/slide_3_alerts.png` — How to add price alerts
-  - `docs/slide_4_tracking.png` — How to track gold / assets
-- Should be skippable, shown only once (persisted via SharedPreferences)
-- No "الحية" or "اللحظية" anywhere in any string
-- **Designs approved by user — implement when asked**
+## Accounts & Services
+- **Firebase**: project `goldcalculate` — Firebase Auth, FCM, service account key at repo root
+- **Google Play Console**: developer ID `6183037720371974289`
+- **Oracle Cloud**: tenancy `ibrahymsaaeed`, region `me-jeddah-1` (Jeddah)
+- **GitHub**: `ibrahymsa3ed/Gold`
+- **ExchangeRate-API**: used for USD/EGP fallback (free tier, 1h cache)
+- **Render.com**: account created but card verification failed — NOT in use
+- **Railway**: trial expired — migrated to Oracle Cloud
