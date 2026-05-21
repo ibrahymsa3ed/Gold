@@ -67,12 +67,12 @@ class GoldScraper {
       for (final line in lines) {
         for (final carat in ['24', '21', '18']) {
           if (line.contains('عيار $carat') && !carats.containsKey(carat)) {
-            final match = RegExp(r'(\d[\d.,]*)').firstMatch(
-              line.substring(line.indexOf('عيار $carat')),
-            );
+            final afterLabel = line.substring(
+                line.indexOf('عيار $carat') + 'عيار $carat'.length);
+            final match = RegExp(r'(\d[\d.,]{2,})').firstMatch(afterLabel);
             if (match != null) {
               final price = _parseNumber(match.group(1));
-              if (price != null) {
+              if (price != null && price > 500) {
                 carats[carat] = {'buy': price, 'sell': price};
               }
             }
@@ -80,17 +80,23 @@ class GoldScraper {
         }
 
         if (line.contains('الجنيه الذهب') && goldPoundPrice == null) {
-          final match = RegExp(r'(\d[\d.,]*)').firstMatch(
-            line.substring(line.indexOf('الجنيه')),
-          );
-          if (match != null) goldPoundPrice = _parseNumber(match.group(1));
+          final afterLabel =
+              line.substring(line.indexOf('الجنيه') + 'الجنيه'.length);
+          final match = RegExp(r'(\d[\d.,]{2,})').firstMatch(afterLabel);
+          if (match != null) {
+            final val = _parseNumber(match.group(1));
+            if (val != null && val > 1000) goldPoundPrice = val;
+          }
         }
 
         if (line.contains('الأونصة') && ouncePrice == null) {
-          final match = RegExp(r'(\d[\d.,]*)').firstMatch(
-            line.substring(line.indexOf('الأونصة')),
-          );
-          if (match != null) ouncePrice = _parseNumber(match.group(1));
+          final afterLabel =
+              line.substring(line.indexOf('الأونصة') + 'الأونصة'.length);
+          final match = RegExp(r'(\d[\d.,]{2,})').firstMatch(afterLabel);
+          if (match != null) {
+            final val = _parseNumber(match.group(1));
+            if (val != null && val > 500 && val < 15000) ouncePrice = val;
+          }
         }
       }
 
@@ -121,15 +127,16 @@ class GoldScraper {
       final numberFonts = el.querySelectorAll('.number-font');
 
       for (final carat in _carats) {
-        if ((label.contains('عيار $carat') || label.contains(carat)) &&
-            !carats.containsKey(carat)) {
+        if (label.contains('عيار $carat') && !carats.containsKey(carat)) {
           final values = <double?>[];
           for (final numEl in numberFonts) {
-            values.add(_parseNumber(numEl.text));
+            final v = _parseNumber(numEl.text);
+            if (v != null && v > 500) values.add(v);
           }
+          if (values.isEmpty) continue;
           final parentText = el.text;
-          double? sell = values.isNotEmpty ? values[0] : null;
-          double? buy = values.length >= 2 ? values[1] : values.firstOrNull;
+          double? sell = values[0];
+          double? buy = values.length >= 2 ? values[1] : values[0];
           if (values.length >= 2 &&
               parentText.indexOf('شراء') < parentText.indexOf('بيع')) {
             buy = values[0];
@@ -148,7 +155,7 @@ class GoldScraper {
       if (label.contains('الأوقية') || label.contains('الأونصة')) {
         final val =
             numberFonts.isNotEmpty ? _parseNumber(numberFonts.first.text) : null;
-        if (val != null) ouncePrice = val;
+        if (val != null && val > 500 && val < 15000) ouncePrice = val;
       }
 
       if (label.contains('الدولار الأمريكي')) {
