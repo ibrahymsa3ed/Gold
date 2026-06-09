@@ -9,8 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-import 'package:open_filex/open_filex.dart';
-import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -22,7 +20,6 @@ import '../services/auth_service.dart';
 import '../services/backup_service.dart';
 import '../services/google_drive_service.dart';
 import '../services/gold_scraper.dart';
-import '../services/invoice_attachment_service.dart';
 import '../services/notifications_service.dart';
 import '../services/push_notifications_service.dart';
 import '../theme/app_themes.dart';
@@ -664,9 +661,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             DateTime.now();
     int? companyId = existing?['company_id'] as int?;
     bool weightLocked = false;
-    String? invoicePath = existing?['invoice_local_path']?.toString();
-    var removeInvoice = false;
-    final invService = InvoiceAttachmentService();
+    
 
     String effectiveType() {
       if (selectedMainType == 'jewellery') {
@@ -872,54 +867,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                     onChanged: (value) => companyId = value,
                   ),
-                  if (!kIsWeb) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        AppStrings.t(context, 'attach_invoice'),
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () async {
-                            final r = await FilePicker.platform.pickFiles();
-                            if (r != null && r.files.isNotEmpty) {
-                              final path = await invService
-                                  .copyPickedToAppStorage(r.files.single);
-                              setDialogState(() {
-                                invoicePath = path;
-                                removeInvoice = false;
-                              });
-                            }
-                          },
-                          icon: const Icon(Icons.attach_file, size: 18),
-                          label: Text(
-                            invoicePath != null && !removeInvoice
-                                ? p.basename(invoicePath!)
-                                : '—',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if ((invoicePath != null && !removeInvoice) ||
-                            (existing?['invoice_local_path'] != null &&
-                                !removeInvoice &&
-                                invoicePath == null))
-                          TextButton(
-                            onPressed: () => setDialogState(() {
-                              removeInvoice = true;
-                              invoicePath = null;
-                            }),
-                            child: Text(
-                                AppStrings.t(context, 'remove_attachment')),
-                          ),
-                      ],
-                    ),
-                  ],
+                  
                 ],
               ),
             ),
@@ -952,57 +900,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           purchasePrice: purchaseValue,
           purchaseDate: selectedDate.toIso8601String().split('T').first,
           companyId: companyId,
-          invoiceLocalPath: kIsWeb ? null : invoicePath,
         );
       } else {
-        final oldInv = existing['invoice_local_path'] as String?;
-        if (!kIsWeb) {
-          if (removeInvoice && oldInv != null) {
-            await invService.deleteFileIfExists(oldInv);
-            await widget.apiService.updateAsset(
-              assetId: existing['id'] as int,
-              assetType: finalType,
-              karat: selectedKarat,
-              weightG: weightValue,
-              purchasePrice: purchaseValue,
-              purchaseDate: selectedDate.toIso8601String().split('T').first,
-              companyId: companyId,
-              clearInvoice: true,
-            );
-          } else if (invoicePath != null && invoicePath != oldInv) {
-            await invService.deleteFileIfExists(oldInv);
-            await widget.apiService.updateAsset(
-              assetId: existing['id'] as int,
-              assetType: finalType,
-              karat: selectedKarat,
-              weightG: weightValue,
-              purchasePrice: purchaseValue,
-              purchaseDate: selectedDate.toIso8601String().split('T').first,
-              companyId: companyId,
-              invoiceLocalPath: invoicePath,
-            );
-          } else {
-            await widget.apiService.updateAsset(
-              assetId: existing['id'] as int,
-              assetType: finalType,
-              karat: selectedKarat,
-              weightG: weightValue,
-              purchasePrice: purchaseValue,
-              purchaseDate: selectedDate.toIso8601String().split('T').first,
-              companyId: companyId,
-            );
-          }
-        } else {
-          await widget.apiService.updateAsset(
-            assetId: existing['id'] as int,
-            assetType: finalType,
-            karat: selectedKarat,
-            weightG: weightValue,
-            purchasePrice: purchaseValue,
-            purchaseDate: selectedDate.toIso8601String().split('T').first,
-            companyId: companyId,
-          );
-        }
+        await widget.apiService.updateAsset(
+          assetId: existing['id'] as int,
+          assetType: finalType,
+          karat: selectedKarat,
+          weightG: weightValue,
+          purchasePrice: purchaseValue,
+          purchaseDate: selectedDate.toIso8601String().split('T').first,
+          companyId: companyId,
+        );
       }
       await _load();
     });
@@ -3080,7 +2988,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     final purchaseVal = (asset['purchase_price'] as num?)?.toDouble() ?? 0;
     final assetPL = currentVal - purchaseVal;
     final plPct = purchaseVal > 0 ? (assetPL / purchaseVal * 100) : 0.0;
-    final invPath = asset['invoice_local_path']?.toString();
     final purchaseDate = asset['purchase_date']?.toString() ?? '';
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
@@ -3164,15 +3071,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                 ),
-                if (invPath != null && invPath.isNotEmpty && !kIsWeb)
-                  IconButton(
-                    onPressed: () => OpenFilex.open(invPath),
-                    icon: Icon(Icons.receipt_long_outlined,
-                        size: 18, color: cs.onSurfaceVariant),
-                    tooltip: AppStrings.t(context, 'open_invoice'),
-                    padding: const EdgeInsets.all(6),
-                    constraints: const BoxConstraints(),
-                  ),
                 IconButton(
                   onPressed: () => _addAssetDialog(existing: asset),
                   icon: Icon(Icons.edit_outlined,
