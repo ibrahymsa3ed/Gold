@@ -905,6 +905,14 @@ class ApiService {
         0;
   }
 
+  double _getSellPrice(Map<String, dynamic> priceMap, String karat) {
+    final key = '${_normalizeKarat(karat)}k';
+    final row = priceMap[key] as Map<String, dynamic>?;
+    return (row?['sell_price'] as num?)?.toDouble() ??
+        (row?['buy_price'] as num?)?.toDouble() ??
+        0;
+  }
+
   Map<String, dynamic> _buildAssetSummary(
       List<Map<String, dynamic>> assets, Map<String, dynamic> priceMap) {
     double currentValue = 0, purchaseCost = 0, total24k = 0, total21k = 0;
@@ -937,7 +945,7 @@ class ApiService {
     required double savedAmount,
     required Map<String, dynamic> priceMap,
   }) {
-    final pricePerGram = _getBuyPrice(priceMap, karat);
+    final pricePerGram = _getSellPrice(priceMap, karat);
     final targetPrice = pricePerGram * targetWeightG;
     return {
       'target_price': targetPrice,

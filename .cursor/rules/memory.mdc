@@ -124,7 +124,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - L10n: `flutter-app/lib/l10n.dart`
 - Theme: `flutter-app/lib/theme/app_themes.dart`
 
-## Features Implemented (May 2026)
+## Features Implemented (June 2026)
 - First-launch tutorial (6 slides, skippable, shown once via SharedPreferences)
 - Hide/show assets toggle (masks monetary values + total grams across Assets tab and Home tab)
 - 2.5g ingot weight option
@@ -135,6 +135,9 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Adaptive icon XML for Android (proper rendering on MIUI/Samsung)
 - Price parsing validation (>500 EGP for karats, >1000 for gold pound, 500-15000 for ounce)
 - Telegram fallback regex fix (skip karat digit, require 3+ char numbers)
+- Ingots & Coins calculator (24K ingots + 21K coins, 8 manufacturers, manufacturing/cashback/resale breakdown)
+- Tutorial slide 7 for ingots/coins feature
+- Goals use sell price (not buy price) for target calculations
 
 ## Savings/Goals Features
 - Weight inputs use `numberWithOptions(decimal: true)` — decimal grams work
@@ -149,7 +152,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Package: `com.ibrahym.goldfamily`
 - Play Console: https://play.google.com/console/u/0/developers/6183037720371974289/app/4972005972149303949
 - Closed testing completed: 12 testers, 14+ days
-- **Latest version ready for production**: `1.0.2+7` — AAB built at `instagold-1.0.2+7.aab` in repo root
+- **Latest version ready for production**: `1.0.4+9` — AAB at `InstaGold.aab` in repo root
 - Google Play signing SHA-1: `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` — already in Firebase
 - `play-store-assets/` folder contains all graphics (icon, feature graphic, 5 phone + 4 tablet screenshots)
 - Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
@@ -161,7 +164,9 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 | 1.0.1+4 | v4 | develop branch | Added tutorial, pending notes |
 | 1.0.1+5 | v5 | skipped | — |
 | 1.0.1+6 | v6 | uploaded to testing | Icon fix, member dialog fix |
-| 1.0.2+7 | v7 | **Production release** | Full develop merge: HTTPS, tutorial, all fixes |
+| 1.0.2+7 | v7 | closed testing | Full develop merge: HTTPS, tutorial, all fixes |
+| 1.0.3+8 | v8 | superseded | Goals use sell price fix |
+| 1.0.4+9 | v9 | **Production release** | Ingots & coins calculator, tutorial slide 7 |
 
 ## Git
 - Remote: github.com/ibrahymsa3ed/Gold

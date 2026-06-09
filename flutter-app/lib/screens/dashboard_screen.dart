@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
@@ -86,6 +87,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   final TextEditingController _calcTaxCtrl = TextEditingController(text: '10');
   bool _calcExpanded = false;
 
+  // Ingot/Coin calculator state
+  bool _ingotExpanded = false;
+  int _ingotTab = 0; // 0 = ingots (24K), 1 = coins (21K)
+  String _ingotCompanyId = 'btc';
+  int _ingotWeightIdx = 0;
+  List<dynamic> _ingotCompanies = [];
+
   @override
   void initState() {
     super.initState();
@@ -96,6 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
     _loadCardOrder();
     _loadAssetsHidden();
+    _loadIngotCompanies();
   }
 
   Future<void> _loadCardOrder() async {
@@ -117,6 +126,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     final hidden = prefs.getBool('instagold_assets_hidden') ?? false;
     if (mounted && hidden != _assetsHidden) {
       setState(() => _assetsHidden = hidden);
+    }
+  }
+
+  Future<void> _loadIngotCompanies() async {
+    try {
+      final jsonStr =
+          await rootBundle.loadString('assets/data/ingot_companies.json');
+      final data = json.decode(jsonStr) as Map<String, dynamic>;
+      if (mounted) {
+        setState(() {
+          _ingotCompanies = data['companies'] as List<dynamic>? ?? [];
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load ingot companies: $e');
     }
   }
 
@@ -2036,6 +2060,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         SliverToBoxAdapter(child: _gapInfoCard()),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        if (_ingotCompanies.isNotEmpty)
+          SliverToBoxAdapter(child: _ingotCoinCalculator()),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
         if (_summary != null)
           SliverToBoxAdapter(
             child: _sectionCard(
@@ -2129,6 +2156,363 @@ class _DashboardScreenState extends State<DashboardScreen>
       total += weight * _karatNumber(karat) / 21;
     }
     return total;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  Ingot & Coin Calculator
+  // ════════════════════════════════════════════════════════════
+
+  Map<String, dynamic>? _currentIngotCompany() {
+    for (final c in _ingotCompanies) {
+      if (c['id'] == _ingotCompanyId) return c as Map<String, dynamic>;
+    }
+    return _ingotCompanies.isNotEmpty
+        ? _ingotCompanies.first as Map<String, dynamic>
+        : null;
+  }
+
+  List<dynamic> _currentProducts() {
+    final company = _currentIngotCompany();
+    if (company == null) return [];
+    return (_ingotTab == 0
+            ? company['ingots']
+            : company['coins']) as List<dynamic>? ??
+        [];
+  }
+
+  String _coinLabel(String label) {
+    final key = {
+          'quarter': 'quarter_pound_coin',
+          'half': 'half_pound_coin',
+          'full': 'full_pound_coin',
+          '2.5_pounds': 'two_half_pounds',
+          '5_pounds': 'five_pounds_coin',
+          '10_pounds': 'ten_pounds_coin',
+        }[label] ??
+        label;
+    return AppStrings.t(context, key);
+  }
+
+  String _productLabel(Map<String, dynamic> product) {
+    if (_ingotTab == 1 && product['label'] != null) {
+      return _coinLabel(product['label'] as String);
+    }
+    final w = (product['weight_g'] as num).toDouble();
+    if (w == 31.1) {
+      return AppStrings.isAr(context) ? 'أونصة (31.1g)' : 'Ounce (31.1g)';
+    }
+    return '${w % 1 == 0 ? w.toInt().toString() : w.toString()}g';
+  }
+
+  Map<String, double> _ingotCalcResults() {
+    final products = _currentProducts();
+    if (products.isEmpty || _ingotWeightIdx >= products.length) {
+      return {};
+    }
+    final product = products[_ingotWeightIdx] as Map<String, dynamic>;
+    final weightG = (product['weight_g'] as num).toDouble();
+    final mfgPerG = (product['manufacturing_per_g'] as num).toDouble();
+    final cbPerG = (product['cashback_per_g'] as num).toDouble();
+
+    final karatKey = _ingotTab == 0 ? '24k' : '21k';
+    final pricesMap = _prices?['prices'] as Map<String, dynamic>? ?? {};
+    final priceData = pricesMap[karatKey] as Map<String, dynamic>?;
+    if (priceData == null) return {};
+
+    final sellPrice = (priceData['sell_price'] as num?)?.toDouble() ?? 0;
+    final buyPrice = (priceData['buy_price'] as num?)?.toDouble() ?? 0;
+
+    final purchaseTotal = (sellPrice + mfgPerG) * weightG;
+    final resaleTotal = (buyPrice + cbPerG) * weightG;
+    final loss = purchaseTotal - resaleTotal;
+    final lossPct = purchaseTotal > 0 ? (loss / purchaseTotal * 100) : 0.0;
+
+    return {
+      'gram_price': sellPrice,
+      'mfg_per_g': mfgPerG,
+      'purchase_total': purchaseTotal,
+      'cashback_per_g': cbPerG,
+      'resale_total': resaleTotal,
+      'loss': loss,
+      'loss_pct': lossPct,
+    };
+  }
+
+  Widget _ingotCoinCalculator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+    final cs = Theme.of(context).colorScheme;
+    final isAr = AppStrings.isAr(context);
+
+    final products = _currentProducts();
+    if (_ingotWeightIdx >= products.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _ingotWeightIdx = 0);
+      });
+    }
+    final results = _ingotCalcResults();
+
+    return _sectionCard(
+      title: AppStrings.t(context, 'ingots_coins'),
+      actions: [
+        IconButton(
+          icon: Icon(
+            _ingotExpanded ? Icons.expand_less : Icons.expand_more,
+            color: goldAccent,
+          ),
+          onPressed: () =>
+              setState(() => _ingotExpanded = !_ingotExpanded),
+        ),
+      ],
+      child: _ingotExpanded
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Tab selector: ingots vs coins
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: goldAccent.withValues(alpha: 0.3), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      _ingotTabButton(
+                          0, AppStrings.t(context, 'ingots_24k'), goldAccent),
+                      _ingotTabButton(
+                          1, AppStrings.t(context, 'coins_21k'), goldAccent),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Company chips
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _ingotCompanies.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final c = _ingotCompanies[i] as Map<String, dynamic>;
+                      final selected = c['id'] == _ingotCompanyId;
+                      return ChoiceChip(
+                        label: Text(
+                          c['name'] as String,
+                          style: TextStyle(
+                            color: selected ? goldAccent : cs.onSurface.withValues(alpha: 0.5),
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                        selected: selected,
+                        onSelected: (_) => setState(() {
+                          _ingotCompanyId = c['id'] as String;
+                          _ingotWeightIdx = 0;
+                        }),
+                        selectedColor: goldAccent.withValues(alpha: 0.12),
+                        backgroundColor: Colors.transparent,
+                        side: BorderSide(
+                          color: selected
+                              ? goldAccent
+                              : goldAccent.withValues(alpha: 0.2),
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        showCheckmark: false,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Weight/product selector
+                SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) {
+                      final p = products[i] as Map<String, dynamic>;
+                      final selected = i == _ingotWeightIdx;
+                      return GestureDetector(
+                        onTap: () => setState(() => _ingotWeightIdx = i),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: selected
+                                ? goldAccent.withValues(alpha: 0.12)
+                                : Colors.transparent,
+                            border: Border.all(
+                              color: selected
+                                  ? goldAccent
+                                  : goldAccent.withValues(alpha: 0.15),
+                              width: 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _productLabel(p),
+                              style: TextStyle(
+                                color: selected
+                                    ? goldAccent
+                                    : cs.onSurface.withValues(alpha: 0.5),
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Results
+                if (results.isNotEmpty) ...[
+                  _ingotResultRow(
+                      AppStrings.t(context, 'gram_price'),
+                      '${_currency.format(results['gram_price'])} ${isAr ? 'جنيه' : 'EGP'}',
+                      goldAccent,
+                      isDark),
+                  const SizedBox(height: 6),
+                  _ingotResultRow(
+                      AppStrings.t(context, 'manufacturing_fee'),
+                      '${_currency.format(results['mfg_per_g'])} ${isAr ? 'جنيه' : 'EGP'}',
+                      goldAccent,
+                      isDark),
+                  const SizedBox(height: 6),
+                  _ingotResultRow(
+                      AppStrings.t(context, 'total_price'),
+                      '${_currency.format(results['purchase_total'])} ${isAr ? 'جنيه' : 'EGP'}',
+                      goldAccent,
+                      isDark,
+                      bold: true),
+                  const SizedBox(height: 6),
+                  _ingotResultRow(
+                      AppStrings.t(context, 'cashback_per_gram'),
+                      '${_currency.format(results['cashback_per_g'])} ${isAr ? 'جنيه' : 'EGP'}',
+                      goldAccent,
+                      isDark),
+                  const SizedBox(height: 6),
+                  _ingotResultRow(
+                      AppStrings.t(context, 'resale_price'),
+                      '${_currency.format(results['resale_total'])} ${isAr ? 'جنيه' : 'EGP'}',
+                      goldAccent,
+                      isDark),
+                  const SizedBox(height: 6),
+                  _ingotResultRow(
+                      AppStrings.t(context, 'expected_loss'),
+                      '-${_currency.format(results['loss'])} (${results['loss_pct']!.toStringAsFixed(2)}%)',
+                      goldAccent,
+                      isDark,
+                      valueColor: const Color(0xFFD32F2F)),
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      AppStrings.t(context, 'prices_unavailable'),
+                      style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            )
+          : GestureDetector(
+              onTap: () => setState(() => _ingotExpanded = true),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  isAr
+                      ? 'اضغط لمقارنة أسعار السبائك والعملات'
+                      : 'Tap to compare ingot & coin prices',
+                  style: TextStyle(
+                    color: goldAccent.withValues(alpha: 0.6),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _ingotTabButton(int index, String label, Color goldAccent) {
+    final selected = _ingotTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() {
+          _ingotTab = index;
+          _ingotWeightIdx = 0;
+        }),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? goldAccent.withValues(alpha: 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected
+                  ? goldAccent
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ingotResultRow(
+      String label, String value, Color goldAccent, bool isDark,
+      {bool bold = false, Color? valueColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF252118).withValues(alpha: 0.5)
+            : const Color(0xFFF8F5EE),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: goldAccent.withValues(alpha: 0.8),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ??
+                  (isDark ? Colors.white : Colors.black87),
+              fontSize: bold ? 16 : 14,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   double _currentValueForAsset(Map<String, dynamic> asset) {

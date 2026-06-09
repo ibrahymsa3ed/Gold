@@ -29,6 +29,12 @@ app.get("/health", (_, res) => {
   res.json({ ok: true, service: "main-backend" });
 });
 
+const _ingotData = require("../data/ingot_companies.json");
+app.get("/api/ingots/companies", (_, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json(_ingotData);
+});
+
 app.get("/api/prices/current", requireAuth, async (_, res) => {
   try {
     let latest = await getLatestCachedPrices();

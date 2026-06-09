@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "updated_at": "2026-06-08",
+  "companies": [
+    {
+      "id": "btc",
+      "name": "BTC",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 185, "cashback_per_g": 28.5 },
+        { "weight_g": 2.5, "manufacturing_per_g": 110, "cashback_per_g": 28.5 },
+        { "weight_g": 5, "manufacturing_per_g": 85, "cashback_per_g": 28.5 },
+        { "weight_g": 10, "manufacturing_per_g": 82, "cashback_per_g": 28.5 },
+        { "weight_g": 20, "manufacturing_per_g": 80, "cashback_per_g": 28.5 },
+        { "weight_g": 31.1, "manufacturing_per_g": 79, "cashback_per_g": 28.5 },
+        { "weight_g": 50, "manufacturing_per_g": 77, "cashback_per_g": 28.5 },
+        { "weight_g": 100, "manufacturing_per_g": 75, "cashback_per_g": 28.5 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 85, "cashback_per_g": 24 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 80, "cashback_per_g": 24 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 75, "cashback_per_g": 24 },
+        { "weight_g": 20, "label": "2.5_pounds", "manufacturing_per_g": 66, "cashback_per_g": 24 },
+        { "weight_g": 40, "label": "5_pounds", "manufacturing_per_g": 62, "cashback_per_g": 24 },
+        { "weight_g": 80, "label": "10_pounds", "manufacturing_per_g": 60, "cashback_per_g": 24 }
+      ]
+    },
+    {
+      "id": "gold_era",
+      "name": "Gold ERA",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 161, "cashback_per_g": 28 },
+        { "weight_g": 2.5, "manufacturing_per_g": 96, "cashback_per_g": 28 },
+        { "weight_g": 5, "manufacturing_per_g": 66, "cashback_per_g": 28 },
+        { "weight_g": 10, "manufacturing_per_g": 65, "cashback_per_g": 28 },
+        { "weight_g": 20, "manufacturing_per_g": 64, "cashback_per_g": 28 },
+        { "weight_g": 50, "manufacturing_per_g": 60, "cashback_per_g": 28 },
+        { "weight_g": 100, "manufacturing_per_g": 58, "cashback_per_g": 28 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 80, "cashback_per_g": 22 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 75, "cashback_per_g": 22 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 70, "cashback_per_g": 22 }
+      ]
+    },
+    {
+      "id": "sam",
+      "name": "SAM",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 170, "cashback_per_g": 25 },
+        { "weight_g": 2.5, "manufacturing_per_g": 100, "cashback_per_g": 25 },
+        { "weight_g": 5, "manufacturing_per_g": 75, "cashback_per_g": 25 },
+        { "weight_g": 10, "manufacturing_per_g": 70, "cashback_per_g": 25 },
+        { "weight_g": 20, "manufacturing_per_g": 65, "cashback_per_g": 25 },
+        { "weight_g": 50, "manufacturing_per_g": 60, "cashback_per_g": 25 },
+        { "weight_g": 100, "manufacturing_per_g": 55, "cashback_per_g": 25 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 78, "cashback_per_g": 20 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 73, "cashback_per_g": 20 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 68, "cashback_per_g": 20 }
+      ]
+    },
+    {
+      "id": "swiss_gold",
+      "name": "Swiss Gold",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 175, "cashback_per_g": 27 },
+        { "weight_g": 2.5, "manufacturing_per_g": 105, "cashback_per_g": 27 },
+        { "weight_g": 5, "manufacturing_per_g": 80, "cashback_per_g": 27 },
+        { "weight_g": 10, "manufacturing_per_g": 75, "cashback_per_g": 27 },
+        { "weight_g": 20, "manufacturing_per_g": 70, "cashback_per_g": 27 },
+        { "weight_g": 50, "manufacturing_per_g": 65, "cashback_per_g": 27 },
+        { "weight_g": 100, "manufacturing_per_g": 62, "cashback_per_g": 27 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 82, "cashback_per_g": 22 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 77, "cashback_per_g": 22 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 72, "cashback_per_g": 22 }
+      ]
+    },
+    {
+      "id": "elgalla",
+      "name": "ElGalla Gold",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 165, "cashback_per_g": 26 },
+        { "weight_g": 2.5, "manufacturing_per_g": 100, "cashback_per_g": 26 },
+        { "weight_g": 5, "manufacturing_per_g": 72, "cashback_per_g": 26 },
+        { "weight_g": 10, "manufacturing_per_g": 68, "cashback_per_g": 26 },
+        { "weight_g": 20, "manufacturing_per_g": 65, "cashback_per_g": 26 },
+        { "weight_g": 50, "manufacturing_per_g": 62, "cashback_per_g": 26 },
+        { "weight_g": 100, "manufacturing_per_g": 58, "cashback_per_g": 26 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 80, "cashback_per_g": 21 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 75, "cashback_per_g": 21 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 70, "cashback_per_g": 21 }
+      ]
+    },
+    {
+      "id": "selema",
+      "name": "Selema",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 160, "cashback_per_g": 25 },
+        { "weight_g": 2.5, "manufacturing_per_g": 95, "cashback_per_g": 25 },
+        { "weight_g": 5, "manufacturing_per_g": 70, "cashback_per_g": 25 },
+        { "weight_g": 10, "manufacturing_per_g": 66, "cashback_per_g": 25 },
+        { "weight_g": 20, "manufacturing_per_g": 63, "cashback_per_g": 25 },
+        { "weight_g": 50, "manufacturing_per_g": 58, "cashback_per_g": 25 },
+        { "weight_g": 100, "manufacturing_per_g": 55, "cashback_per_g": 25 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 78, "cashback_per_g": 20 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 73, "cashback_per_g": 20 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 68, "cashback_per_g": 20 }
+      ]
+    },
+    {
+      "id": "gfg",
+      "name": "GFG",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 168, "cashback_per_g": 26 },
+        { "weight_g": 2.5, "manufacturing_per_g": 98, "cashback_per_g": 26 },
+        { "weight_g": 5, "manufacturing_per_g": 74, "cashback_per_g": 26 },
+        { "weight_g": 10, "manufacturing_per_g": 70, "cashback_per_g": 26 },
+        { "weight_g": 20, "manufacturing_per_g": 66, "cashback_per_g": 26 },
+        { "weight_g": 50, "manufacturing_per_g": 62, "cashback_per_g": 26 },
+        { "weight_g": 100, "manufacturing_per_g": 58, "cashback_per_g": 26 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 80, "cashback_per_g": 21 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 75, "cashback_per_g": 21 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 70, "cashback_per_g": 21 }
+      ]
+    },
+    {
+      "id": "mb_gold",
+      "name": "MB Gold",
+      "ingots": [
+        { "weight_g": 1, "manufacturing_per_g": 172, "cashback_per_g": 26 },
+        { "weight_g": 2.5, "manufacturing_per_g": 102, "cashback_per_g": 26 },
+        { "weight_g": 5, "manufacturing_per_g": 78, "cashback_per_g": 26 },
+        { "weight_g": 10, "manufacturing_per_g": 72, "cashback_per_g": 26 },
+        { "weight_g": 20, "manufacturing_per_g": 68, "cashback_per_g": 26 },
+        { "weight_g": 50, "manufacturing_per_g": 63, "cashback_per_g": 26 },
+        { "weight_g": 100, "manufacturing_per_g": 60, "cashback_per_g": 26 }
+      ],
+      "coins": [
+        { "weight_g": 2, "label": "quarter", "manufacturing_per_g": 80, "cashback_per_g": 22 },
+        { "weight_g": 4, "label": "half", "manufacturing_per_g": 75, "cashback_per_g": 22 },
+        { "weight_g": 8, "label": "full", "manufacturing_per_g": 70, "cashback_per_g": 22 }
+      ]
+    }
+  ]
+}
