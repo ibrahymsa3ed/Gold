@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n.dart';
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/ig_logo.dart';
 import '../widgets/premium_background.dart';
@@ -60,7 +61,10 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  Future<void> _run(
+    Future<void> Function() action, {
+    String loginMethod = 'email',
+  }) async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -69,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen>
     });
     try {
       await action();
+      AnalyticsService.instance.logLogin(loginMethod);
     } on Exception catch (e) {
       final msg = _cleanErrorMessage(e);
       setState(() {
@@ -542,7 +547,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 onPressed: _isLoading
                                     ? null
                                     : () => _run(
-                                        widget.authService.signInWithGoogle),
+                                        widget.authService.signInWithGoogle,
+                                        loginMethod: 'google'),
                                 icon: const Icon(Icons.g_mobiledata,
                                     size: 24, color: Colors.white),
                                 label: Text(

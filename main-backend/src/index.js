@@ -35,6 +35,12 @@ app.get("/api/ingots/companies", (_, res) => {
   res.json(_ingotData);
 });
 
+const _appVersionData = require("../data/app_version.json");
+app.get("/api/app-version", (_, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json(_appVersionData);
+});
+
 app.get("/api/prices/current", requireAuth, async (_, res) => {
   try {
     let latest = await getLatestCachedPrices();

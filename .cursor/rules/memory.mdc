@@ -109,6 +109,8 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Local notifs: `flutter-app/lib/services/notifications_service.dart`
 - Price watcher: `flutter-app/lib/services/price_watcher.dart`
 - iOS bg fetch: `flutter-app/lib/services/ios_background_fetch.dart`
+- Analytics: `flutter-app/lib/services/analytics_service.dart`
+- Update: `flutter-app/lib/services/update_service.dart`
 - Database: `flutter-app/lib/services/database_helper.dart` (version 3)
 - Scraper: `flutter-app/lib/services/gold_scraper.dart`
 - App entry: `flutter-app/lib/app.dart` (tutorial flow)
@@ -138,6 +140,8 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Ingots & Coins calculator (24K ingots + 21K coins, 8 manufacturers, manufacturing/cashback/resale breakdown)
 - Tutorial slide 7 for ingots/coins feature
 - Goals use sell price (not buy price) for target calculations
+- Firebase Analytics integration with 25+ custom events tracking all feature usage
+- In-app update notification system (pre-update dialog + post-update What's New popup)
 
 ## Savings/Goals Features
 - Weight inputs use `numberWithOptions(decimal: true)` — decimal grams work
@@ -153,7 +157,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Play Console: https://play.google.com/console/u/0/developers/6183037720371974289/app/4972005972149303949
 - Closed testing completed: 12 testers, 14+ days
 - **Latest version in production**: `1.0.4+10` — live on Google Play
-- **Codebase HEAD**: `1.0.4+12` — next release will be v13+
+- **Codebase HEAD**: `1.0.5+13` — ready for next Play Store release
 - Google Play signing SHA-1: `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` — already in Firebase
 - `play-store-assets/` folder contains all graphics (icon, feature graphic, 5 phone + 4 tablet screenshots)
 - Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
@@ -169,6 +173,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 | 1.0.3+8 | v8 | superseded | Goals use sell price fix |
 | 1.0.4+10 | v10 | **Production (live)** | Ingots & coins calculator, tutorial slide 7, permission fix |
 | 1.0.4+12 | v12 | codebase HEAD | Removed invoice attachment feature |
+| 1.0.5+13 | v13 | codebase HEAD | In-app update system, analytics |
 
 ## Git
 - Remote: github.com/ibrahymsa3ed/Gold
@@ -191,7 +196,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - iPad: `4EB3A29C-784D-5FB5-8C40-E1F735F709D0`
 
 ## Accounts & Services
-- **Firebase**: project `goldcalculate` — Firebase Auth, FCM, service account key at repo root
+- **Firebase**: project `goldcalculate` — Firebase Auth, FCM, Analytics, service account key at repo root
 - **Google Play Console**: developer ID `6183037720371974289`
 - **Oracle Cloud**: tenancy `ibrahymsaaeed`, region `me-jeddah-1` (Jeddah)
 - **GitHub**: `ibrahymsa3ed/Gold`

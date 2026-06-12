@@ -15,6 +15,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../l10n.dart';
 import '../screens/price_alerts_screen.dart';
+import '../services/analytics_service.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/backup_service.dart';
@@ -146,6 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _assetsHidden = next);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('instagold_assets_hidden', next);
+    AnalyticsService.instance.logAssetsToggleHidden(next);
   }
 
   Future<void> _maybShowMiuiBatteryPrompt() async {
@@ -601,6 +603,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             await widget.apiService.setDefaultMemberId(newId);
           }
           _selectedMemberId = newId;
+          AnalyticsService.instance.logMemberAdded();
         }
         await _load();
       });
@@ -901,6 +904,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           purchaseDate: selectedDate.toIso8601String().split('T').first,
           companyId: companyId,
         );
+        AnalyticsService.instance
+            .logAssetAdded(type: finalType, karat: selectedKarat);
       } else {
         await widget.apiService.updateAsset(
           assetId: existing['id'] as int,
@@ -911,6 +916,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           purchaseDate: selectedDate.toIso8601String().split('T').first,
           companyId: companyId,
         );
+        AnalyticsService.instance.logAssetEdited(type: finalType);
       }
       await _load();
     });
@@ -947,6 +953,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     await _safeAction(() async {
       await widget.apiService.addSaving(_selectedMemberId!, value);
+      AnalyticsService.instance.logSavingAdded();
       await _load();
     });
   }
@@ -1004,6 +1011,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (confirm != true) return;
       await _safeAction(() async {
         await widget.apiService.deleteSaving(id);
+        AnalyticsService.instance.logSavingDeleted();
         await _load();
       });
       return;
@@ -1012,6 +1020,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (value <= 0) return;
     await _safeAction(() async {
       await widget.apiService.updateSaving(id, value);
+      AnalyticsService.instance.logSavingEdited();
       await _load();
     });
   }
@@ -1219,6 +1228,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         companyId: companyId,
         manufacturingPriceG: double.tryParse(manufacturingPriceCtrl.text) ?? 0,
       );
+      AnalyticsService.instance
+          .logGoalAdded(type: goalMainType, karat: goalKarat);
       await _load();
     });
   }
@@ -1342,6 +1353,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (confirmed != true) return;
     await _safeAction(() async {
       await widget.apiService.deleteGoal(goal['id'] as int);
+      AnalyticsService.instance.logGoalDeleted();
       await _load();
     });
   }
@@ -2219,6 +2231,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         onSelected: (_) => setState(() {
                           _ingotCompanyId = c['id'] as String;
                           _ingotWeightIdx = 0;
+                          AnalyticsService.instance
+                              .logIngotCalcCompanyChanged(c['id'] as String);
                         }),
                         selectedColor: goldAccent.withValues(alpha: 0.12),
                         backgroundColor: Colors.transparent,
@@ -2338,7 +2352,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             )
           : GestureDetector(
-              onTap: () => setState(() => _ingotExpanded = true),
+              onTap: () {
+                setState(() => _ingotExpanded = true);
+                AnalyticsService.instance.logIngotCalcOpened();
+              },
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
@@ -2362,6 +2379,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         onTap: () => setState(() {
           _ingotTab = index;
           _ingotWeightIdx = 0;
+          AnalyticsService.instance
+              .logIngotCalcTabChanged(index == 0 ? 'ingots' : 'coins');
         }),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -2498,7 +2517,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           initiallyExpanded: _calcExpanded,
-          onExpansionChanged: (v) => setState(() => _calcExpanded = v),
+          onExpansionChanged: (v) {
+            setState(() => _calcExpanded = v);
+            if (v) AnalyticsService.instance.logGoldCalcUsed();
+          },
           tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
           leading: Icon(Icons.calculate_outlined, color: goldAccent, size: 22),
           title: Text(
@@ -3108,6 +3130,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             await _safeAction(() async {
                               await widget.apiService
                                   .deleteAsset(asset['id'] as int);
+                              AnalyticsService.instance.logAssetDeleted();
                               await _load();
                             });
                           }
@@ -3913,6 +3936,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           widget.authService.currentUser?.uid ?? 'anonymous';
                       await backupService.exportBackupZip(
                           widget.apiService, userId);
+                      AnalyticsService.instance.logBackupExported('local');
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -3947,6 +3971,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                           apiService: widget.apiService,
                           userId: userId,
                           folderId: folderId);
+                      if (fileId != null) {
+                        AnalyticsService.instance
+                            .logBackupExported('google_drive');
+                      }
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -4008,6 +4036,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           widget.authService.currentUser?.uid ?? 'anonymous';
                       await backupService.restoreFromPickedBytes(
                           pick.files.first.bytes!, userId);
+                      AnalyticsService.instance.logBackupImported();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content:
@@ -4039,8 +4068,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  static const _tabNames = ['home', 'my_gold', 'savings_goals', 'settings'];
+
   void _onTabChanged(int index) {
     setState(() => _selectedTab = index);
+    if (index < _tabNames.length) {
+      AnalyticsService.instance.logTabView(_tabNames[index]);
+    }
     if (index == 0) {
       _safeAction(_load);
     }
@@ -4403,15 +4437,18 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
               actions: [
                 IconButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PriceAlertsScreen(
-                        apiService: widget.apiService,
-                        locale: widget.locale,
+                  onPressed: () {
+                    AnalyticsService.instance.logPriceAlertsOpened();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PriceAlertsScreen(
+                          apiService: widget.apiService,
+                          locale: widget.locale,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                   icon: const Icon(Icons.notifications_outlined, size: 22),
                   tooltip: widget.locale.languageCode == 'ar'
                       ? 'تنبيهات الأسعار'

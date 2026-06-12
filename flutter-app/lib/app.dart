@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'l10n.dart';
 import 'screens/dashboard_screen.dart';
@@ -11,10 +12,12 @@ import 'screens/tutorial_screen.dart';
 import 'theme/app_themes.dart';
 import 'theme/ui_design_variant.dart';
 import 'screens/login_screen.dart';
+import 'services/analytics_service.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/notifications_service.dart';
 import 'services/push_notifications_service.dart';
+import 'services/update_service.dart';
 
 class GoldFamilyApp extends StatefulWidget {
   const GoldFamilyApp({super.key});
@@ -36,10 +39,14 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
   bool _settingsLoaded = false;
   bool _tutorialSeen = true;
 
+  bool _updateCheckDone = false;
+
   static const _kThemeKey = 'instagold_theme';
   static const _kLocaleKey = 'instagold_locale';
   static const _kGuestKey = 'instagold_guest';
   static const _kTutorialKey = 'instagold_tutorial_seen';
+  static const _kLastWhatsNewBuild = 'instagold_last_whats_new_build';
+  static const _kDismissedUpdateVersion = 'instagold_dismissed_update_version';
 
   @override
   void initState() {
@@ -81,6 +88,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(_kThemeKey, isDark ? 'dark' : 'light');
     });
+    AnalyticsService.instance.logThemeChanged(isDark ? 'dark' : 'light');
   }
 
   void _handleLocaleChanged(Locale locale) {
@@ -88,6 +96,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(_kLocaleKey, locale.languageCode);
     });
+    AnalyticsService.instance.logLanguageChanged(locale.languageCode);
     // Push the new locale into the App Group so the iOS widget can render
     // karat labels in the correct language on its next refresh.
     if (!kIsWeb) {
@@ -130,6 +139,86 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
     setState(() => _tutorialSeen = true);
     SharedPreferences.getInstance()
         .then((p) => p.setBool(_kTutorialKey, true));
+    AnalyticsService.instance.logTutorialComplete();
+  }
+
+  Future<void> _checkForUpdate(BuildContext ctx) async {
+    if (_updateCheckDone || kIsWeb) return;
+    _updateCheckDone = true;
+
+    final info = await UpdateService.checkForUpdate(_locale.languageCode);
+    if (info == null || !info.needsUpdate) {
+      // No update needed — check for post-update What's New
+      if (info != null) _showPostUpdateWhatsNew(ctx, info);
+      return;
+    }
+
+    if (!ctx.mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (!info.isForced) {
+      final dismissed = prefs.getInt(_kDismissedUpdateVersion) ?? 0;
+      if (dismissed >= info.latestVersionCode) return;
+    }
+
+    if (!ctx.mounted) return;
+    _showUpdateDialog(ctx, info, prefs);
+  }
+
+  Future<void> _showPostUpdateWhatsNew(
+      BuildContext ctx, UpdateInfo info) async {
+    if (info.whatsNewText.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final lastBuild = prefs.getInt(_kLastWhatsNewBuild) ?? 0;
+    if (info.currentVersionCode <= lastBuild) return;
+
+    await prefs.setInt(_kLastWhatsNewBuild, info.currentVersionCode);
+    if (!ctx.mounted) return;
+
+    final isAr = _locale.languageCode == 'ar';
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => _UpdateDialog(
+        title: AppStrings.tFor(_locale.languageCode, 'whats_new'),
+        whatsNew: info.whatsNewText,
+        isForced: false,
+        isPostUpdate: true,
+        isAr: isAr,
+      ),
+    );
+  }
+
+  void _showUpdateDialog(
+      BuildContext ctx, UpdateInfo info, SharedPreferences prefs) {
+    final isAr = _locale.languageCode == 'ar';
+    final title = info.isForced
+        ? AppStrings.tFor(_locale.languageCode, 'update_required')
+        : AppStrings.tFor(_locale.languageCode, 'update_available');
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: !info.isForced,
+      builder: (dCtx) => PopScope(
+        canPop: !info.isForced,
+        child: _UpdateDialog(
+          title: title,
+          whatsNew: info.whatsNewText,
+          isForced: info.isForced,
+          isPostUpdate: false,
+          isAr: isAr,
+          forcedMessage: info.isForced
+              ? AppStrings.tFor(_locale.languageCode, 'update_required_msg')
+              : null,
+          onLater: info.isForced
+              ? null
+              : () {
+                  prefs.setInt(
+                      _kDismissedUpdateVersion, info.latestVersionCode);
+                  Navigator.pop(dCtx);
+                },
+        ),
+      ),
+    );
   }
 
   @override
@@ -137,6 +226,7 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
     return MaterialApp(
       title: 'InstaGold',
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [AnalyticsService.instance.observer],
       locale: _locale,
       supportedLocales: AppStrings.supportedLocales,
       localizationsDelegates: const [
@@ -167,13 +257,13 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
                   setState(() => _guestMode = true);
                   SharedPreferences.getInstance()
                       .then((p) => p.setBool(_kGuestKey, true));
+                  AnalyticsService.instance.logGuestLogin();
                 },
               );
             }
-            // Defer push init until first dashboard build so auth + locale
-            // are both settled. Schedule it post-frame to avoid jank.
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _ensurePushInitialized();
+              if (context.mounted) _checkForUpdate(context);
             });
             return DashboardScreen(
               authService: _authService,
@@ -194,6 +284,106 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _UpdateDialog extends StatelessWidget {
+  final String title;
+  final String whatsNew;
+  final bool isForced;
+  final bool isPostUpdate;
+  final bool isAr;
+  final String? forcedMessage;
+  final VoidCallback? onLater;
+
+  const _UpdateDialog({
+    required this.title,
+    required this.whatsNew,
+    required this.isForced,
+    required this.isPostUpdate,
+    required this.isAr,
+    this.forcedMessage,
+    this.onLater,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isRtl = isAr;
+    final localeCode = isAr ? 'ar' : 'en';
+
+    return Directionality(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              isPostUpdate ? Icons.celebration_rounded : Icons.system_update,
+              color: const Color(0xFFD4A843),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(title, style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              )),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (forcedMessage != null) ...[
+                Text(forcedMessage!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.error)),
+                const SizedBox(height: 12),
+              ],
+              if (whatsNew.isNotEmpty) ...[
+                Text(
+                  AppStrings.tFor(localeCode, 'whats_new'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFD4A843),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(whatsNew, style: theme.textTheme.bodyMedium),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (!isForced && !isPostUpdate && onLater != null)
+            TextButton(
+              onPressed: onLater,
+              child: Text(AppStrings.tFor(localeCode, 'later')),
+            ),
+          if (isPostUpdate)
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD4A843),
+              ),
+              child: Text(AppStrings.tFor(localeCode, 'got_it')),
+            )
+          else
+            FilledButton.icon(
+              onPressed: () {
+                launchUrl(Uri.parse(UpdateService.storeUrl),
+                    mode: LaunchMode.externalApplication);
+              },
+              icon: const Icon(Icons.download_rounded),
+              label: Text(AppStrings.tFor(localeCode, 'update_now')),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD4A843),
+              ),
+            ),
+        ],
       ),
     );
   }

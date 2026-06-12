@@ -180,6 +180,42 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Home screen widgets (iOS + Android)
 - Zakat calculator
 - Backup/restore with Google Drive
+- **Firebase Analytics** — feature usage tracking via `analytics_service.dart`
+
+### Analytics (Firebase Analytics)
+`firebase_analytics` is integrated via a centralized `AnalyticsService` singleton (`lib/services/analytics_service.dart`). Events are only logged in release mode (skipped in debug). Tracked events:
+
+| Event | Trigger |
+|---|---|
+| `login` (built-in) | Email or Google sign-in |
+| `guest_login` | Guest mode entry |
+| `tutorial_complete` | User finishes tutorial |
+| `tutorial_skip` | User skips tutorial (includes slide index) |
+| `tab_view` | Bottom nav tab switch |
+| `member_added` | New family member created |
+| `asset_added` | New gold asset saved (includes type + karat) |
+| `asset_edited` | Existing asset updated |
+| `asset_deleted` | Asset removed |
+| `assets_toggle_hidden` | Hide/show toggle |
+| `saving_added` | New saving entry |
+| `saving_edited` | Saving updated |
+| `saving_deleted` | Saving removed |
+| `goal_added` | New purchase goal (includes type + karat) |
+| `goal_deleted` | Goal removed |
+| `price_alert_created` | New price alert (includes karat + direction) |
+| `price_alert_deleted` | Alert removed |
+| `price_alert_toggled` | Alert active/inactive toggled |
+| `price_alerts_opened` | Price alerts screen opened |
+| `ingot_calc_opened` | Ingot/coin calculator expanded |
+| `ingot_calc_company` | Company changed in calculator |
+| `ingot_calc_tab` | Ingots vs coins tab switched |
+| `gold_calc_used` | Gold calculator expanded |
+| `backup_exported` | Backup exported (local or Google Drive) |
+| `backup_imported` | Backup restored |
+| `theme_changed` | Light/dark toggled |
+| `language_changed` | Arabic/English switched |
+
+Screen views are auto-tracked via `FirebaseAnalyticsObserver` on `MaterialApp.navigatorObservers`.
 
 ### Screen Map
 - Login/Auth (email/password + Google)
@@ -225,7 +261,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 ## Accounts & Services
 | Service | Details |
 |---|---|
-| Firebase | Project `goldcalculate` — Auth, FCM |
+| Firebase | Project `goldcalculate` — Auth, FCM, Analytics |
 | Google Play | Developer ID `6183037720371974289` |
 | Oracle Cloud | Tenancy `ibrahymsaaeed`, region `me-jeddah-1` |
 | GitHub | `ibrahymsa3ed/Gold` |

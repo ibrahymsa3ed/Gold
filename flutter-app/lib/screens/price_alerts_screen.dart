@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/analytics_service.dart';
 import '../services/api_service.dart';
 
 class PriceAlertsScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _PriceAlertsScreenState extends State<PriceAlertsScreen> {
 
   Future<void> _delete(int id) async {
     await widget.apiService.deletePriceAlert(id);
+    AnalyticsService.instance.logPriceAlertDeleted();
     _load();
   }
 
@@ -45,6 +47,7 @@ class _PriceAlertsScreenState extends State<PriceAlertsScreen> {
       alert['id'] as int,
       {'active': newActive},
     );
+    AnalyticsService.instance.logPriceAlertToggled(newActive);
     _load();
   }
 
@@ -124,6 +127,10 @@ class _PriceAlertsScreenState extends State<PriceAlertsScreen> {
                   await widget.apiService.createPriceAlert(
                     karat: karat,
                     targetPrice: price,
+                    direction: direction,
+                  );
+                  AnalyticsService.instance.logPriceAlertCreated(
+                    karat: karat,
                     direction: direction,
                   );
                   if (ctx.mounted) Navigator.pop(ctx);

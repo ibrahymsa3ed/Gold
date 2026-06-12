@@ -160,6 +160,13 @@ class AppStrings {
       'two_half_pounds': '2.5 Pounds',
       'five_pounds_coin': '5 Pounds',
       'ten_pounds_coin': '10 Pounds',
+      'update_available': 'Update Available',
+      'update_required': 'Update Required',
+      'update_required_msg': 'Please update the app to continue using it.',
+      'whats_new': "What's New",
+      'update_now': 'Update Now',
+      'later': 'Later',
+      'got_it': 'Got it',
     },
     'ar': {
       'app_title': 'ذهب العائلة',
@@ -317,6 +324,13 @@ class AppStrings {
       'two_half_pounds': '2.5 جنيه',
       'five_pounds_coin': '5 جنيهات',
       'ten_pounds_coin': '10 جنيهات',
+      'update_available': 'تحديث متاح',
+      'update_required': 'تحديث مطلوب',
+      'update_required_msg': 'يرجى تحديث التطبيق للاستمرار في استخدامه.',
+      'whats_new': 'ما الجديد',
+      'update_now': 'تحديث الآن',
+      'later': 'لاحقاً',
+      'got_it': 'حسناً',
     },
   };
 

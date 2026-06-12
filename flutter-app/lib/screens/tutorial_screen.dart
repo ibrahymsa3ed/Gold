@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/analytics_service.dart';
+
 class TutorialScreen extends StatefulWidget {
   final VoidCallback onComplete;
 
@@ -53,7 +55,11 @@ class _TutorialScreenState extends State<TutorialScreen> {
             Align(
               alignment: AlignmentDirectional.topEnd,
               child: TextButton(
-                onPressed: widget.onComplete,
+                onPressed: () {
+                  AnalyticsService.instance
+                      .logTutorialSkip(slideIndex: _currentPage);
+                  widget.onComplete();
+                },
                 child: const Text(
                   'Skip',
                   style: TextStyle(color: gold, fontSize: 14),
