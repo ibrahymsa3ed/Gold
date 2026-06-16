@@ -4148,12 +4148,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                       .colorScheme
                       .outlineVariant
                       .withValues(alpha: 0.15)),
-              _settingsRow(
-                icon: Icons.mail_outline_rounded,
-                title: AppStrings.t(context, 'contact_us'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
-                  onPressed: _showContactUsDialog,
+              GestureDetector(
+                onTap: _showContactUsDialog,
+                behavior: HitTestBehavior.opaque,
+                child: _settingsRow(
+                  icon: Icons.mail_outline_rounded,
+                  title: AppStrings.t(context, 'contact_us'),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
                 ),
               ),
             ],
@@ -4175,27 +4176,42 @@ class _DashboardScreenState extends State<DashboardScreen>
           bool sending = false;
           return AlertDialog(
             title: Text(AppStrings.t(context, 'contact_us')),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: subjectCtrl,
-                    decoration: InputDecoration(
-                      labelText: AppStrings.t(context, 'subject'),
-                      hintText: AppStrings.t(context, 'suggestion'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStrings.t(context, 'contact_us_subtitle'),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: messageCtrl,
-                    decoration: InputDecoration(
-                      labelText: AppStrings.t(context, 'your_message'),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: subjectCtrl,
+                      decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'subject'),
+                        hintText: AppStrings.t(context, 'suggestion'),
+                      ),
                     ),
-                    maxLines: 5,
-                    minLines: 3,
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: messageCtrl,
+                      decoration: InputDecoration(
+                        labelText: AppStrings.t(context, 'your_message'),
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 8,
+                      minLines: 5,
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [

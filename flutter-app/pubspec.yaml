@@ -1,7 +1,7 @@
 name: gold_family_app
 description: InstaGold - track gold prices and manage family gold assets in Egypt
 publish_to: "none"
-version: 1.0.6+15
+version: 1.0.6+16
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
