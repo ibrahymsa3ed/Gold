@@ -187,6 +187,18 @@ async function initDb() {
   `);
   await run(`CREATE INDEX IF NOT EXISTS idx_alerts_user ON PriceAlerts(user_id)`);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS GoldPriceHistory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      carat TEXT NOT NULL,
+      buy_price REAL,
+      sell_price REAL,
+      currency TEXT NOT NULL DEFAULT 'EGP',
+      recorded_at TEXT NOT NULL
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_price_history_carat_date ON GoldPriceHistory(carat, recorded_at)`);
+
   await ensureColumn("Users", "firebase_uid", "TEXT");
   await ensureColumn("FamilyMembers", "user_id", "INTEGER");
   await ensureColumn("Assets", "member_id", "INTEGER");

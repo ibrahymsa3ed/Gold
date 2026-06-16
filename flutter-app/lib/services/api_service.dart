@@ -77,6 +77,21 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════════════════════
+  //  Feedback
+  // ════════════════════════════════════════════════════════════
+
+  Future<Map<String, dynamic>> sendFeedback(
+      String subject, String message) async {
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/feedback');
+    final resp = await http
+        .post(uri,
+            headers: await _headers(), body: jsonEncode({'subject': subject, 'message': message}))
+        .timeout(const Duration(seconds: 15));
+    if (resp.statusCode >= 400) throw Exception(resp.body);
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
+  // ════════════════════════════════════════════════════════════
   //  Session
   // ════════════════════════════════════════════════════════════
 
@@ -169,7 +184,73 @@ class ApiService {
         'fetched_at': now,
       });
     }
+
+    try {
+      final silver = await GoldScraper.scrapeSilverPrices();
+      for (final entry in silver.entries) {
+        if (entry.value != null && entry.value! > 0) {
+          await db.insert('GoldPriceCache', {
+            'carat': entry.key,
+            'buy_price': entry.value,
+            'sell_price': entry.value,
+            'currency': 'EGP',
+            'fetched_at': now,
+          });
+        }
+      }
+    } catch (_) {}
+
+    // Record snapshot to price history (one row per carat per sync)
+    try {
+      final allCached = await db.query('GoldPriceCache',
+          where: 'fetched_at = ?', whereArgs: [now]);
+      for (final row in allCached) {
+        await db.insert('GoldPriceHistory', {
+          'carat': row['carat'],
+          'buy_price': row['buy_price'],
+          'sell_price': row['sell_price'],
+          'currency': row['currency'],
+          'recorded_at': now,
+        });
+      }
+    } catch (_) {}
+
     return {'message': 'Price cache updated.'};
+  }
+
+  /// Fetch price history for a specific carat. Tries backend first (global),
+  /// falls back to local GoldPriceHistory table.
+  Future<List<Map<String, dynamic>>> getPriceHistory(
+      String carat, int days) async {
+    if (!kIsWeb) {
+      try {
+        final uri = Uri.parse(
+            '${AppConfig.apiBaseUrl}/api/prices/history?carat=$carat&days=$days');
+        final resp =
+            await http.get(uri).timeout(const Duration(seconds: 8));
+        if (resp.statusCode == 200) {
+          final data = json.decode(resp.body) as Map<String, dynamic>;
+          final rows = (data['data'] as List?)
+                  ?.map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList() ??
+              [];
+          if (rows.isNotEmpty) return rows;
+        }
+      } catch (_) {}
+    }
+
+    if (kIsWeb) return [];
+
+    final db = await _db;
+    final since =
+        DateTime.now().subtract(Duration(days: days)).toIso8601String();
+    final rows = await db.query(
+      'GoldPriceHistory',
+      where: 'carat = ? AND recorded_at >= ?',
+      whereArgs: [carat, since],
+      orderBy: 'recorded_at ASC',
+    );
+    return rows.map((r) => Map<String, dynamic>.from(r)).toList();
   }
 
   // ════════════════════════════════════════════════════════════

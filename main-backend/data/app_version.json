@@ -1,8 +1,8 @@
 {
-  "latest_version_code": 13,
-  "min_version_code": 13,
+  "latest_version_code": 15,
+  "min_version_code": 14,
   "whats_new": {
-    "en": "- Ingots & Coins price calculator\n- Firebase Analytics\n- Bug fixes and improvements",
-    "ar": "- حاسبة أسعار السبائك والعملات\n- تحليلات الاستخدام\n- إصلاحات وتحسينات"
+    "en": "- Gold price history chart\n- Silver prices (999 & 925)\n- Silver assets tracking\n- Improved price labels\n- Contact Us for suggestions",
+    "ar": "- سجل أسعار الذهب\n- أسعار الفضة (عيار 999 و 925)\n- تتبع أصول الفضة\n- تحسين عرض الأسعار\n- تواصل معنا لاقتراحاتك"
   }
 }

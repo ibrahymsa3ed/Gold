@@ -44,7 +44,7 @@ alwaysApply: true
 
 ### Deploying backend updates:
 ```bash
-ssh ubuntu@207.127.99.147 "cd /home/ubuntu/Gold && git pull origin develop && cd main-backend && npm install --production && pm2 restart instagold-backend"
+ssh ubuntu@207.127.99.147 "cd /home/ubuntu/Gold && git pull origin main && cd main-backend && npm install --production && pm2 restart instagold-backend"
 ```
 
 ### Key env vars on VM (.env):
@@ -156,8 +156,8 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - Package: `com.ibrahym.goldfamily`
 - Play Console: https://play.google.com/console/u/0/developers/6183037720371974289/app/4972005972149303949
 - Closed testing completed: 12 testers, 14+ days
-- **Latest version in production**: `1.0.4+10` — live on Google Play
-- **Codebase HEAD**: `1.0.5+13` — ready for next Play Store release
+- **Latest version in production**: `1.0.6+14` — published to Google Play
+- **Codebase HEAD**: `1.0.6+15` — next Play Store release
 - Google Play signing SHA-1: `F3:13:36:92:3D:FD:83:F9:33:87:D1:30:EF:44:52:E1:70:36:95:B4` — already in Firebase
 - `play-store-assets/` folder contains all graphics (icon, feature graphic, 5 phone + 4 tablet screenshots)
 - Ads: **disabled** (`kAdsEnabled = false` in `lib/config/ad_config.dart`) — re-enable when downloads reach suitable numbers
@@ -172,8 +172,10 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 | 1.0.2+7 | v7 | closed testing | Full develop merge: HTTPS, tutorial, all fixes |
 | 1.0.3+8 | v8 | superseded | Goals use sell price fix |
 | 1.0.4+10 | v10 | **Production (live)** | Ingots & coins calculator, tutorial slide 7, permission fix |
-| 1.0.4+12 | v12 | codebase HEAD | Removed invoice attachment feature |
-| 1.0.5+13 | v13 | codebase HEAD | In-app update system, analytics |
+| 1.0.4+12 | v12 | superseded | Removed invoice attachment feature |
+| 1.0.5+13 | v13 | superseded | In-app update system, analytics |
+| 1.0.6+14 | v14 | **Production (uploading)** | Silver, chart, asset reorder, labels, replay tutorial |
+| 1.0.6+15 | v15 | codebase HEAD | Fix silver labels, contact us, backend price history deploy |
 
 ## Git
 - Remote: github.com/ibrahymsa3ed/Gold
@@ -181,10 +183,47 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - `main` and `develop` are now in sync (merged May 21, 2026)
 - `InstaGold.apk` / `InstaGold.aab` at repo root are gitignored
 
+## Pending Changes (implemented in codebase, pending next production release)
+- ~~Remove `InstaGoldAdBanner`~~ — DONE
+- ~~Reduce bottom padding from 132px to 100px~~ — DONE
+- ~~Add buy/sell labels~~ — DONE (labels placed ABOVE the price chips, not inside them)
+- ~~Add edge-to-edge support~~ — DONE (`enableEdgeToEdge()` in `MainActivity.kt` + `androidx.activity-ktx` dep)
+- ~~Add silver price cards~~ — DONE (فضة 999 + فضة 925, scraped from `banklive.net`, silver gradient)
+- ~~Add Replay Tutorial in Settings~~ — DONE (resets `instagold_tutorial_seen` via `onReplayTutorial` callback)
+
+## Pending Changes (NOT yet implemented — apply with next release)
+- Reorder asset types in "Add Asset" dialog: **Ingot first, Jewellery last** (current order is Jewellery → Coins → Ingot)
+- Add **silver assets** to the My Gold (assets) tab:
+  - Silver assets should appear in a separate section BELOW gold assets
+  - Silver assets should NOT be included in gold totals (total value, total weight, zakat, etc.)
+  - Silver should have its own separate summary section
+  - Use silver_999 / silver_925 price from the scraper for valuation
+- **Gold price history chart** (UI not yet built, but DB + recording is ACTIVE since v5):
+  - `GoldPriceHistory` table records every price sync (all karats + silver + ounce + rate)
+  - Indexed on `(carat, recorded_at)` for fast range queries
+  - Chart UI: user picks karat + time range (7d/30d/90d/1y), sees sell price over time
+  - Tap a point or pick a date to see exact price
+  - Use `fl_chart` package for the chart widget
+  - Data only exists from when user updates to v5+ — no historical backfill
+
 ## General Rules (always apply)
 - For **every new change**: build a pre-release (debug) APK, test on emulator AND physical Android device, confirm working before finalizing
 - Never use "الحية" or "اللحظية" in any string
 - Keep `main` clean and stable — develop on `develop` branch
+- **iOS builds MUST use `-configuration Release`** — debug builds crash on physical devices without debugger attached (`Cannot create a FlutterEngine instance in debug mode without Flutter tooling`)
+- **Buy/sell labels on price cards**: always place labels ABOVE or BESIDE the price chip boxes, NEVER inside them — labels inside chips cut off the price text
+- **Swift Package Manager is DISABLED** (`flutter config --no-enable-swift-package-manager`) — use CocoaPods only for iOS builds until SPM resolution issues are fixed
+
+## Production Release Checklist (MANDATORY for every release)
+1. Bump `version` in `pubspec.yaml` (both version name + build number)
+2. Update `main-backend/data/app_version.json`:
+   - Set `latest_version_code` to the new build number
+   - Set `min_version_code` to the force-update threshold
+   - Update `whats_new` with **user-facing features ONLY** — never include technical items like analytics, refactoring, dependency changes, etc.
+3. Build prod APK + AAB (`--flavor prod --dart-define=INSTAGOLD_FLAVOR=prod`)
+4. Commit and push to `main`
+5. Deploy backend to Oracle Cloud: `ssh ubuntu@207.127.99.147 "cd /home/ubuntu/Gold && git pull origin main && cd main-backend && npm install --production && pm2 restart instagold-backend"`
+6. Upload AAB to Google Play Console
 
 ## iOS Device Install Notes
 - No paid Apple Developer account yet — can only install via USB + Xcode

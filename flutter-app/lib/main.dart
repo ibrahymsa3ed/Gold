@@ -5,11 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:home_widget/home_widget.dart';
 
 import 'app.dart';
-import 'config/ad_config.dart';
 import 'firebase_options.dart';
 import 'services/ios_background_fetch.dart';
 import 'services/price_watcher.dart';
@@ -25,7 +23,6 @@ void main() async {
     // The handler itself lives in push_notifications_service.dart.
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await HomeWidget.setAppGroupId('group.com.ibrahym.goldtracker');
-    if (kAdsEnabled) await MobileAds.instance.initialize();
     await PriceWatcher.initialize();
     if (Platform.isIOS) {
       await IosBackgroundFetch.initialize();

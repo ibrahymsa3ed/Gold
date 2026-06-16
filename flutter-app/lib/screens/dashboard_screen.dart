@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,7 +26,6 @@ import '../services/notifications_service.dart';
 import '../services/push_notifications_service.dart';
 import '../theme/app_themes.dart';
 import '../widgets/ig_logo.dart';
-import '../widgets/instagold_ad_banner.dart';
 import '../widgets/premium_background.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -40,6 +40,7 @@ class DashboardScreen extends StatefulWidget {
     required this.onLocaleChanged,
     required this.onThemeChanged,
     this.onLogout,
+    this.onReplayTutorial,
   });
 
   final AuthService authService;
@@ -51,6 +52,7 @@ class DashboardScreen extends StatefulWidget {
   final ValueChanged<Locale> onLocaleChanged;
   final ValueChanged<bool> onThemeChanged;
   final VoidCallback? onLogout;
+  final VoidCallback? onReplayTutorial;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -76,7 +78,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _assetsHidden = false;
   final NumberFormat _currency = NumberFormat('#,##0.##');
 
-  List<String> _priceCardOrder = ['21k', '24k', '14k_18k', 'pound_ounce'];
+  List<String> _priceCardOrder = [
+    '21k',
+    '24k',
+    '14k_18k',
+    'pound_ounce',
+    'silver'
+  ];
 
   // Calculator panel state
   String _calcKarat = '21k';
@@ -91,6 +99,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _ingotCompanyId = 'btc';
   int _ingotWeightIdx = 0;
   List<dynamic> _ingotCompanies = [];
+
+  // Price history chart state
+  bool _chartExpanded = false;
+  String _chartKarat = '21k';
+  int _chartDays = 30;
+  List<Map<String, dynamic>> _chartData = [];
+  bool _chartLoading = false;
 
   @override
   void initState() {
@@ -107,10 +122,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _loadCardOrder() async {
     final prefs = await SharedPreferences.getInstance();
-    const _kCardOrderKey = 'price_card_order';
-    final stored = prefs.getStringList(_kCardOrderKey);
+    const kCardOrderKey = 'price_card_order';
+    final stored = prefs.getStringList(kCardOrderKey);
     if (stored != null && stored.isNotEmpty) {
-      setState(() => _priceCardOrder = stored);
+      final order = List<String>.from(stored);
+      if (!order.contains('silver')) order.add('silver');
+      setState(() => _priceCardOrder = order);
     }
   }
 
@@ -610,10 +627,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  static const _mainAssetTypes = ['jewellery', 'coins', 'ingot'];
+  static const _mainAssetTypes = ['ingot', 'coins', 'jewellery', 'silver'];
   static const _jewellerySubTypes = ['ring', 'necklace', 'bracelet', 'other'];
   static const _karatOptions = ['24k', '21k', '18k', '14k'];
-  static const _defaultKarats = {'coins': '21k', 'ingot': '24k'};
+  static const _silverKaratOptions = ['silver_999', 'silver_925'];
+  static const _defaultKarats = {
+    'coins': '21k',
+    'ingot': '24k',
+    'silver': 'silver_999',
+  };
 
   static const _coinSizes = {
     '5_pounds': {'label': '5 Pounds', 'grams': 40.0},
@@ -642,7 +664,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _addAssetDialog({Map<String, dynamic>? existing}) async {
     if (_selectedMemberId == null) return;
 
-    final rawType = existing?['asset_type']?.toString() ?? 'ring';
+    final rawType = existing?['asset_type']?.toString() ?? 'ingot';
     String selectedMainType = _mainTypeOf(rawType);
     final bool isOtherJewellery = !_jewellerySubTypes.contains(rawType) &&
         selectedMainType == 'jewellery' &&
@@ -654,7 +676,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         TextEditingController(text: isOtherJewellery ? rawType : '');
     String selectedCoinSize = 'pound';
     String selectedIngotSize = '10g';
-    String selectedKarat = existing?['karat']?.toString() ?? '21k';
+    String selectedKarat = existing?['karat']?.toString() ??
+        (_defaultKarats[selectedMainType] ?? '21k');
     final weight =
         TextEditingController(text: existing?['weight_g']?.toString() ?? '');
     final purchasePrice = TextEditingController(
@@ -679,6 +702,19 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     if (_defaultKarats.containsKey(selectedMainType) && existing == null) {
       selectedKarat = _defaultKarats[selectedMainType]!;
+    }
+
+    // Pre-fill weight for the default type on new assets
+    if (existing == null) {
+      if (selectedMainType == 'ingot' && selectedIngotSize != 'manual') {
+        weight.text =
+            (_ingotSizes[selectedIngotSize]!['grams']! as num).toString();
+        weightLocked = true;
+      } else if (selectedMainType == 'coins' && selectedCoinSize != 'manual') {
+        weight.text =
+            (_coinSizes[selectedCoinSize]!['grams']! as num).toString();
+        weightLocked = true;
+      }
     }
 
     void applySizeWeight(StateSetter setDialogState) {
@@ -800,7 +836,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ? '${AppStrings.t(context, 'karat')} (${AppStrings.t(context, 'karat_default_hint')} ${_karatLabelFromKey(_defaultKarats[selectedMainType]!)})'
                           : AppStrings.t(context, 'karat'),
                     ),
-                    items: _karatOptions
+                    items: (selectedMainType == 'silver'
+                            ? _silverKaratOptions
+                            : _karatOptions)
                         .map((k) => DropdownMenuItem(
                             value: k, child: Text(_karatLabelFromKey(k))))
                         .toList(),
@@ -1405,7 +1443,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final sell = data != null ? _currency.format(data['sell_price']) : '—';
     final currency = currencyOverride ?? data?['currency']?.toString() ?? 'EGP';
 
-    final height = isHero ? 150.0 : 120.0;
+    final height = isHero ? 170.0 : 140.0;
     final labelSize = isHero ? 13.0 : 11.5;
     final priceSize = isHero ? 32.0 : 22.0;
     final subSize = isHero ? 12.0 : 11.0;
@@ -1491,9 +1529,41 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           Row(
             children: [
-              Flexible(child: _priceChip(buy, subSize)),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStrings.isAr(context) ? 'شراء' : 'Buy',
+                      style: TextStyle(
+                        fontSize: subSize - 2,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    _priceChip(buy, subSize),
+                  ],
+                ),
+              ),
               const SizedBox(width: 6),
-              Flexible(child: _priceChip(sell, subSize)),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStrings.isAr(context) ? 'بيع' : 'Sell',
+                      style: TextStyle(
+                        fontSize: subSize - 2,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    _priceChip(sell, subSize),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -1914,6 +1984,32 @@ class _DashboardScreenState extends State<DashboardScreen>
             Expanded(child: _ounceCard()),
           ],
         );
+      case 'silver':
+        return Row(
+          children: [
+            Expanded(
+                child: _priceCard(
+              label: AppStrings.t(context, 'silver_999'),
+              karat: 'silver_999',
+              gradientColors: const [
+                Color(0xFFB8C4CC),
+                Color(0xFF8A939B),
+                Color(0xFF6B7680),
+              ],
+            )),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _priceCard(
+              label: AppStrings.t(context, 'silver_925'),
+              karat: 'silver_925',
+              gradientColors: const [
+                Color(0xFFB8C4CC),
+                Color(0xFF8A939B),
+                Color(0xFF6B7680),
+              ],
+            )),
+          ],
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -1982,6 +2078,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
         if (_ingotCompanies.isNotEmpty)
           SliverToBoxAdapter(child: _ingotCoinCalculator()),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        SliverToBoxAdapter(child: _priceHistoryChart()),
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         if (_summary != null)
           SliverToBoxAdapter(
@@ -2054,13 +2152,15 @@ class _DashboardScreenState extends State<DashboardScreen>
   ///   ar -> "عيار 21", "عيار 24"
   /// Numbers stay in Western digits in both modes (product decision).
   String _karatLabelFromKey(String karatKey) {
+    if (karatKey == 'silver_999') return AppStrings.t(context, 'silver_999');
+    if (karatKey == 'silver_925') return AppStrings.t(context, 'silver_925');
     return AppStrings.formatKarat(
         widget.locale.languageCode, _karatNumber(karatKey));
   }
 
   Map<String, double> _gramsByKarat() {
     final map = <String, double>{};
-    for (final asset in _assets) {
+    for (final asset in _goldAssets) {
       final karat = asset['karat']?.toString() ?? '?';
       final weight = (asset['weight_g'] as num?)?.toDouble() ?? 0;
       map[karat] = (map[karat] ?? 0) + weight;
@@ -2070,7 +2170,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   double _totalIn21k() {
     double total = 0;
-    for (final asset in _assets) {
+    for (final asset in _goldAssets) {
       final karat = asset['karat']?.toString() ?? '21k';
       final weight = (asset['weight_g'] as num?)?.toDouble() ?? 0;
       total += weight * _karatNumber(karat) / 21;
@@ -2156,6 +2256,293 @@ class _DashboardScreenState extends State<DashboardScreen>
       'loss': loss,
       'loss_pct': lossPct,
     };
+  }
+
+  Future<void> _loadChartData() async {
+    if (_chartLoading) return;
+    setState(() => _chartLoading = true);
+    try {
+      final data =
+          await widget.apiService.getPriceHistory(_chartKarat, _chartDays);
+      if (mounted) setState(() => _chartData = data);
+    } catch (_) {}
+    if (mounted) setState(() => _chartLoading = false);
+  }
+
+  Widget _priceHistoryChart() {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final goldAccent =
+        isDark ? const Color(0xFFD4B254) : const Color(0xFFB5973F);
+
+    return _sectionCard(
+      title: AppStrings.t(context, 'price_history'),
+      actions: [
+        IconButton(
+          icon: Icon(
+            _chartExpanded
+                ? Icons.expand_less_rounded
+                : Icons.expand_more_rounded,
+            color: goldAccent,
+          ),
+          onPressed: () {
+            setState(() => _chartExpanded = !_chartExpanded);
+            if (_chartExpanded && _chartData.isEmpty) _loadChartData();
+          },
+        ),
+      ],
+      child: !_chartExpanded
+          ? const SizedBox.shrink()
+          : Column(
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final entry in [
+                        ('21k', AppStrings.formatKarat(
+                            Localizations.localeOf(context).languageCode, 21)),
+                        ('24k', AppStrings.formatKarat(
+                            Localizations.localeOf(context).languageCode, 24)),
+                        ('ounce', AppStrings.t(context, 'ounce')),
+                        ('silver_999', AppStrings.t(context, 'silver_999')),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            label: Text(entry.$2,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _chartKarat == entry.$1
+                                      ? goldAccent
+                                      : cs.onSurface.withValues(alpha: 0.5),
+                                )),
+                            selected: _chartKarat == entry.$1,
+                            onSelected: (_) {
+                              setState(() {
+                                _chartKarat = entry.$1;
+                                _chartData = [];
+                              });
+                              _loadChartData();
+                            },
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    for (final d in [
+                      (7, AppStrings.t(context, 'seven_days')),
+                      (30, AppStrings.t(context, 'thirty_days')),
+                      (90, AppStrings.t(context, 'ninety_days')),
+                      (365, AppStrings.t(context, 'one_year')),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(d.$2,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _chartDays == d.$1
+                                    ? goldAccent
+                                    : cs.onSurface.withValues(alpha: 0.5),
+                              )),
+                          selected: _chartDays == d.$1,
+                          onSelected: (_) {
+                            setState(() {
+                              _chartDays = d.$1;
+                              _chartData = [];
+                            });
+                            _loadChartData();
+                          },
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 200,
+                  child: _chartLoading
+                      ? const Center(
+                          child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)))
+                      : _chartData.isEmpty
+                          ? Center(
+                              child: Text(
+                                AppStrings.t(context, 'no_history_data'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: cs.onSurface.withValues(alpha: 0.5)),
+                              ),
+                            )
+                          : _buildLineChart(goldAccent, cs),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildLineChart(Color accent, ColorScheme cs) {
+    final spots = <FlSpot>[];
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
+
+    for (int i = 0; i < _chartData.length; i++) {
+      final row = _chartData[i];
+      final sell = (row['sell_price'] as num?)?.toDouble() ?? 0;
+      if (sell <= 0) continue;
+      spots.add(FlSpot(i.toDouble(), sell));
+      if (sell < minY) minY = sell;
+      if (sell > maxY) maxY = sell;
+    }
+
+    if (spots.isEmpty) {
+      return Center(
+        child: Text(
+          AppStrings.t(context, 'no_history_data'),
+          style: TextStyle(
+              fontSize: 12, color: cs.onSurface.withValues(alpha: 0.5)),
+        ),
+      );
+    }
+
+    final range = maxY - minY;
+    final padding = range > 0 ? range * 0.1 : 10;
+
+    return LineChart(
+      LineChartData(
+        minY: minY - padding,
+        maxY: maxY + padding,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: range > 0 ? range / 4 : 1,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: cs.outlineVariant.withValues(alpha: 0.15),
+            strokeWidth: 0.5,
+          ),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 52,
+              getTitlesWidget: (value, meta) {
+                if (value == meta.min || value == meta.max) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Text(
+                    _currency.format(value),
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: cs.onSurface.withValues(alpha: 0.4)),
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: spots.length > 10
+                  ? (spots.length / 5).ceilToDouble()
+                  : 1,
+              getTitlesWidget: (value, meta) {
+                final idx = value.toInt();
+                if (idx < 0 || idx >= _chartData.length) {
+                  return const SizedBox.shrink();
+                }
+                final recorded =
+                    _chartData[idx]['recorded_at']?.toString() ?? '';
+                final dt = DateTime.tryParse(recorded);
+                if (dt == null) return const SizedBox.shrink();
+                final label = '${dt.day}/${dt.month}';
+                return Text(label,
+                    style: TextStyle(
+                        fontSize: 8,
+                        color: cs.onSurface.withValues(alpha: 0.4)));
+              },
+            ),
+          ),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) =>
+                (cs.brightness == Brightness.dark
+                    ? const Color(0xFF2A2520)
+                    : Colors.white)
+                    .withValues(alpha: 0.95),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final idx = spot.x.toInt();
+                String dateStr = '';
+                if (idx >= 0 && idx < _chartData.length) {
+                  final dt = DateTime.tryParse(
+                      _chartData[idx]['recorded_at']?.toString() ?? '');
+                  if (dt != null) {
+                    dateStr =
+                        '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                  }
+                }
+                return LineTooltipItem(
+                  '${_currency.format(spot.y)}\n$dateStr',
+                  TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12),
+                );
+              }).toList();
+            },
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.2,
+            preventCurveOverShooting: true,
+            color: accent,
+            barWidth: 2,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: spots.length < 30,
+              getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+                radius: 2.5,
+                color: accent,
+                strokeWidth: 0,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  accent.withValues(alpha: 0.25),
+                  accent.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _ingotCoinCalculator() {
@@ -2768,11 +3155,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _mask(String value) => _assetsHidden ? '••••••' : value;
 
   Widget _assetsTotalsCard() {
-    if (_assets.isEmpty) return const SizedBox.shrink();
+    final goldOnly = _goldAssets;
+    if (goldOnly.isEmpty) return const SizedBox.shrink();
 
     double totalCurrentValue = 0;
     double totalPurchaseCost = 0;
-    for (final asset in _assets) {
+    for (final asset in goldOnly) {
       totalCurrentValue += _currentValueForAsset(asset as Map<String, dynamic>);
       totalPurchaseCost += (asset['purchase_price'] as num?)?.toDouble() ?? 0;
     }
@@ -2896,6 +3284,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     'coins': Icons.paid_outlined,
     'ingot': Icons.account_balance_outlined,
     'other': Icons.diamond_outlined,
+    'silver': Icons.hexagon_outlined,
   };
 
   Widget _assetCircleIcon(String type, {double size = 48, double? weightG}) {
@@ -3318,9 +3707,73 @@ class _DashboardScreenState extends State<DashboardScreen>
                 : () => _addAssetDialog(),
             actionLabel: AppStrings.t(context, 'add_asset'),
           )
-        else
-          ..._assets.map((asset) => _assetCard(asset as Map<String, dynamic>)),
+        else ...[
+          ..._goldAssets
+              .map((asset) => _assetCard(asset as Map<String, dynamic>)),
+          if (_silverAssets.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _silverAssetsSummaryCard(),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                AppStrings.t(context, 'silver_assets'),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF8A939B),
+                ),
+              ),
+            ),
+            ..._silverAssets
+                .map((asset) => _assetCard(asset as Map<String, dynamic>)),
+          ],
+        ],
       ],
+    );
+  }
+
+  List<dynamic> get _goldAssets => _assets
+      .where((a) =>
+          !(a['karat']?.toString().startsWith('silver') ?? false))
+      .toList();
+
+  List<dynamic> get _silverAssets => _assets
+      .where(
+          (a) => a['karat']?.toString().startsWith('silver') ?? false)
+      .toList();
+
+  Widget _silverAssetsSummaryCard() {
+    if (_silverAssets.isEmpty) return const SizedBox.shrink();
+    double totalValue = 0;
+    double totalCost = 0;
+    double totalWeight = 0;
+    for (final asset in _silverAssets) {
+      totalValue += _currentValueForAsset(asset as Map<String, dynamic>);
+      totalCost += (asset['purchase_price'] as num?)?.toDouble() ?? 0;
+      totalWeight += (asset['weight_g'] as num?)?.toDouble() ?? 0;
+    }
+    final profitLoss = totalValue - totalCost;
+    return _sectionCard(
+      title: AppStrings.t(context, 'silver_summary'),
+      child: Column(
+        children: [
+          _totalRow(AppStrings.t(context, 'weight_g'),
+              _mask('${_currency.format(totalWeight)} g')),
+          _totalRow(AppStrings.t(context, 'current_value'),
+              _mask('${_currency.format(totalValue)} EGP')),
+          _totalRow(AppStrings.t(context, 'purchase_cost'),
+              _mask('${_currency.format(totalCost)} EGP')),
+          _totalRow(
+            AppStrings.t(context, 'profit_loss'),
+            _mask(
+                '${profitLoss >= 0 ? '+' : ''}${_currency.format(profitLoss)} EGP'),
+            valueColor: _assetsHidden
+                ? null
+                : (profitLoss >= 0 ? Colors.green : Colors.red),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3674,6 +4127,35 @@ class _DashboardScreenState extends State<DashboardScreen>
                   buildSettingsRow: _settingsRow,
                 ),
               ],
+              Divider(
+                  height: 1,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.15)),
+              if (widget.onReplayTutorial != null)
+                _settingsRow(
+                  icon: Icons.school_outlined,
+                  title: AppStrings.t(context, 'replay_tutorial'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.replay, size: 22),
+                    onPressed: widget.onReplayTutorial,
+                  ),
+                ),
+              Divider(
+                  height: 1,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.15)),
+              _settingsRow(
+                icon: Icons.mail_outline_rounded,
+                title: AppStrings.t(context, 'contact_us'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+                  onPressed: _showContactUsDialog,
+                ),
+              ),
             ],
           ),
         ),
@@ -3681,6 +4163,81 @@ class _DashboardScreenState extends State<DashboardScreen>
         _backupRestoreCard(),
       ],
     );
+  }
+
+  Future<void> _showContactUsDialog() async {
+    final subjectCtrl = TextEditingController();
+    final messageCtrl = TextEditingController();
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          bool sending = false;
+          return AlertDialog(
+            title: Text(AppStrings.t(context, 'contact_us')),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: subjectCtrl,
+                    decoration: InputDecoration(
+                      labelText: AppStrings.t(context, 'subject'),
+                      hintText: AppStrings.t(context, 'suggestion'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: messageCtrl,
+                    decoration: InputDecoration(
+                      labelText: AppStrings.t(context, 'your_message'),
+                    ),
+                    maxLines: 5,
+                    minLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(AppStrings.t(context, 'cancel')),
+              ),
+              TextButton(
+                onPressed: sending
+                    ? null
+                    : () async {
+                        if (messageCtrl.text.trim().isEmpty) return;
+                        setDialogState(() => sending = true);
+                        try {
+                          await widget.apiService.sendFeedback(
+                            subjectCtrl.text.trim(),
+                            messageCtrl.text.trim(),
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx, true);
+                        } catch (_) {
+                          if (ctx.mounted) Navigator.pop(ctx, false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(AppStrings.t(
+                                      context, 'feedback_failed'))),
+                            );
+                          }
+                        }
+                      },
+                child: Text(AppStrings.t(context, 'send')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (sent == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.t(context, 'feedback_sent'))),
+      );
+    }
   }
 
   Widget _settingsRow(
@@ -4469,7 +5026,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         body: _loading
             ? _buildLoadingSkeleton()
             : Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
                 child: IndexedStack(
                   index: _selectedTab,
                   children: [
@@ -4484,7 +5041,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!kIsWeb) const InstaGoldAdBanner(),
             Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               decoration: BoxDecoration(

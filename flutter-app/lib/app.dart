@@ -276,6 +276,11 @@ class _GoldFamilyAppState extends State<GoldFamilyApp> {
               pushNotificationsService: _pushService,
               onLocaleChanged: _handleLocaleChanged,
               onThemeChanged: _handleThemeChanged,
+              onReplayTutorial: () {
+                setState(() => _tutorialSeen = false);
+                SharedPreferences.getInstance()
+                    .then((p) => p.setBool(_kTutorialKey, false));
+              },
               onLogout: () {
                 setState(() => _guestMode = false);
                 SharedPreferences.getInstance()

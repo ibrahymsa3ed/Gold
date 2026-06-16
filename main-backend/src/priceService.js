@@ -7,23 +7,28 @@ const { logEntry } = require("./logger");
 async function cachePrices(sourcePayload) {
   const fetchedAt = new Date().toISOString();
   const inserts = [];
+  const historyInserts = [];
   Object.entries(sourcePayload.prices).forEach(([carat, values]) => {
+    const buy = values.buy_price ?? null;
+    const sell = values.sell_price ?? null;
+    const currency = values.currency ?? "EGP";
     inserts.push(
       run(
         `INSERT INTO GoldPriceCache (source, carat, buy_price, sell_price, currency, fetched_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          "scraper-service",
-          carat,
-          values.buy_price ?? null,
-          values.sell_price ?? null,
-          values.currency ?? "EGP",
-          fetchedAt
-        ]
+        ["scraper-service", carat, buy, sell, currency, fetchedAt]
+      )
+    );
+    historyInserts.push(
+      run(
+        `INSERT INTO GoldPriceHistory (carat, buy_price, sell_price, currency, recorded_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [carat, buy, sell, currency, fetchedAt]
       )
     );
   });
   await Promise.all(inserts);
+  await Promise.all(historyInserts).catch(() => {});
 }
 
 async function syncFromScraper({ force = false } = {}) {
@@ -89,8 +94,20 @@ function startPriceScheduler({ afterSync } = {}) {
   });
 }
 
+async function getPriceHistory(carat, days = 30) {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return all(
+    `SELECT carat, buy_price, sell_price, currency, recorded_at
+     FROM GoldPriceHistory
+     WHERE carat = ? AND recorded_at >= ?
+     ORDER BY recorded_at ASC`,
+    [carat, since]
+  );
+}
+
 module.exports = {
   syncFromScraper,
   getLatestCachedPrices,
-  startPriceScheduler
+  startPriceScheduler,
+  getPriceHistory
 };

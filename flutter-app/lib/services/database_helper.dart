@@ -24,7 +24,7 @@ class DatabaseHelper {
     final path = p.join(dbPath, 'gold_family.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createTables,
       onUpgrade: _upgradeTables,
     );
@@ -110,6 +110,18 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS GoldPriceHistory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        carat TEXT NOT NULL,
+        buy_price REAL,
+        sell_price REAL,
+        currency TEXT NOT NULL DEFAULT 'EGP',
+        recorded_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_price_history_carat_date ON GoldPriceHistory (carat, recorded_at)');
+
     await db.execute('CREATE INDEX IF NOT EXISTS idx_members_user ON FamilyMembers (user_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_assets_member ON Assets (member_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_savings_member ON Savings (member_id)');
@@ -131,6 +143,19 @@ class DatabaseHelper {
     if (oldVersion < 4) {
       await db.execute(
           'ALTER TABLE PurchaseGoals ADD COLUMN manufacturing_price_g REAL NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS GoldPriceHistory (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          carat TEXT NOT NULL,
+          buy_price REAL,
+          sell_price REAL,
+          currency TEXT NOT NULL DEFAULT 'EGP',
+          recorded_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_price_history_carat_date ON GoldPriceHistory (carat, recorded_at)');
     }
   }
 

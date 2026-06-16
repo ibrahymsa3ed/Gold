@@ -6,6 +6,8 @@ class GoldScraper {
   static const _sourceUrl = 'https://edahabapp.com/';
   static const _telegramUrl = 'https://t.me/s/eDahabApp';
   static const _exchangeRateUrl = 'https://open.er-api.com/v6/latest/USD';
+  static const _silverUrl =
+      'https://banklive.net/ar/silver-price-today-in-egypt';
   static const _carats = ['24', '21', '18', '14'];
 
   static double? _parseNumber(String? value) {
@@ -235,5 +237,47 @@ class GoldScraper {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// Scrape silver prices (EGP per gram) from banklive.net.
+  /// Returns keys: 'silver_999', 'silver_925' (each nullable double).
+  static Future<Map<String, double?>> scrapeSilverPrices() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse(_silverUrl),
+            headers: {'User-Agent': 'InstaGold/2.0'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        return _parseSilverPrices(response.body);
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  static Map<String, double?> _parseSilverPrices(String htmlContent) {
+    final document = parse(htmlContent);
+    double? silver999;
+    double? silver925;
+
+    final links = document.querySelectorAll('a[href]');
+    for (final link in links) {
+      final href = link.attributes['href'] ?? '';
+      final row = link.parent?.parent; // td -> tr
+      if (row == null) continue;
+      final boldDivs = row.querySelectorAll('.fw-bold');
+      if (boldDivs.isEmpty) continue;
+      final price = _parseNumber(boldDivs.first.text);
+      if (price == null || price <= 0) continue;
+
+      if (href.contains('silver-gram-999') && silver999 == null) {
+        silver999 = price;
+      } else if (href.contains('silver-gram-925') && silver925 == null) {
+        silver925 = price;
+      }
+    }
+
+    return {'silver_999': silver999, 'silver_925': silver925};
   }
 }

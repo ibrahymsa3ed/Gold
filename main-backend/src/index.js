@@ -4,7 +4,7 @@ const cors = require("cors");
 const config = require("./config");
 const { initDb, all, get, run } = require("./db");
 const { logEntry } = require("./logger");
-const { syncFromScraper, getLatestCachedPrices, startPriceScheduler } = require("./priceService");
+const { syncFromScraper, getLatestCachedPrices, startPriceScheduler, getPriceHistory } = require("./priceService");
 const { buildAssetSummary, calculateGoal, calculateZakat } = require("./calculations");
 const { initFirebaseAdmin } = require("./firebase");
 const { requireAuth, upsertUserFromClaims } = require("./authMiddleware");
@@ -39,6 +39,18 @@ const _appVersionData = require("../data/app_version.json");
 app.get("/api/app-version", (_, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json(_appVersionData);
+});
+
+app.get("/api/prices/history", async (req, res) => {
+  try {
+    const carat = req.query.carat || "21k";
+    const days = Math.min(Number(req.query.days) || 30, 365);
+    const rows = await getPriceHistory(carat, days);
+    res.set("Cache-Control", "public, max-age=900");
+    return res.json({ carat, days, data: rows });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch price history." });
+  }
 });
 
 app.get("/api/prices/current", requireAuth, async (_, res) => {
@@ -146,6 +158,54 @@ app.delete("/api/alerts/:alertId", requireAuth, async (req, res) => {
   if (!row) return res.status(404).json({ message: "Alert not found." });
   await run(`DELETE FROM PriceAlerts WHERE id = ?`, [req.params.alertId]);
   return res.json({ success: true });
+});
+
+// ── Contact Us / Feedback ─────────────────────────────────────────────────
+
+const nodemailer = require("nodemailer");
+
+const _feedbackTransport = (() => {
+  const user = process.env.FEEDBACK_EMAIL_USER;
+  const pass = process.env.FEEDBACK_EMAIL_PASS;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass }
+  });
+})();
+
+app.post("/api/feedback", requireAuth, async (req, res) => {
+  try {
+    const { subject, message } = req.body || {};
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: "message is required." });
+    }
+    const userEmail = req.user.email || req.auth.email || "unknown";
+    const subj = (subject || "").trim() || "Feedback";
+
+    if (_feedbackTransport) {
+      await _feedbackTransport.sendMail({
+        from: process.env.FEEDBACK_EMAIL_USER,
+        to: process.env.FEEDBACK_EMAIL_USER,
+        replyTo: userEmail,
+        subject: `[InstaGold] ${subj} — from ${userEmail}`,
+        text: `From: ${userEmail}\n\n${message.trim()}`
+      });
+    }
+
+    await logEntry({
+      action: "FEEDBACK_SENT",
+      details: `user=${userEmail} subject=${subj}`
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    await logEntry({
+      level: "ERROR",
+      action: "FEEDBACK_ERROR",
+      details: error.message
+    });
+    return res.status(500).json({ message: "Failed to send feedback." });
+  }
 });
 
 app.post("/api/auth/session", requireAuth, async (req, res) => {

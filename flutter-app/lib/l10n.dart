@@ -167,6 +167,26 @@ class AppStrings {
       'update_now': 'Update Now',
       'later': 'Later',
       'got_it': 'Got it',
+      'silver_999': '999 Karat',
+      'silver_925': '925 Karat',
+      'silver_prices': 'Silver Prices',
+      'replay_tutorial': 'Replay Tutorial',
+      'contact_us': 'Contact Us',
+      'subject': 'Subject',
+      'your_message': 'Your Message',
+      'send': 'Send',
+      'feedback_sent': 'Your message has been sent. Thank you!',
+      'feedback_failed': 'Failed to send message. Please try again.',
+      'suggestion': 'Suggestion',
+      'price_history': 'Price History',
+      'seven_days': '7D',
+      'thirty_days': '30D',
+      'ninety_days': '90D',
+      'one_year': '1Y',
+      'no_history_data': 'No price history yet. Data will accumulate over time.',
+      'silver_assets': 'Silver Assets',
+      'silver_summary': 'Silver Summary',
+      'silver': 'Silver',
     },
     'ar': {
       'app_title': 'ذهب العائلة',
@@ -331,6 +351,26 @@ class AppStrings {
       'update_now': 'تحديث الآن',
       'later': 'لاحقاً',
       'got_it': 'حسناً',
+      'silver_999': 'عيار 999',
+      'silver_925': 'عيار 925',
+      'silver_prices': 'أسعار الفضة',
+      'replay_tutorial': 'إعادة عرض الشرح',
+      'contact_us': 'تواصل معنا',
+      'subject': 'الموضوع',
+      'your_message': 'رسالتك',
+      'send': 'إرسال',
+      'feedback_sent': 'تم إرسال رسالتك. شكراً لك!',
+      'feedback_failed': 'فشل إرسال الرسالة. حاول مرة أخرى.',
+      'suggestion': 'اقتراح',
+      'price_history': 'سجل الأسعار',
+      'seven_days': '7 أيام',
+      'thirty_days': '30 يوم',
+      'ninety_days': '90 يوم',
+      'one_year': 'سنة',
+      'no_history_data': 'لا يوجد سجل أسعار بعد. ستتراكم البيانات مع الوقت.',
+      'silver_assets': 'أصول الفضة',
+      'silver_summary': 'ملخص الفضة',
+      'silver': 'فضة',
     },
   };
 
@@ -355,6 +395,6 @@ class AppStrings {
   /// Numbers stay in Western digits in both modes (product decision).
   static String formatKarat(String localeCode, int karat) {
     final isArabic = localeCode == 'ar';
-    return isArabic ? 'عيار $karat' : '${karat}K';
+    return isArabic ? 'عيار $karat' : '$karat Karat';
   }
 }
