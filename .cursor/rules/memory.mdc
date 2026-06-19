@@ -192,19 +192,10 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 - ~~Add Replay Tutorial in Settings~~ — DONE (resets `instagold_tutorial_seen` via `onReplayTutorial` callback)
 
 ## Pending Changes (NOT yet implemented — apply with next release)
-- Reorder asset types in "Add Asset" dialog: **Ingot first, Jewellery last** (current order is Jewellery → Coins → Ingot)
-- Add **silver assets** to the My Gold (assets) tab:
-  - Silver assets should appear in a separate section BELOW gold assets
-  - Silver assets should NOT be included in gold totals (total value, total weight, zakat, etc.)
-  - Silver should have its own separate summary section
-  - Use silver_999 / silver_925 price from the scraper for valuation
-- **Gold price history chart** (UI not yet built, but DB + recording is ACTIVE since v5):
-  - `GoldPriceHistory` table records every price sync (all karats + silver + ounce + rate)
-  - Indexed on `(carat, recorded_at)` for fast range queries
-  - Chart UI: user picks karat + time range (7d/30d/90d/1y), sees sell price over time
-  - Tap a point or pick a date to see exact price
-  - Use `fl_chart` package for the chart widget
-  - Data only exists from when user updates to v5+ — no historical backfill
+- **Android widget auto-refresh**: Use `WorkManager` periodic task (every 15 min) to scrape prices and update the home screen widget without opening the app
+- **Add silver prices to existing widget**: The current widget shows all gold karats — add silver 999/925 prices to it
+- **New widget: Assets Summary**: A home screen widget showing the user's total gold/silver assets value and weight at a glance
+- **New widget: Goal Progress**: A home screen widget showing progress toward the user's savings/purchase goal (target vs current)
 
 ## General Rules (always apply)
 - For **every new change**: build a pre-release (debug) APK, test on emulator AND physical Android device, confirm working before finalizing
