@@ -217,6 +217,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=<full JSON string>
 6. Upload AAB to Google Play Console
 
 ## iOS Device Install Notes
+- **Free provisioning profile expires every 7 days** — when the user says "the seven days expired", rebuild and reinstall the iOS release on the physical iPhone immediately
 - No paid Apple Developer account yet — can only install via USB + Xcode
 - New devices need `xcodebuild -destination 'id=<ID>' -allowProvisioningUpdates` first
 - Each new device needs Developer Mode enabled (Settings > Privacy & Security)
